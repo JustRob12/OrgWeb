@@ -23,22 +23,27 @@ export default function LoginPage() {
 
     try {
       const supabase = createClient()
-      // 1. Authenticate using the accounts table (as per user schema)
-      const { data: account, error } = await supabase
-        .from('accounts')
-        .select('*, users(*)')
-        .eq('username', email) // Using email field as username for simplicity
-        .eq('password', password)
-        .single()
+      
+      // Use the RPC function for secure password verification
+      const { data, error } = await supabase
+        .rpc('verify_user', {
+          u_name: email.trim(),
+          u_pass: password.trim()
+        })
+
+      const account = data?.[0]
 
       if (error || !account) {
+        console.error("Login error details:", error)
         toast.error("Invalid credentials. Please try again.")
         setIsLoading(false)
         return
       }
 
+      const userAccount = account as any;
+
       // 2. Role detection: 0 is Admin
-      if (account.role === 0) {
+      if (userAccount.role === 0) {
         toast.success("Welcome, Admin!")
         router.push("/admin")
       } else {
@@ -121,7 +126,7 @@ export default function LoginPage() {
               <form onSubmit={handleLogin} className="space-y-6">
                 <div className="space-y-4">
                   <div className="space-y-2">
-                    <Label htmlFor="email" className="text-xs font-medium uppercase tracking-widest text-muted-foreground">Email Address</Label>
+                    <Label htmlFor="email" className="text-xs font-medium uppercase tracking-widest text-muted-foreground">Email or Username</Label>
                     <div className="relative group">
                       <LuMail className="absolute left-4 top-1/2 -translate-y-1/2 size-4 text-muted-foreground transition-colors group-focus-within:text-primary" />
                       <Input
