@@ -7,15 +7,48 @@ import { Input } from "../Components/ui/input"
 import { Label } from "../Components/ui/label"
 import { Card, CardContent } from "../Components/ui/card"
 import { Badge } from "../Components/ui/badge"
+import { useRouter } from "next/navigation"
+import { createClient } from "@/utils/supabase/client"
+import { Toaster, toast } from 'sonner'
 
 export default function LoginPage() {
   const [isLoading, setIsLoading] = React.useState(false)
+  const [email, setEmail] = React.useState("")
+  const [password, setPassword] = React.useState("")
+  const router = useRouter()
 
-  const handleLogin = (e: React.FormEvent) => {
+  const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault()
     setIsLoading(true)
-    // Simulate login delay
-    setTimeout(() => setIsLoading(false), 2000)
+
+    try {
+      const supabase = createClient()
+      // 1. Authenticate using the accounts table (as per user schema)
+      const { data: account, error } = await supabase
+        .from('accounts')
+        .select('*, users(*)')
+        .eq('username', email) // Using email field as username for simplicity
+        .eq('password', password)
+        .single()
+
+      if (error || !account) {
+        toast.error("Invalid credentials. Please try again.")
+        setIsLoading(false)
+        return
+      }
+
+      // 2. Role detection: 0 is Admin
+      if (account.role === 0) {
+        toast.success("Welcome, Admin!")
+        router.push("/admin")
+      } else {
+        toast.success("Welcome back!")
+        router.push("/") // Redirect students to home for now
+      }
+    } catch (err) {
+      toast.error("An error occurred during login.")
+      setIsLoading(false)
+    }
   }
 
   return (
@@ -93,9 +126,11 @@ export default function LoginPage() {
                       <LuMail className="absolute left-4 top-1/2 -translate-y-1/2 size-4 text-muted-foreground transition-colors group-focus-within:text-primary" />
                       <Input
                         id="email"
-                        placeholder="santos.maria@school.edu.ph"
-                        type="email"
+                        placeholder="admin"
+                        type="text"
                         required
+                        value={email}
+                        onChange={(e) => setEmail(e.target.value)}
                         className="pl-12 h-14 bg-slate-50 border-slate-200 focus:bg-white transition-all rounded-xl shadow-sm"
                       />
                     </div>
@@ -112,6 +147,8 @@ export default function LoginPage() {
                         type="password"
                         required
                         placeholder="••••••••"
+                        value={password}
+                        onChange={(e) => setPassword(e.target.value)}
                         className="pl-12 h-14 bg-slate-50 border-slate-200 focus:bg-white transition-all rounded-xl shadow-sm"
                       />
                     </div>
