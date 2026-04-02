@@ -95,3 +95,16 @@ CREATE TABLE IF NOT EXISTS send_credentials (
     status TEXT DEFAULT 'Sent'
 );
 
+-- 9. Create the Events Table
+CREATE TABLE IF NOT EXISTS events (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    title TEXT NOT NULL,
+    description TEXT,
+    start_time TIMESTAMP WITH TIME ZONE NOT NULL,
+    end_time TIMESTAMP WITH TIME ZONE NOT NULL,
+    active INTEGER DEFAULT 1, -- 1 for active, 0 for inactive
+    image_url TEXT, -- Cloudinary link
+    location TEXT, -- Event location details
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+);
+

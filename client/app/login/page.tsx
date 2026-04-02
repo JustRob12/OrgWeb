@@ -42,13 +42,18 @@ export default function LoginPage() {
 
       const userAccount = account as any;
 
-      // 2. Role detection: 0 is Admin
+      // 2. Role detection: 0 is Admin, 1 is Member/Student
       if (userAccount.role === 0) {
-        toast.success("Welcome, Admin!")
-        router.push("/admin")
+        localStorage.setItem("orgweb_user", JSON.stringify(userAccount));
+        toast.success("Welcome, Admin!");
+        router.push("/admin");
+      } else if (userAccount.role === 1) {
+        localStorage.setItem("orgweb_user", JSON.stringify(userAccount));
+        toast.success("Welcome to the Student Portal!");
+        router.push("/student");
       } else {
         toast.success("Welcome back!")
-        router.push("/") // Redirect students to home for now
+        router.push("/") // Default for other roles
       }
     } catch (err) {
       toast.error("An error occurred during login.")
