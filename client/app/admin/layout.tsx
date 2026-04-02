@@ -41,8 +41,25 @@ const menuItems = [
   },
   { name: "Announcements", icon: LuMegaphone, href: "/admin/announcements" },
   { name: "Events", icon: LuCalendar, href: "/admin/events" },
-  { name: "Attendance", icon: LuClipboardCheck, href: "/admin/attendance" },
-  { name: "Finance", icon: LuCircleDollarSign, href: "/admin/finance" },
+  { 
+    name: "Attendance", 
+    icon: LuClipboardCheck, 
+    href: "/admin/attendance",
+    subItems: [
+      { name: "Scan Attendance", href: "/admin/attendance" },
+      { name: "Attendance Records", href: "/admin/attendance/records" },
+    ]
+  },
+  { 
+    name: "Finance", 
+    icon: LuCircleDollarSign, 
+    href: "/admin/finance",
+    subItems: [
+      { name: "Manage Finance", href: "/admin/finance" },
+      { name: "Pay / Scan QR", href: "/admin/finance/scan" },
+      { name: "Financial Records", href: "/admin/finance/records" },
+    ]
+  },
   { name: "Documents", icon: LuFiles, href: "/admin/documents" },
   { name: "Voting", icon: LuVote, href: "/admin/voting" },
   { name: "Reports", icon: LuActivity, href: "/admin/reports" },

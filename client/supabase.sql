@@ -108,3 +108,47 @@ CREATE TABLE IF NOT EXISTS events (
     created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
 );
 
+-- 11. Create Finance Items Table
+CREATE TABLE IF NOT EXISTS finance_items (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    title TEXT NOT NULL,
+    description TEXT,
+    amount NUMERIC DEFAULT 0,
+    deadline DATE,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+);
+
+-- 12. Create Finance Transactions Table
+CREATE TABLE IF NOT EXISTS finance_transactions (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    user_id UUID REFERENCES users(id) ON DELETE CASCADE,
+    finance_id UUID REFERENCES finance_items(id) ON DELETE CASCADE,
+    amount NUMERIC NOT NULL,
+    receipt_number TEXT,
+    transaction_date TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+);
+
+-- Enable RLS (Public access for this development phase)
+ALTER TABLE finance_items ENABLE ROW LEVEL SECURITY;
+ALTER TABLE finance_transactions ENABLE ROW LEVEL SECURITY;
+CREATE POLICY "Public items access" ON finance_items FOR ALL USING (true) WITH CHECK (true);
+GRANT SELECT ON finance_items TO anon, authenticated;
+GRANT SELECT ON finance_transactions TO anon, authenticated;
+
+-- 13. Create Finance Audit View (for flat searching)
+CREATE OR REPLACE VIEW finance_audit_view AS
+SELECT 
+    ft.id,
+    ft.amount,
+    ft.receipt_number,
+    ft.transaction_date,
+    ft.finance_id,
+    u.student_id,
+    u.first_name,
+    u.last_name,
+    fi.title AS item_title
+FROM finance_transactions ft
+JOIN users u ON ft.user_id = u.id
+JOIN finance_items fi ON ft.finance_id = fi.id;
+
+GRANT SELECT ON finance_audit_view TO anon, authenticated, service_role;
