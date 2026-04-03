@@ -69,7 +69,14 @@ export default function AttendanceScannerPage() {
     const html5QrCode = new Html5Qrcode("reader");
     scannerRef.current = html5QrCode;
 
-    const config = { fps: 10, qrbox: { width: 250, height: 250 } };
+    const config = { 
+      fps: 10, 
+      qrbox: (viewfinderWidth: number, viewfinderHeight: number) => {
+        const size = Math.floor(Math.min(viewfinderWidth, viewfinderHeight) * 0.7);
+        return { width: size, height: size };
+      },
+      aspectRatio: 1.0 
+    };
 
     html5QrCode.start(
       { facingMode: "environment" },
@@ -433,9 +440,9 @@ export default function AttendanceScannerPage() {
         </div>
 
         {/* Viewport */}
-        <div className="md:col-span-12 lg:col-span-8">
-           <div className="relative aspect-video lg:aspect-auto lg:h-[550px] w-full rounded-[2.5rem] bg-slate-950 overflow-hidden shadow-inner border-[12px] border-slate-50 relative group">
-              <div id="reader" className="size-full scale-110"></div>
+        <div className="md:col-span-12 lg:col-span-8 flex justify-center lg:justify-end">
+           <div className="relative aspect-square w-full max-w-lg rounded-[2.5rem] bg-slate-950 overflow-hidden shadow-inner border-[12px] border-slate-50 group mx-auto lg:mx-0">
+              <div id="reader" className="size-full [&>video]:object-cover [&>canvas]:object-cover"></div>
               
               {!isScanning && (
                 <div className="absolute inset-0 flex flex-col items-center justify-center bg-slate-950/80 backdrop-blur-md transition-all">

@@ -32,6 +32,8 @@ export default function FinanceScanPage() {
   const [receiptNumber, setReceiptNumber] = useState("");
   const [selectedItems, setSelectedItems] = useState<Record<string, { checked: boolean, amount: string }>>({});
   const [isRecording, setIsRecording] = useState(false);
+  const [existingPayments, setExistingPayments] = useState<any[]>([]);
+  const [paidModalInfo, setPaidModalInfo] = useState<{show: boolean, title: string, amount: number} | null>(null);
   
   const scannerRef = useRef<Html5Qrcode | null>(null);
   const isProcessingScan = useRef(false);
@@ -62,7 +64,14 @@ export default function FinanceScanPage() {
     const html5QrCode = new Html5Qrcode("reader");
     scannerRef.current = html5QrCode;
 
-    const config = { fps: 10, qrbox: { width: 250, height: 250 } };
+    const config = { 
+      fps: 10, 
+      qrbox: (viewfinderWidth: number, viewfinderHeight: number) => {
+        const size = Math.floor(Math.min(viewfinderWidth, viewfinderHeight) * 0.7);
+        return { width: size, height: size };
+      },
+      aspectRatio: 1.0
+    };
 
     html5QrCode.start(
       { facingMode: "environment" },
@@ -135,6 +144,13 @@ export default function FinanceScanPage() {
         return;
       }
 
+      const { data: paymentsData } = await supabase
+        .from("finance_transactions")
+        .select("finance_id, amount")
+        .eq("user_id", userRecord.id);
+
+      setExistingPayments(paymentsData || []);
+
       // Show Payment Modal
       setScannedStudent(userRecord);
       setShowModal(true);
@@ -152,6 +168,17 @@ export default function FinanceScanPage() {
 
   const handleCheckboxChange = (itemId: string, checked: boolean) => {
     if (checked) {
+      const existingPayment = existingPayments.find(p => p.finance_id === itemId);
+      if (existingPayment) {
+        const item = financeItems.find(fi => fi.id === itemId);
+        setPaidModalInfo({
+          show: true,
+          title: item?.title || "This fee",
+          amount: existingPayment.amount
+        });
+        return;
+      }
+
       const item = financeItems.find(fi => fi.id === itemId);
       setSelectedItems(prev => ({
         ...prev,
@@ -215,6 +242,8 @@ export default function FinanceScanPage() {
     setScannedStudent(null);
     setReceiptNumber("");
     setSelectedItems({});
+    setExistingPayments([]);
+    setPaidModalInfo(null);
     isProcessingScan.current = false;
     safeResume();
   };
@@ -236,6 +265,27 @@ export default function FinanceScanPage() {
 
   return (
     <div className="max-w-6xl mx-auto space-y-8 pb-20 relative">
+      {/* Already Paid Modal */}
+      {paidModalInfo && paidModalInfo.show && (
+        <div className="fixed inset-0 z-[200] flex items-center justify-center p-6 bg-slate-950/60 backdrop-blur-sm">
+          <div className="bg-white rounded-3xl p-8 max-w-sm w-full shadow-2xl flex flex-col items-center text-center animate-in zoom-in-95 duration-200">
+            <div className="w-16 h-16 bg-amber-100 rounded-full flex items-center justify-center mb-6">
+              <LuCircleAlert className="size-8 text-amber-500" />
+            </div>
+            <h3 className="text-xl font-black text-slate-900 mb-2">Already Paid</h3>
+            <p className="text-slate-500 font-medium mb-6">
+              This student has already paid for <strong>{paidModalInfo.title}</strong> with the amount of <strong>₱{paidModalInfo.amount.toLocaleString()}</strong>.
+            </p>
+            <Button 
+              onClick={() => setPaidModalInfo(null)}
+              className="w-full h-12 rounded-xl font-black bg-slate-900 text-white hover:bg-slate-800"
+            >
+              Close
+            </Button>
+          </div>
+        </div>
+      )}
+
       {showModal && scannedStudent && (
         <div className="fixed inset-0 z-[100] flex items-center justify-center p-6 bg-slate-950/60 backdrop-blur-sm">
           <div className="relative w-full max-w-xl bg-white rounded-3xl overflow-hidden shadow-2xl flex flex-col max-h-[90vh]">
@@ -386,9 +436,9 @@ export default function FinanceScanPage() {
           </div>
         </div>
 
-        <div className="lg:col-span-8">
-          <div className="relative aspect-video w-full rounded-[2.5rem] bg-slate-950 overflow-hidden shadow-inner border-8 border-slate-50 group">
-            <div id="reader" className="size-full"></div>
+        <div className="lg:col-span-8 flex justify-center lg:justify-end">
+          <div className="relative aspect-square w-full max-w-lg rounded-[2.5rem] bg-slate-950 overflow-hidden shadow-inner border-8 border-slate-50 group mx-auto lg:mx-0">
+            <div id="reader" className="size-full [&>video]:object-cover [&>canvas]:object-cover"></div>
             {!isScanning && (
               <div className="absolute inset-0 flex flex-col items-center justify-center bg-slate-950/80 backdrop-blur-md">
                 <LuScan className="size-12 text-white/10 animate-pulse" />
