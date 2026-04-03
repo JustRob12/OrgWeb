@@ -152,3 +152,22 @@ JOIN users u ON ft.user_id = u.id
 JOIN finance_items fi ON ft.finance_id = fi.id;
 
 GRANT SELECT ON finance_audit_view TO anon, authenticated, service_role;
+
+-- 14. Create Document Folders Table
+CREATE TABLE IF NOT EXISTS document_folders (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    name TEXT NOT NULL,
+    parent_folder_id UUID REFERENCES document_folders(id) ON DELETE CASCADE,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+);
+
+-- 15. Create Documents Table
+CREATE TABLE IF NOT EXISTS documents (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    folder_id UUID REFERENCES document_folders(id) ON DELETE CASCADE,
+    drive_file_id TEXT NOT NULL,
+    name TEXT NOT NULL,
+    file_type TEXT NOT NULL,
+    web_view_link TEXT,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+);

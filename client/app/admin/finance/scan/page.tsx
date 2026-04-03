@@ -168,21 +168,30 @@ export default function FinanceScanPage() {
 
   const handleCheckboxChange = (itemId: string, checked: boolean) => {
     if (checked) {
-      const existingPayment = existingPayments.find(p => p.finance_id === itemId);
-      if (existingPayment) {
-        const item = financeItems.find(fi => fi.id === itemId);
+      const item = financeItems.find(fi => fi.id === itemId);
+      const requiredAmount = parseFloat(item?.amount || "0");
+      
+      const existingPaymentTotal = existingPayments
+        .filter(p => p.finance_id === itemId)
+        .reduce((sum, p) => sum + (parseFloat(p.amount) || 0), 0);
+
+      if (existingPaymentTotal > 0 && existingPaymentTotal >= requiredAmount) {
         setPaidModalInfo({
           show: true,
           title: item?.title || "This fee",
-          amount: existingPayment.amount
+          amount: existingPaymentTotal
         });
         return;
       }
 
-      const item = financeItems.find(fi => fi.id === itemId);
+      const remainingAmount = requiredAmount - existingPaymentTotal;
+      const initialAmountStr = remainingAmount > 0 
+        ? remainingAmount.toString() 
+        : (item?.amount?.toString() || "");
+
       setSelectedItems(prev => ({
         ...prev,
-        [itemId]: { checked: true, amount: item?.amount?.toString() || "" }
+        [itemId]: { checked: true, amount: initialAmountStr }
       }));
     } else {
       setSelectedItems(prev => ({
@@ -274,7 +283,7 @@ export default function FinanceScanPage() {
             </div>
             <h3 className="text-xl font-black text-slate-900 mb-2">Already Paid</h3>
             <p className="text-slate-500 font-medium mb-6">
-              This student has already paid for <strong>{paidModalInfo.title}</strong> with the amount of <strong>₱{paidModalInfo.amount.toLocaleString()}</strong>.
+              This student has already paid for <strong>{paidModalInfo.title}</strong> with the total amount of <strong>₱{paidModalInfo.amount.toLocaleString()}</strong>.
             </p>
             <Button 
               onClick={() => setPaidModalInfo(null)}

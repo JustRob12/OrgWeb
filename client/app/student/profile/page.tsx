@@ -86,6 +86,27 @@ export default function StudentProfilePage() {
       const data = await res.json();
       if (!data.secure_url) throw new Error("Upload failed");
 
+      // Delete old photo if exists to prevent orphans
+      if (user?.profile_picture?.includes('cloudinary.com')) {
+        try {
+          const parts = user.profile_picture.split('/upload/');
+          if (parts.length === 2) {
+            let publicId = parts[1];
+            if (publicId.match(/^v\d+\//)) publicId = publicId.replace(/^v\d+\//, '');
+            const dotIndex = publicId.lastIndexOf('.');
+            if (dotIndex !== -1) publicId = publicId.substring(0, dotIndex);
+            
+            await fetch('/api/cloudinary/delete', {
+               method: 'POST',
+               body: JSON.stringify({ public_id: publicId, resource_type: 'image' }),
+               headers: { 'Content-Type': 'application/json' }
+            });
+          }
+        } catch (e) {
+          console.error("Failed to cleanup old profile picture:", e);
+        }
+      }
+
       // Update Supabase
       const { error } = await supabase
         .from("users")
