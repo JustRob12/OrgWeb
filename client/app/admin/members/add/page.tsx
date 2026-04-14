@@ -54,22 +54,22 @@ export default function AddMembersPage() {
     reader.onload = (event) => {
       try {
         const bstr = event.target?.result;
-        const workbook = XLSX.read(bstr, { type: "binary" });
+        const workbook = XLSX.read(bstr, { type: "binary", raw: true });
         const sheetName = workbook.SheetNames[0];
         const worksheet = workbook.Sheets[sheetName];
-        const data = XLSX.utils.sheet_to_json(worksheet) as any[];
+        const data = XLSX.utils.sheet_to_json(worksheet, { defval: "" }) as any[];
 
         // Map excel columns to our interface
         const validatedData: RawMemberData[] = data.map((row) => ({
-          student_id: String(row.student_id || row["Student ID"] || ""),
-          first_name: row.first_name || row["First Name"] || "",
-          middle_initial: row.middle_initial || row["Middle Initial"] || "",
-          last_name: row.last_name || row["Last Name"] || "",
-          course: row.course || row["Course"] || "",
-          section: row.section || row["Section"] || "",
-          year: row.year || row["Year"] || "",
-          email: row.email || row["Email"] || "",
-          membership_status: (row.membership_status || row["Membership Status"] || "Not Paid") as any,
+          student_id: String(row.student_id || row["Student ID"] || row["ID"] || "").trim(),
+          first_name: (row.first_name || row["First Name"] || "").trim(),
+          middle_initial: (row.middle_initial || row["Middle Initial"] || row["MI"] || "").trim(),
+          last_name: (row.last_name || row["Last Name"] || "").trim(),
+          course: (row.course || row["Course"] || "").trim(),
+          section: (row.section || row["Section"] || "").trim(),
+          year: String(row.year || row["Year"] || "").trim(),
+          email: (row.email || row["Email"] || "").trim().toLowerCase(),
+          membership_status: (row.membership_status || row["Membership Status"] || "Not Paid").trim() as any,
           payment: Number(row.payment || row["Payment"] || row["Amount"] || 0),
         }));
 
@@ -201,7 +201,6 @@ export default function AddMembersPage() {
       }
     }
 
-    setIsSaving(true); // Should be false, wait
     setIsSaving(false);
     if (errorCount === 0) {
       toast.success(`Successfully saved all ${successCount} members!`);
