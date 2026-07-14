@@ -41,6 +41,16 @@ const data = [
     "Year": "4",
     "Email": "bob.brown@company.com",
     "Membership Status": "Fully Paid"
+  },
+  {
+    "First Name": "Charlie",
+    "Middle Initial": "K",
+    "Last Name": "Davis",
+    "Course": "BSCS",
+    "Section": "B",
+    "Year": "2",
+    "Email": "charlie.d@example.com",
+    "Membership Status": "Half Semester Paid"
   }
 ];
 

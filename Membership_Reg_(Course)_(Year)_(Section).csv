@@ -1,0 +1,5 @@
+Student ID,First Name,Middle Initial,Last Name,Course,Section,Year,Email,Membership Status,Payment
+2024-0001,John,D,Doe,BSIT,A,3,john.doe@example.com,Half Semester Paid,100
+2024-0002,Jane,S,Smith,BSCE,B,2,jane.smith@example.org,Partial,50
+2024-0003,Alice,M,Johnson,BITM,C,1,alice.j@uni.edu,Not Paid,0
+2024-0004,Bob,L,Brown,BSM,A,4,bob.brown@company.com,Fully Paid,170

@@ -19,6 +19,7 @@ import { Card, CardContent } from "@/app/Components/ui/card";
 import { toast } from "sonner";
 import { createClient } from "@/utils/supabase/client";
 import { ConfirmModal } from "@/app/Components/ui/confirm-modal";
+import { Modal } from "@/app/Components/ui/modal";
 
 interface MemberToNotify {
   id: string;
@@ -43,6 +44,14 @@ export default function SendCredentialsPage() {
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 10;
   const supabase = createClient();
+
+  const [isViewModalOpen, setIsViewModalOpen] = useState(false);
+  const [selectedMemberCredentials, setSelectedMemberCredentials] = useState<{
+    name: string;
+    email: string;
+    password: string;
+    studentId: string;
+  } | null>(null);
 
   const fetchMembers = async () => {
     setLoading(true);
@@ -78,6 +87,33 @@ export default function SendCredentialsPage() {
     const last2 = lastName.substring(lastName.length - 2).toLowerCase();
     const random5 = Math.random().toString(36).substring(2, 7);
     return `${first2}${last2}${random5}2026`;
+  };
+
+  const handleViewCredentials = async (member: MemberToNotify) => {
+    const password = generateNewPassword(member.first_name, member.last_name);
+    const name = `${member.first_name} ${member.last_name}`;
+    
+    try {
+      const { error: updateError } = await supabase
+        .from("accounts")
+        .update({ password: password })
+        .eq("user_id", member.id);
+
+      if (updateError) throw updateError;
+
+      setSelectedMemberCredentials({
+        name,
+        email: member.email,
+        password,
+        studentId: member.student_id
+      });
+      setIsViewModalOpen(true);
+      toast.success(`Credentials generated for ${name}`);
+      fetchMembers();
+    } catch (error: any) {
+      console.error("View credentials generation failed:", error);
+      toast.error(`Failed to generate credentials: ${error.message}`);
+    }
   };
 
   useEffect(() => {
@@ -134,7 +170,8 @@ export default function SendCredentialsPage() {
   const filteredMembers = members.filter(member => {
     const matchesSearch = 
       `${member.first_name} ${member.last_name}`.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      member.email?.toLowerCase().includes(searchQuery.toLowerCase());
+      member.email?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      (member.student_id || "").toLowerCase().includes(searchQuery.toLowerCase());
     
     const isSent = !!member.send_credentials;
     const matchesTab = viewMode === "Sent" ? isSent : !isSent;
@@ -245,7 +282,9 @@ export default function SendCredentialsPage() {
                         </div>
                         <div>
                           <div className="font-black text-slate-900 text-base">{member.first_name} {member.last_name}</div>
-                          <div className="text-xs font-bold text-slate-400 tracking-tight">{member.email}</div>
+                          <div className="text-xs font-bold text-slate-400 tracking-tight">
+                            {member.email} • <span className="text-primary font-black">ID: {member.student_id || 'NOT SET'}</span>
+                          </div>
                         </div>
                       </div>
                     </td>
@@ -266,24 +305,34 @@ export default function SendCredentialsPage() {
                       )}
                     </td>
                     <td className="px-6 py-5 text-right">
-                      {viewMode === "Pending" ? (
+                      <div className="flex justify-end gap-2">
                         <Button 
-                          onClick={() => handleSendEmail(member)}
-                          className="rounded-xl h-10 px-6 font-black gradient-primary shadow-lg shadow-primary/20 hover:scale-[1.02] transition-all text-xs"
+                          variant="outline"
+                          onClick={() => handleViewCredentials(member)}
+                          className="rounded-xl h-10 px-4 font-black border-slate-200 hover:bg-slate-50 transition-all text-xs"
                         >
-                          <LuMail className="size-4 mr-2" />
-                          Generate & Send
+                          <LuClipboard className="size-4 mr-2" />
+                          View Only
                         </Button>
-                      ) : (
-                        <Button 
-                          variant="outline" 
-                          onClick={() => handleSendEmail(member)}
-                          className="rounded-xl h-10 px-6 font-black border-slate-200 hover:bg-slate-50 transition-all text-xs"
-                        >
-                          <LuExternalLink className="size-4 mr-2" />
-                          Regenerate & Resend
-                        </Button>
-                      )}
+                        {viewMode === "Pending" ? (
+                          <Button 
+                            onClick={() => handleSendEmail(member)}
+                            className="rounded-xl h-10 px-4 font-black gradient-primary shadow-lg shadow-primary/20 hover:scale-[1.02] transition-all text-xs"
+                          >
+                            <LuMail className="size-4 mr-2" />
+                            Send
+                          </Button>
+                        ) : (
+                          <Button 
+                            variant="outline" 
+                            onClick={() => handleSendEmail(member)}
+                            className="rounded-xl h-10 px-4 font-black border-slate-200 hover:bg-slate-50 transition-all text-xs"
+                          >
+                            <LuExternalLink className="size-4 mr-2" />
+                            Resend
+                          </Button>
+                        )}
+                      </div>
                     </td>
                   </tr>
                 ))
@@ -324,6 +373,90 @@ export default function SendCredentialsPage() {
           Sender Email: roberto.prisoris12@gmail.com
         </p>
       </div>
+
+      <Modal
+        isOpen={isViewModalOpen}
+        onClose={() => {
+          setIsViewModalOpen(false);
+          setSelectedMemberCredentials(null);
+        }}
+        title="View Student Credentials"
+      >
+        {selectedMemberCredentials && (
+          <div className="space-y-6">
+            <div className="bg-slate-50 p-4 rounded-2xl border border-slate-100 space-y-3">
+              <div className="flex justify-between items-center text-xs font-bold uppercase tracking-wider text-slate-400">
+                <span>Student Details</span>
+                <span className="text-primary">ID: {selectedMemberCredentials.studentId || 'N/A'}</span>
+              </div>
+              <p className="text-lg font-black text-slate-900">{selectedMemberCredentials.name}</p>
+            </div>
+
+            <div className="space-y-4">
+              <div className="space-y-1.5">
+                <label className="text-xs font-black uppercase tracking-wider text-slate-400">Email / Username</label>
+                <div className="flex gap-2">
+                  <input
+                    type="text"
+                    readOnly
+                    value={selectedMemberCredentials.email}
+                    className="flex-1 h-11 px-4 bg-slate-50 border border-slate-200 rounded-xl text-sm font-bold text-slate-700 outline-none"
+                  />
+                  <Button
+                    variant="outline"
+                    className="rounded-xl px-3 border-slate-200 hover:bg-slate-50"
+                    onClick={() => copyToClipboard(selectedMemberCredentials.email)}
+                  >
+                    <LuClipboard className="size-4" />
+                  </Button>
+                </div>
+              </div>
+
+              <div className="space-y-1.5">
+                <label className="text-xs font-black uppercase tracking-wider text-slate-400">Temporary Password</label>
+                <div className="flex gap-2">
+                  <input
+                    type="text"
+                    readOnly
+                    value={selectedMemberCredentials.password}
+                    className="flex-1 h-11 px-4 bg-slate-50 border border-slate-200 rounded-xl text-sm font-mono font-bold text-slate-900 tracking-wider outline-none"
+                  />
+                  <Button
+                    variant="outline"
+                    className="rounded-xl px-3 border-slate-200 hover:bg-slate-50"
+                    onClick={() => copyToClipboard(selectedMemberCredentials.password)}
+                  >
+                    <LuClipboard className="size-4" />
+                  </Button>
+                </div>
+              </div>
+            </div>
+
+            <div className="pt-2 flex gap-3">
+              <Button
+                className="flex-1 rounded-xl h-11 font-black gradient-primary shadow-lg shadow-primary/20 hover:scale-[1.02] transition-all text-xs"
+                onClick={() => {
+                  const text = `Email: ${selectedMemberCredentials.email}\nPassword: ${selectedMemberCredentials.password}`;
+                  copyToClipboard(text);
+                  toast.success("Credentials block copied!");
+                }}
+              >
+                Copy All Credentials
+              </Button>
+              <Button
+                variant="outline"
+                className="rounded-xl h-11 px-6 font-black border-slate-200 hover:bg-slate-50 transition-all text-xs"
+                onClick={() => {
+                  setIsViewModalOpen(false);
+                  setSelectedMemberCredentials(null);
+                }}
+              >
+                Close
+              </Button>
+            </div>
+          </div>
+        )}
+      </Modal>
 
       </div>
   );

@@ -12,7 +12,8 @@ CREATE TABLE IF NOT EXISTS users (
     course TEXT,
     section TEXT,
     year TEXT,
-    profile_picture TEXT -- Cloudinary Link
+    profile_picture TEXT, -- Cloudinary Link
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
 );
 
 -- 2. Create the Accounts Table
@@ -21,14 +22,15 @@ CREATE TABLE IF NOT EXISTS accounts (
     user_id UUID REFERENCES users(id) ON DELETE CASCADE,
     username TEXT UNIQUE NOT NULL, -- This will store the email for login
     password TEXT NOT NULL,
-    role INTEGER DEFAULT 1 -- 0: Admin, 1: Student
+    role INTEGER DEFAULT 1, -- 0: Admin, 1: Student
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
 );
 
 -- 3. Create the Memberships Table
 CREATE TABLE IF NOT EXISTS memberships (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     user_id UUID UNIQUE REFERENCES users(id) ON DELETE CASCADE,
-    status TEXT CHECK (status IN ('Partial', 'Fully Paid', 'Not Paid')) DEFAULT 'Not Paid',
+    status TEXT CHECK (status IN ('Partial', 'Fully Paid', 'Not Paid', 'Half Semester Paid')) DEFAULT 'Not Paid',
     payment NUMERIC,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
 );

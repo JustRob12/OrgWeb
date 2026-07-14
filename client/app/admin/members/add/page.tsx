@@ -2,7 +2,7 @@
 
 import React, { useState } from "react";
 import * as XLSX from "xlsx";
-import { LuUpload, LuSave, LuX, LuCircleCheck, LuUsers, LuCircleAlert, LuUserPlus, LuPlus } from "react-icons/lu";
+import { LuUpload, LuSave, LuX, LuCircleCheck, LuUsers, LuCircleAlert, LuUserPlus, LuPlus, LuPencil, LuTrash2 } from "react-icons/lu";
 import { Button } from "@/app/Components/ui/button";
 import { Card, CardContent } from "@/app/Components/ui/card";
 import { Input } from "@/app/Components/ui/input";
@@ -21,7 +21,7 @@ interface RawMemberData {
   section?: string;
   year?: string;
   email: string;
-  membership_status: "Partial" | "Fully Paid" | "Not Paid";
+  membership_status: "Partial" | "Fully Paid" | "Not Paid" | "Half Semester Paid";
   payment: number;
 }
 
@@ -33,6 +33,8 @@ export default function AddMembersPage() {
   const [isManualModalOpen, setIsManualModalOpen] = useState(false);
   const [isSaveModalOpen, setIsSaveModalOpen] = useState(false);
   const [isClearModalOpen, setIsClearModalOpen] = useState(false);
+  const [errorMessage, setErrorMessage] = useState<{ type: "error" | "warning" | "success"; text: string } | null>(null);
+  const [editingIndex, setEditingIndex] = useState<number | null>(null);
   const [manualMember, setManualMember] = useState<RawMemberData>({
     student_id: "",
     first_name: "",
@@ -49,6 +51,7 @@ export default function AddMembersPage() {
 
   const processFile = (file: File) => {
     setIsUploading(true);
+    setErrorMessage(null);
     const reader = new FileReader();
 
     reader.onload = (event) => {
@@ -59,22 +62,43 @@ export default function AddMembersPage() {
         const worksheet = workbook.Sheets[sheetName];
         const data = XLSX.utils.sheet_to_json(worksheet, { defval: "" }) as any[];
 
-        // Map excel columns to our interface
-        const validatedData: RawMemberData[] = data.map((row) => ({
-          student_id: String(row.student_id || row["Student ID"] || row["ID"] || "").trim(),
-          first_name: (row.first_name || row["First Name"] || "").trim(),
-          middle_initial: (row.middle_initial || row["Middle Initial"] || row["MI"] || "").trim(),
-          last_name: (row.last_name || row["Last Name"] || "").trim(),
-          course: (row.course || row["Course"] || "").trim(),
-          section: (row.section || row["Section"] || "").trim(),
-          year: String(row.year || row["Year"] || "").trim(),
-          email: (row.email || row["Email"] || "").trim().toLowerCase(),
-          membership_status: (row.membership_status || row["Membership Status"] || "Not Paid").trim() as any,
-          payment: Number(row.payment || row["Payment"] || row["Amount"] || 0),
-        }));
+        let invalidCount = 0;
+        const validatedData: RawMemberData[] = [];
+
+        data.forEach((row) => {
+          const studentId = String(row.student_id || row["Student ID"] || row["ID"] || "").trim();
+          const firstName = (row.first_name || row["First Name"] || "").trim();
+          const lastName = (row.last_name || row["Last Name"] || "").trim();
+          const email = (row.email || row["Email"] || "").trim().toLowerCase();
+
+          if (!studentId || !firstName || !lastName || !email) {
+            invalidCount++;
+            return;
+          }
+
+          validatedData.push({
+            student_id: studentId,
+            first_name: firstName,
+            middle_initial: (row.middle_initial || row["Middle Initial"] || row["MI"] || "").trim(),
+            last_name: lastName,
+            course: (row.course || row["Course"] || "").trim(),
+            section: (row.section || row["Section"] || "").trim(),
+            year: String(row.year || row["Year"] || "").trim(),
+            email: email,
+            membership_status: (row.membership_status || row["Membership Status"] || "Not Paid").trim() as any,
+            payment: Number(row.payment || row["Payment"] || row["Amount"] || 0),
+          });
+        });
 
         setMembers(validatedData);
         toast.success(`Successfully parsed ${validatedData.length} members.`);
+
+        if (invalidCount > 0) {
+          setErrorMessage({
+            type: "warning",
+            text: `Skipped ${invalidCount} rows in the file due to missing required fields (Student ID, First Name, Last Name, or Email).`
+          });
+        }
       } catch (error) {
         console.error("Error parsing file:", error);
         toast.error("Failed to parse file. Please ensure it follows the correct format.");
@@ -101,6 +125,7 @@ export default function AddMembersPage() {
       return;
     }
 
+    setErrorMessage(null);
     setMembers(prev => [...prev, manualMember]);
     setIsManualModalOpen(false);
 
@@ -119,6 +144,50 @@ export default function AddMembersPage() {
     });
 
     toast.success("Member added to preview list.");
+  };
+
+  const handleDeleteRow = (index: number) => {
+    setMembers(prev => prev.filter((_, idx) => idx !== index));
+    toast.success("Member removed from preview list.");
+  };
+
+  const handleEditRowClick = (index: number) => {
+    setManualMember(members[index]);
+    setEditingIndex(index);
+    setIsManualModalOpen(true);
+  };
+
+  const handleManualEditSave = (e: React.FormEvent) => {
+    e.preventDefault();
+
+    if (!manualMember.student_id || !manualMember.first_name || !manualMember.last_name || !manualMember.email) {
+      toast.error("Please fill in all required fields.");
+      return;
+    }
+
+    setMembers(prev => {
+      const next = [...prev];
+      next[editingIndex!] = manualMember;
+      return next;
+    });
+    setIsManualModalOpen(false);
+    setEditingIndex(null);
+
+    // Reset form
+    setManualMember({
+      student_id: "",
+      first_name: "",
+      middle_initial: "",
+      last_name: "",
+      course: "",
+      section: "",
+      year: "",
+      email: "",
+      membership_status: "Not Paid",
+      payment: 0
+    });
+
+    toast.success("Member details updated.");
   };
 
   const handleDragOver = (e: React.DragEvent) => {
@@ -151,62 +220,125 @@ export default function AddMembersPage() {
     let successCount = 0;
     let errorCount = 0;
 
-    for (const member of members) {
-      try {
-        // 1. Create/Update User
-        const { data: userData, error: userError } = await supabase
-          .from("users")
-          .upsert({
-            student_id: member.student_id,
-            first_name: member.first_name,
-            middle_initial: member.middle_initial,
-            last_name: member.last_name,
-            email: member.email,
-            course: member.course,
-            section: member.section,
-            year: member.year,
-          }, { onConflict: 'student_id' })
-          .select()
-          .single();
+    const remainingMembers: RawMemberData[] = [];
+    const duplicateMembers: RawMemberData[] = [];
 
-        if (userError) throw userError;
+    try {
+      // Fetch existing student IDs from the database to check for duplicates
+      const studentIds = members.map(m => m.student_id).filter(Boolean);
+      const { data: existingUsers, error: fetchError } = await supabase
+        .from("users")
+        .select("student_id")
+        .in("student_id", studentIds);
 
-        // 2. Create/Update Account (Passwords are automatically hashed by DB Trigger)
-        const { error: accountError } = await supabase
-          .from("accounts")
-          .upsert({
-            user_id: userData.id,
-            username: member.email,
-            password: 'pending_initial_setup', // Temporary placeholder, will be reset on Send
-            role: 1, // Student
-          }, { onConflict: 'username' });
+      if (fetchError) throw fetchError;
 
-        if (accountError) throw accountError;
+      const existingStudentIds = new Set(
+        (existingUsers || []).map(u => String(u.student_id || "").trim().toLowerCase())
+      );
 
-        // 3. Create/Update Membership
-        const { error: membershipError } = await supabase
-          .from("memberships")
-          .upsert({
-            user_id: userData.id,
-            status: member.membership_status,
-            payment: member.payment,
-          }, { onConflict: 'user_id' });
+      for (const member of members) {
+        const studentIdKey = String(member.student_id || "").trim().toLowerCase();
 
-        if (membershipError) throw membershipError;
+        // Check if student ID already exists in the database (or has already been added in this batch)
+        if (existingStudentIds.has(studentIdKey)) {
+          duplicateMembers.push(member);
+          remainingMembers.push(member);
+          continue;
+        }
 
-        successCount++;
-      } catch (error: any) {
-        console.error("Error saving member:", member.email, error.message || error, error.details || "");
-        errorCount++;
+        try {
+          // 1. Create User (using upsert but with the assurance it is a new record)
+          const { data: userData, error: userError } = await supabase
+            .from("users")
+            .upsert({
+              student_id: member.student_id,
+              first_name: member.first_name,
+              middle_initial: member.middle_initial,
+              last_name: member.last_name,
+              email: member.email,
+              course: member.course,
+              section: member.section,
+              year: member.year,
+            }, { onConflict: 'student_id' })
+            .select()
+            .single();
+
+          if (userError) throw userError;
+
+          // 2. Create Account (Passwords are automatically hashed by DB Trigger)
+          const { error: accountError } = await supabase
+            .from("accounts")
+            .upsert({
+              user_id: userData.id,
+              username: member.email,
+              password: 'pending_initial_setup', // Temporary placeholder, will be reset on Send
+              role: 1, // Student
+            }, { onConflict: 'username' });
+
+          if (accountError) throw accountError;
+
+          // 3. Create Membership
+          const { error: membershipError } = await supabase
+            .from("memberships")
+            .upsert({
+              user_id: userData.id,
+              status: member.membership_status,
+              payment: member.payment,
+            }, { onConflict: 'user_id' });
+
+          if (membershipError) throw membershipError;
+
+          successCount++;
+          // Add this student_id to the set in case there are duplicates within the same batch upload
+          existingStudentIds.add(studentIdKey);
+        } catch (error: any) {
+          console.error("Error saving member:", member.email, error.message || error, error.details || "");
+          errorCount++;
+          remainingMembers.push(member); // Keep on the preview list if saving failed
+        }
       }
-    }
 
-    setIsSaving(false);
-    if (errorCount === 0) {
-      toast.success(`Successfully saved all ${successCount} members!`);
-      setMembers([]); // Clear the list after saving
-    } else {
-      toast.warning(`Saved ${successCount} members. Failed to save ${errorCount} members.`);
+      setMembers(remainingMembers);
+
+      if (successCount > 0) {
+        if (duplicateMembers.length > 0 || errorCount > 0) {
+          const dupIds = duplicateMembers.map(m => m.student_id).join(", ");
+          setErrorMessage({
+            type: "warning",
+            text: `Successfully saved ${successCount} new members. Skipped ${duplicateMembers.length} duplicate student ID(s) which already exist in the database: [${dupIds}].`
+          });
+          toast.warning(
+            `Saved ${successCount} new members. ${duplicateMembers.length} duplicates remain on the list.`
+          );
+        } else {
+          setErrorMessage({
+            type: "success",
+            text: `Successfully saved all ${successCount} members!`
+          });
+          toast.success(`Successfully saved all ${successCount} members!`);
+        }
+      } else {
+        if (duplicateMembers.length > 0) {
+          const dupIds = duplicateMembers.map(m => m.student_id).join(", ");
+          setErrorMessage({
+            type: "error",
+            text: `Failed to save. The following student IDs already exist in the database: [${dupIds}].`
+          });
+          toast.error(`No members saved. Student IDs already exist in the database.`);
+        } else {
+          setErrorMessage({
+            type: "error",
+            text: "Failed to save members. Database save encountered errors."
+          });
+          toast.error("Failed to save members. Please check the logs.");
+        }
+      }
+    } catch (err: any) {
+      console.error("Bulk save error:", err);
+      toast.error(`An error occurred during save: ${err.message || err}`);
+    } finally {
+      setIsSaving(false);
     }
   };
 
@@ -252,6 +384,27 @@ export default function AddMembersPage() {
         )}
       </div>
 
+      {errorMessage && (
+        <div className={`p-4 rounded-2xl flex items-start gap-3 border animate-in fade-in slide-in-from-top-2 duration-300 ${
+          errorMessage.type === "error" 
+            ? "bg-rose-50 border-rose-100 text-rose-800" 
+            : errorMessage.type === "warning"
+            ? "bg-amber-50 border-amber-100 text-amber-800"
+            : "bg-emerald-50 border-emerald-100 text-emerald-800"
+        }`}>
+          {errorMessage.type === "error" ? (
+            <LuCircleAlert className="size-5 shrink-0 text-rose-500 mt-0.5" />
+          ) : errorMessage.type === "warning" ? (
+            <LuCircleAlert className="size-5 shrink-0 text-amber-500 mt-0.5" />
+          ) : (
+            <LuCircleCheck className="size-5 shrink-0 text-emerald-500 mt-0.5" />
+          )}
+          <div className="text-xs font-bold leading-normal">
+            {errorMessage.text}
+          </div>
+        </div>
+      )}
+
       <ConfirmModal
         isOpen={isSaveModalOpen}
         onClose={() => setIsSaveModalOpen(false)}
@@ -271,6 +424,7 @@ export default function AddMembersPage() {
         onClose={() => setIsClearModalOpen(false)}
         onConfirm={() => {
           setMembers([]);
+          setErrorMessage(null);
           setIsClearModalOpen(false);
           toast.success("Preview list cleared.");
         }}
@@ -345,6 +499,7 @@ export default function AddMembersPage() {
                     <th className="px-6 py-4 text-xs font-bold uppercase tracking-wider text-slate-500">Email</th>
                     <th className="px-6 py-4 text-xs font-bold uppercase tracking-wider text-slate-500">Status</th>
                     <th className="px-6 py-4 text-xs font-bold uppercase tracking-wider text-slate-500">Amount Paid</th>
+                    <th className="px-6 py-4 text-xs font-bold uppercase tracking-wider text-slate-500 text-right">Actions</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100">
@@ -363,15 +518,37 @@ export default function AddMembersPage() {
                         <div className="text-slate-900 font-medium">{member.email}</div>
                       </td>
                       <td className="px-6 py-4">
-                        <span className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-bold border ${member.membership_status === 'Fully Paid' ? 'bg-emerald-50 text-emerald-600 border-emerald-100' :
+                        <span className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-bold border ${
+                          member.membership_status === 'Fully Paid' ? 'bg-emerald-50 text-emerald-600 border-emerald-100' :
+                          member.membership_status === 'Half Semester Paid' ? 'bg-blue-50 text-blue-600 border-blue-100' :
                           member.membership_status === 'Partial' ? 'bg-amber-50 text-amber-600 border-amber-100' :
-                            'bg-rose-50 text-rose-600 border-rose-100'
-                          }`}>
+                          'bg-rose-50 text-rose-600 border-rose-100'
+                        }`}>
                           {member.membership_status}
                         </span>
                       </td>
                       <td className="px-6 py-4">
                         <div className="font-bold text-slate-900">₱{member.payment.toLocaleString()}</div>
+                      </td>
+                      <td className="px-6 py-4 text-right">
+                        <div className="flex justify-end gap-2">
+                          <Button 
+                            variant="outline" 
+                            size="sm" 
+                            onClick={() => handleEditRowClick(idx)}
+                            className="size-9 p-0 rounded-xl hover:bg-primary hover:text-white hover:border-primary transition-all cursor-pointer"
+                          >
+                            <LuPencil className="size-4" />
+                          </Button>
+                          <Button 
+                            variant="outline" 
+                            size="sm" 
+                            onClick={() => handleDeleteRow(idx)}
+                            className="size-9 p-0 rounded-xl hover:bg-rose-500 hover:text-white hover:border-rose-500 transition-all cursor-pointer"
+                          >
+                            <LuTrash2 className="size-4" />
+                          </Button>
+                        </div>
                       </td>
                     </tr>
                   ))}
@@ -379,7 +556,7 @@ export default function AddMembersPage() {
               </table>
             </div>
           </Card>
-
+ 
           <div className="bg-primary/5 border border-primary/10 p-4 rounded-2xl flex items-start gap-3">
             <LuCircleAlert className="text-primary size-5 mt-0.5 shrink-0" />
             <p className="text-sm text-primary/80 font-medium">
@@ -389,13 +566,28 @@ export default function AddMembersPage() {
         </div>
       )}
 
-      {/* Manual Add Member Modal */}
+      {/* Manual Add / Edit Member Modal */}
       <Modal
         isOpen={isManualModalOpen}
-        onClose={() => setIsManualModalOpen(false)}
-        title="Add Specific Member"
+        onClose={() => {
+          setIsManualModalOpen(false);
+          setEditingIndex(null);
+          setManualMember({
+            student_id: "",
+            first_name: "",
+            middle_initial: "",
+            last_name: "",
+            course: "",
+            section: "",
+            year: "",
+            email: "",
+            membership_status: "Not Paid",
+            payment: 0
+          });
+        }}
+        title={editingIndex !== null ? "Edit Member Details" : "Add Specific Member"}
       >
-        <form onSubmit={handleManualAdd} className="space-y-6">
+        <form onSubmit={editingIndex !== null ? handleManualEditSave : handleManualAdd} className="space-y-6">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div className="md:col-span-2 space-y-2">
               <Label className="text-xs font-bold uppercase tracking-wider text-slate-500">Student ID *</Label>
@@ -466,6 +658,7 @@ export default function AddMembersPage() {
               >
                 <option value="Not Paid">Not Paid</option>
                 <option value="Partial">Partial</option>
+                <option value="Half Semester Paid">Half Semester Paid</option>
                 <option value="Fully Paid">Fully Paid</option>
               </select>
             </div>
@@ -486,7 +679,22 @@ export default function AddMembersPage() {
               type="button"
               variant="outline"
               className="flex-1 h-12 rounded-xl font-bold"
-              onClick={() => setIsManualModalOpen(false)}
+              onClick={() => {
+                setIsManualModalOpen(false);
+                setEditingIndex(null);
+                setManualMember({
+                  student_id: "",
+                  first_name: "",
+                  middle_initial: "",
+                  last_name: "",
+                  course: "",
+                  section: "",
+                  year: "",
+                  email: "",
+                  membership_status: "Not Paid",
+                  payment: 0
+                });
+              }}
             >
               Cancel
             </Button>
@@ -494,7 +702,7 @@ export default function AddMembersPage() {
               type="submit"
               className="flex-1 h-12 rounded-xl font-bold gradient-primary text-white shadow-lg shadow-primary/20 hover:shadow-primary/40 transition-all"
             >
-              Add to Preview
+              {editingIndex !== null ? "Save Changes" : "Add to Preview"}
             </Button>
           </div>
         </form>

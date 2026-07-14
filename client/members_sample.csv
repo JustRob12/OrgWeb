@@ -3,3 +3,5 @@ Student ID,First Name,Middle Initial,Last Name,Course,Section,Year,Email,Members
 2024-0002,Jane,S,Smith,BSCS,B,2,jane.smith@example.org,Partial,50
 2024-0003,Alice,M,Johnson,BSCE,C,1,alice.j@uni.edu,Not Paid,0
 2024-0004,Bob,L,Brown,BSIT,A,4,bob.brown@company.com,Fully Paid,100
+2024-0005,Charlie,K,Davis,BSCS,B,2,charlie.d@example.com,Half Semester Paid,75
+

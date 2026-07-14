@@ -36,9 +36,11 @@ interface MemberWithStatus {
   section: string;
   year: string;
   profile_picture?: string | null;
+  created_at?: string;
   memberships: {
     status: string;
     payment: number;
+    created_at?: string;
   } | null;
 }
 
@@ -61,7 +63,7 @@ export default function ViewMembersPage() {
         .from("users")
         .select(`
           *,
-          memberships:memberships(status, payment),
+          memberships:memberships(status, payment, created_at),
           accounts:accounts!inner(role),
           send_credentials:send_credentials(id)
         `)
@@ -181,7 +183,7 @@ export default function ViewMembersPage() {
         </Link>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
         {/* Stats Cards */}
         <Card className="bg-emerald-50/50 border-emerald-100 rounded-3xl overflow-hidden group">
           <CardContent className="p-6">
@@ -192,6 +194,20 @@ export default function ViewMembersPage() {
               <div>
                 <p className="text-xs font-bold text-emerald-600 uppercase tracking-wider">Fully Paid</p>
                 <p className="text-3xl font-black text-emerald-950">{members.filter(m => m.memberships?.status === 'Fully Paid').length}</p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card className="bg-blue-50/50 border-blue-100 rounded-3xl overflow-hidden group">
+          <CardContent className="p-6">
+            <div className="flex items-center gap-4">
+              <div className="size-12 bg-blue-500 rounded-2xl flex items-center justify-center text-white shadow-lg shadow-blue-200 group-hover:scale-110 transition-transform">
+                <LuClock className="size-6" />
+              </div>
+              <div>
+                <p className="text-xs font-bold text-blue-600 uppercase tracking-wider">Half Sem Paid</p>
+                <p className="text-3xl font-black text-blue-950">{members.filter(m => m.memberships?.status === 'Half Semester Paid').length}</p>
               </div>
             </div>
           </CardContent>
@@ -255,8 +271,8 @@ export default function ViewMembersPage() {
             </div>
             
             <div className="flex items-center gap-2 w-full md:w-auto">
-              <div className="flex bg-slate-100 p-1 rounded-2xl">
-                {["All", "Fully Paid", "Partial", "Not Paid"].map((status) => (
+              <div className="flex bg-slate-100 p-1 rounded-2xl flex-wrap">
+                {["All", "Fully Paid", "Half Semester Paid", "Partial", "Not Paid"].map((status) => (
                   <button
                     key={status}
                     onClick={() => setStatusFilter(status)}
@@ -281,6 +297,7 @@ export default function ViewMembersPage() {
                 <th className="px-6 py-4 text-xs font-black uppercase tracking-widest text-slate-400">Student Info</th>
                 <th className="px-6 py-4 text-xs font-black uppercase tracking-widest text-slate-400">Academic</th>
                 <th className="px-6 py-4 text-xs font-black uppercase tracking-widest text-slate-400">Contact</th>
+                <th className="px-6 py-4 text-xs font-black uppercase tracking-widest text-slate-400">Date Added</th>
                 <th className="px-6 py-4 text-xs font-black uppercase tracking-widest text-slate-400">Status</th>
                 <th className="px-6 py-4 text-xs font-black uppercase tracking-widest text-slate-400">Paid</th>
                 <th className="px-6 py-4 text-xs font-black uppercase tracking-widest text-slate-400 text-right">Actions</th>
@@ -290,7 +307,7 @@ export default function ViewMembersPage() {
               {loading ? (
                 Array(5).fill(0).map((_, i) => (
                   <tr key={i} className="animate-pulse">
-                    <td colSpan={5} className="px-6 py-10 space-y-4">
+                    <td colSpan={7} className="px-6 py-10 space-y-4">
                       <div className="h-4 bg-slate-100 rounded-full w-3/4"></div>
                       <div className="h-4 bg-slate-100 rounded-full w-1/2"></div>
                     </td>
@@ -298,7 +315,7 @@ export default function ViewMembersPage() {
                 ))
               ) : paginatedMembers.length === 0 ? (
                 <tr>
-                  <td colSpan={6} className="px-6 py-20 text-center text-slate-500 font-bold italic">
+                  <td colSpan={7} className="px-6 py-20 text-center text-slate-500 font-bold italic">
                     No results match your search.
                   </td>
                 </tr>
@@ -335,13 +352,35 @@ export default function ViewMembersPage() {
                       </div>
                     </td>
                     <td className="px-6 py-5">
+                      <div className="space-y-1">
+                        <div className="text-sm font-bold text-slate-700">
+                          {(() => {
+                            const addedAt = member.created_at || member.memberships?.created_at;
+                            return addedAt 
+                              ? new Date(addedAt).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })
+                              : 'N/A';
+                          })()}
+                        </div>
+                        <div className="text-xs font-medium text-slate-400">
+                          {(() => {
+                            const addedAt = member.created_at || member.memberships?.created_at;
+                            return addedAt 
+                              ? new Date(addedAt).toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" })
+                              : '';
+                          })()}
+                        </div>
+                      </div>
+                    </td>
+                    <td className="px-6 py-5">
                       <span className={`inline-flex items-center px-4 py-1.5 rounded-xl text-[10px] font-black uppercase tracking-widest border border-current transition-all ${
                         member.memberships?.status === 'Fully Paid' ? 'bg-emerald-50 text-emerald-600 border-emerald-100' :
+                        member.memberships?.status === 'Half Semester Paid' ? 'bg-blue-50 text-blue-600 border-blue-100' :
                         member.memberships?.status === 'Partial' ? 'bg-amber-50 text-amber-600 border-amber-100' :
                         'bg-rose-50 text-rose-600 border-rose-100'
                       }`}>
                         <div className={`size-1.5 rounded-full mr-2 ${
                           member.memberships?.status === 'Fully Paid' ? 'bg-emerald-500' :
+                          member.memberships?.status === 'Half Semester Paid' ? 'bg-blue-500' :
                           member.memberships?.status === 'Partial' ? 'bg-amber-500' :
                           'bg-rose-500'
                         }`} />
