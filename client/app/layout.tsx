@@ -9,12 +9,12 @@ const roboto = Roboto({
 });
 
 export const metadata: Metadata = {
-  title: "OrgWeb Organization – Empowering Student Organizations",
+  title: "ACETRACK 3.0 – Empowering Student Organizations",
   description:
-    "OrgWeb Organization helps students manage members, events, and activities in one place. The modern school organization management platform.",
-  keywords: "school organization, student management, events, OrgWeb",
+    "ACETRACK 3.0 helps students manage members, events, and activities in one place. The modern school organization management platform.",
+  keywords: "school organization, student management, events, ACETRACK 3.0",
   openGraph: {
-    title: "OrgWeb Organization",
+    title: "ACETRACK 3.0",
     description: "Empowering Student Organizations to Stay Organized and Connected",
     type: "website",
   },

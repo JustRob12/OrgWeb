@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useEffect, useState } from "react";
-import { LuLayoutDashboard, LuUsers, LuCalendar, LuCircleDollarSign, LuLoader } from "react-icons/lu";
+import { LuLayoutDashboard, LuUsers, LuCalendar, LuPhilippinePeso, LuLoader } from "react-icons/lu";
 import { createClient } from "@/utils/supabase/client";
 
 export default function AdminDashboard() {
@@ -49,8 +49,8 @@ export default function AdminDashboard() {
       name: "Total Members", 
       value: loading ? "..." : (memberCount?.toString() || "0"), 
       icon: LuUsers, 
-      color: "text-blue-600", 
-      bg: "bg-blue-50" 
+      color: "text-orange-600", 
+      bg: "bg-orange-50" 
     },
     { 
       name: "Upcoming Events", 
@@ -62,7 +62,7 @@ export default function AdminDashboard() {
     { 
       name: "Total Funds", 
       value: loading ? "..." : `₱${(totalFunds || 0).toLocaleString()}`, 
-      icon: LuCircleDollarSign, 
+      icon: LuPhilippinePeso, 
       color: "text-amber-600", 
       bg: "bg-amber-50" 
     },

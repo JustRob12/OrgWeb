@@ -104,7 +104,7 @@ export default function SendCredentialsPage() {
 
       // 2. Launch the email client with the PLAIN TEXT password (in memory only)
       const email = member.email;
-      const subject = encodeURIComponent("Your OrgWeb Member Credentials");
+      const subject = encodeURIComponent("Your ACETRACK 3.0 Member Credentials");
       const body = encodeURIComponent(
         `here is your credentials\n\nEmail: ${email}\nEncrypt Password: ${password}\n\nSender: roberto.prisoris12@gmail.com`
       );

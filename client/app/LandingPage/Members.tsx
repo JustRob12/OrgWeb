@@ -10,22 +10,22 @@ export default function Members() {
       name: "Maria Santos",
       role: "President",
       icon: <LuCrown className="size-6" />,
-      avatarBg: "bg-blue-600 shadow-blue-200",
+      avatarBg: "bg-orange-600 shadow-orange-200",
       badgeVariant: "default",
     },
     {
       name: "Juan Reyes",
       role: "Vice President",
       icon: <LuStar className="size-6" />,
-      avatarBg: "bg-purple-600 shadow-purple-200",
+      avatarBg: "bg-amber-600 shadow-amber-200",
       badgeVariant: "secondary",
     },
     {
       name: "Ana Cruz",
       role: "Secretary",
       icon: <LuPenTool className="size-6" />,
-      avatarBg: "bg-teal-600 shadow-teal-200",
-      badgeVariant: "teal",
+      avatarBg: "bg-orange-600 shadow-orange-200",
+      badgeVariant: "default",
     },
     {
       name: "Carlos Lim",
@@ -52,14 +52,14 @@ export default function Members() {
       name: "Lia Garcia",
       role: "Events Head",
       icon: <LuCalendar className="size-6" />,
-      avatarBg: "bg-sky-600 shadow-sky-200",
+      avatarBg: "bg-orange-600 shadow-orange-200",
       badgeVariant: "secondary",
     },
     {
       name: "Ryan Flores",
       role: "IT Officer",
       icon: <LuLaptop className="size-6" />,
-      avatarBg: "bg-violet-600 shadow-violet-200",
+      avatarBg: "bg-amber-600 shadow-amber-200",
       badgeVariant: "default",
     },
   ]
@@ -75,8 +75,8 @@ export default function Members() {
             Our Officers & Leaders
           </h2>
           <p className="text-lg text-muted-foreground">
-            Dedicated student leaders who work tirelessly to make OrgWeb
-            Organization a success for every member.
+            Dedicated student leaders who work tirelessly to make ACETRACK 3.0
+            a success for every member.
           </p>
         </div>
 

@@ -13,7 +13,7 @@ import {
   LuInbox,
   LuDownload,
   LuClipboardList,
-  LuCircleDollarSign,
+  LuPhilippinePeso,
   LuHistory
 } from "react-icons/lu";
 import { createClient } from "@/utils/supabase/client";
@@ -152,10 +152,10 @@ export default function FinancialRecordsPage() {
         {/* Total Collected Stat */}
         <div className="lg:col-span-4 bg-slate-900 p-8 rounded-[2.5rem] shadow-2xl flex items-center gap-6 relative overflow-hidden group">
            <div className="absolute top-0 right-0 p-8 opacity-5 group-hover:scale-110 transition-transform">
-             <LuCircleDollarSign className="size-32 text-white" />
+             <LuPhilippinePeso className="size-32 text-white" />
            </div>
            <div className="size-16 rounded-[1.5rem] bg-white/10 border border-white/10 flex items-center justify-center text-emerald-400">
-             <LuCircleDollarSign className="size-8" />
+             <LuPhilippinePeso className="size-8" />
            </div>
            <div>
              <p className="text-[10px] font-black uppercase tracking-widest text-slate-400 leading-none mb-1.5">Total Revenue (Filtered)</p>
@@ -171,7 +171,7 @@ export default function FinancialRecordsPage() {
            <div className="space-y-3">
              <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Fee Category</label>
              <div className="relative group">
-               <LuCircleDollarSign className="absolute left-4 top-1/2 -translate-y-1/2 size-4 text-slate-400 group-focus-within:text-primary transition-colors" />
+               <LuPhilippinePeso className="absolute left-4 top-1/2 -translate-y-1/2 size-4 text-slate-400 group-focus-within:text-primary transition-colors" />
                <select 
                  value={selectedItemId}
                  onChange={(e) => { setSelectedItemId(e.target.value); setCurrentPage(1); }}
@@ -239,7 +239,7 @@ export default function FinancialRecordsPage() {
                     </td>
                     <td className="px-8 py-6 text-center">
                        {row.receipt_number ? (
-                         <div className="inline-flex items-center gap-2 px-3 py-1 bg-indigo-50 text-indigo-700 rounded-lg border border-indigo-100 font-black text-[10px] uppercase">
+                         <div className="inline-flex items-center gap-2 px-3 py-1 bg-orange-50 text-orange-700 rounded-lg border border-orange-100 font-black text-[10px] uppercase">
                            <LuClipboardList className="size-3" />
                            {row.receipt_number}
                          </div>

@@ -36,7 +36,7 @@ export default function StudentProfilePage() {
       userEmail = authUser.email;
     } else {
       // 2. Try localStorage Fallback
-      const stored = localStorage.getItem("orgweb_user");
+      const stored = localStorage.getItem("acetrack_user");
       if (stored) {
         try {
           userEmail = JSON.parse(stored).email;

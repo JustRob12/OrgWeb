@@ -38,7 +38,7 @@ export default function Navbar() {
             <LuGraduationCap className="size-6" />
           </div>
           <span className="text-xl font-semibold tracking-tight text-primary">
-            OrgWeb
+            ACETRACK 3.0
           </span>
         </a>
 

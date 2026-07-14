@@ -8,15 +8,15 @@ export default function Announcements() {
   const announcements = [
     {
       icon: <LuBell className="size-5" />,
-      colorClass: "bg-blue-500/10 text-blue-600 border-blue-200",
+      colorClass: "bg-orange-500/10 text-orange-600 border-orange-200",
       tag: "Important",
       date: "April 1, 2026",
       title: "Application for New Officers Now Open",
-      desc: "Interested in becoming an OrgWeb officer? Applications for the upcoming academic year are now open. Submit your requirements at the secretariat.",
+      desc: "Interested in becoming an ACETRACK 3.0 officer? Applications for the upcoming academic year are now open. Submit your requirements at the secretariat.",
     },
     {
       icon: <LuMegaphone className="size-5" />,
-      colorClass: "bg-purple-500/10 text-purple-600 border-purple-200",
+      colorClass: "bg-amber-500/10 text-amber-600 border-amber-200",
       tag: "Announcement",
       date: "March 28, 2026",
       title: "Leadership Training Successfully Completed",
@@ -24,11 +24,11 @@ export default function Announcements() {
     },
     {
       icon: <LuAward className="size-5" />,
-      colorClass: "bg-teal-500/10 text-teal-600 border-teal-200",
+      colorClass: "bg-orange-500/10 text-orange-600 border-orange-200",
       tag: "Achievement",
       date: "March 20, 2026",
-      title: "OrgWeb Wins Best Organization of the Year",
-      desc: "We are proud to announce that OrgWeb Organization has been awarded Best Student Organization of Academic Year 2025–2026 by the School Administration!",
+      title: "ACETRACK 3.0 Wins Best Organization of the Year",
+      desc: "We are proud to announce that ACETRACK 3.0 has been awarded Best Student Organization of Academic Year 2025–2026 by the School Administration!",
     },
     {
       icon: <LuCalendar className="size-5" />,
@@ -52,7 +52,7 @@ export default function Announcements() {
           </h2>
           <p className="text-lg text-muted-foreground">
             Stay informed with the latest news, updates, and important
-            announcements from OrgWeb Organization.
+            announcements from ACETRACK 3.0.
           </p>
         </div>
 

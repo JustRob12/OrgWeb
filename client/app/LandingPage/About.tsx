@@ -106,7 +106,7 @@ export default function About() {
               <p>
                 We are a student-led organization focused on improving
                 collaboration, leadership, and organization within the school
-                community. OrgWeb provides a centralized hub where every member
+                community. ACETRACK 3.0 provides a centralized hub where every member
                 can contribute, grow, and make a meaningful impact.
               </p>
               <p>

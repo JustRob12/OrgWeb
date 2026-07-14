@@ -42,7 +42,7 @@ export default function StudentIDPage() {
       userEmail = authUser.email;
     } else {
       // 2. Check localStorage (Manual login fallback)
-      const storedUser = localStorage.getItem("orgweb_user");
+      const storedUser = localStorage.getItem("acetrack_user");
       if (storedUser) {
         try {
           userEmail = JSON.parse(storedUser).email;
@@ -249,16 +249,16 @@ export default function StudentIDPage() {
           <div className="lg:col-span-5 flex justify-center">
             <div
               ref={cardRef}
-              className="relative w-full max-w-[320px] aspect-[3.5/5.5] rounded-[3rem] overflow-hidden shadow-2xl shadow-blue-900/10 border border-white/40 glass-container"
+              className="relative w-full max-w-[320px] aspect-[3.5/5.5] rounded-[3rem] overflow-hidden shadow-2xl shadow-orange-950/10 border border-white/40 glass-container"
             >
-              {/* Background Shades of Blue & Glass */}
-              <div className="absolute inset-0 bg-gradient-to-br from-blue-500/20 via-white/40 to-indigo-500/10 backdrop-blur-3xl z-0" />
-              <div className="absolute top-[-10%] left-[-10%] size-64 bg-blue-400/20 rounded-full blur-[80px]" />
-              <div className="absolute bottom-[-10%] right-[-10%] size-48 bg-indigo-400/20 rounded-full blur-[60px]" />
+              {/* Background Shades of Orange & Glass */}
+              <div className="absolute inset-0 bg-gradient-to-br from-orange-500/20 via-white/40 to-amber-500/10 backdrop-blur-3xl z-0" />
+              <div className="absolute top-[-10%] left-[-10%] size-64 bg-orange-400/20 rounded-full blur-[80px]" />
+              <div className="absolute bottom-[-10%] right-[-10%] size-48 bg-amber-400/20 rounded-full blur-[60px]" />
 
               <div className="relative z-10 flex flex-col h-full p-8 items-center">
                 {/* 1. Profile Picture (Small & Compact) */}
-                <div className="size-28 rounded-2xl overflow-hidden bg-white/50 border-2 border-white shadow-lg mb-4 flex-shrink-0 flex items-center justify-center text-blue-200">
+                <div className="size-28 rounded-2xl overflow-hidden bg-white/50 border-2 border-white shadow-lg mb-4 flex-shrink-0 flex items-center justify-center text-orange-200">
                   {user.profile_picture ? (
                     <img
                       src={user.profile_picture}
@@ -279,7 +279,7 @@ export default function StudentIDPage() {
                   <h2 className="text-xl font-black text-slate-900 tracking-tight leading-tight">
                     {user.first_name} {user.last_name}
                   </h2>
-                  <div className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-blue-500/10 border border-blue-500/20 text-blue-600 text-[9px] font-black uppercase tracking-widest">
+                  <div className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-orange-500/10 border border-orange-500/20 text-orange-600 text-[9px] font-black uppercase tracking-widest">
                     <LuShieldCheck className="size-2.5" /> Official Member
                   </div>
                 </div>
@@ -301,14 +301,14 @@ export default function StudentIDPage() {
                       alt="Scannable QR"
                       className="size-40 transition-transform group-hover:scale-105 duration-500"
                     />
-                    <div className="absolute -inset-2 bg-gradient-to-tr from-blue-500/10 to-indigo-500/10 rounded-2xl -z-10 blur-sm opacity-0 group-hover:opacity-100 transition-opacity" />
+                    <div className="absolute -inset-2 bg-gradient-to-tr from-orange-500/10 to-amber-500/10 rounded-2xl -z-10 blur-sm opacity-0 group-hover:opacity-100 transition-opacity" />
                   </div>
                   <p className="text-[9px] font-black text-slate-400 uppercase tracking-[0.4em] mt-2">Scan for Verification</p>
                 </div>
 
                 {/* School/Org Name at Bottom */}
                 <div className="pt-1 border-t border-slate-200/50 w-full text-center">
-                  <p className="text-[11px] font-black text-slate-900 tracking-widest uppercase opacity-40">OrgWeb University</p>
+                  <p className="text-[11px] font-black text-slate-900 tracking-widest uppercase opacity-40">ACETRACK 3.0 University</p>
                 </div>
               </div>
             </div>
@@ -337,13 +337,13 @@ export default function StudentIDPage() {
             </div>
 
 
-            <div className="bg-blue-50 rounded-[2.5rem] border border-blue-100 p-10 flex items-start gap-6">
-              <div className="p-4 bg-white rounded-3xl shadow-xl shadow-blue-900/5 text-blue-600">
+            <div className="bg-orange-50 rounded-[2.5rem] border border-orange-100 p-10 flex items-start gap-6">
+              <div className="p-4 bg-white rounded-3xl shadow-xl shadow-orange-900/5 text-orange-600">
                 <LuInfo className="size-6" />
               </div>
               <div className="space-y-2">
-                <h3 className="text-lg font-black text-blue-900 tracking-tight">Security Protocol</h3>
-                <p className="text-sm font-medium text-blue-700 leading-relaxed">
+                <h3 className="text-lg font-black text-orange-900 tracking-tight">Security Protocol</h3>
+                <p className="text-sm font-medium text-orange-700 leading-relaxed">
                   Your Digital ID is encrypted and linked directly to your school account. The QR code is refreshed periodically and contains verification metadata to prevent duplication. Always present this for official organization business.
                 </p>
               </div>

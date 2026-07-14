@@ -48,7 +48,7 @@ export default function Events() {
           </h2>
           <p className="text-lg text-muted-foreground">
             Stay up to date with the latest events and activities organized by
-            OrgWeb. There&apos;s always something exciting happening!
+            ACETRACK 3.0. There&apos;s always something exciting happening!
           </p>
         </div>
 

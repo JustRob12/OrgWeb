@@ -16,7 +16,7 @@ import { Button } from "@/app/Components/ui/button";
 export default function StudentDashboard() {
   const stats = [
     { name: "Attendance Rate", value: "85%", icon: LuHistory, color: "text-emerald-600", bg: "bg-emerald-50" },
-    { name: "Upcoming Events", value: "3", icon: LuCalendar, color: "text-indigo-600", bg: "bg-indigo-50" },
+    { name: "Upcoming Events", value: "3", icon: LuCalendar, color: "text-orange-600", bg: "bg-orange-50" },
     { name: "Membership ID", value: "Active", icon: LuIdCard, color: "text-amber-600", bg: "bg-amber-50" },
     { name: "Total Fees Paid", value: "₱1,200", icon: LuWallet, color: "text-rose-600", bg: "bg-rose-50" },
   ];
@@ -31,11 +31,11 @@ export default function StudentDashboard() {
       {/* Welcome Hero */}
       <div className="relative overflow-hidden bg-slate-900 rounded-[2.5rem] p-8 md:p-12 text-white">
         <div className="relative z-10 max-w-2xl space-y-4">
-          <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-white/10 backdrop-blur-md border border-white/10 text-xs font-black uppercase tracking-widest text-indigo-300">
+          <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-white/10 backdrop-blur-md border border-white/10 text-xs font-black uppercase tracking-widest text-orange-300">
             <LuSparkles className="size-3" /> Welcome Back, Member
           </div>
           <h1 className="text-4xl md:text-5xl font-black tracking-tight leading-tight">
-            Ready for your next <span className="text-indigo-400">organization adventure?</span>
+            Ready for your next <span className="text-orange-400">organization adventure?</span>
           </h1>
           <p className="text-slate-400 font-medium text-lg leading-relaxed max-w-lg">
             Check your attendance, verify your digital ID, and stay updated with the latest organization activities and deadlines.
@@ -51,8 +51,8 @@ export default function StudentDashboard() {
         </div>
         
         {/* Background Decor */}
-        <div className="absolute top-0 right-0 w-1/3 h-full bg-gradient-to-l from-indigo-500/20 to-transparent pointer-events-none" />
-        <div className="absolute -bottom-24 -right-24 size-64 bg-indigo-600/30 rounded-full blur-[100px]" />
+        <div className="absolute top-0 right-0 w-1/3 h-full bg-gradient-to-l from-orange-500/20 to-transparent pointer-events-none" />
+        <div className="absolute -bottom-24 -right-24 size-64 bg-orange-600/30 rounded-full blur-[100px]" />
       </div>
 
       {/* Quick Stats */}
@@ -71,18 +71,19 @@ export default function StudentDashboard() {
         ))}
       </div>
 
+      {/* Activities Grid */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
         {/* Recent Attendance */}
         <div className="lg:col-span-2 space-y-6">
           <div className="flex items-center justify-between">
             <h2 className="text-xl font-black text-slate-900 tracking-tight">Upcoming Activities</h2>
-            <Button variant="ghost" className="text-xs font-black text-indigo-600 hover:bg-indigo-50 rounded-xl">View All</Button>
+            <Button variant="ghost" className="text-xs font-black text-orange-600 hover:bg-orange-50 rounded-xl">View All</Button>
           </div>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             {upcomingEvents.map((event) => (
-              <div key={event.title} className="p-6 rounded-[2rem] bg-white border border-slate-200 shadow-sm hover:border-indigo-200 group transition-all">
+              <div key={event.title} className="p-6 rounded-[2rem] bg-white border border-slate-200 shadow-sm hover:border-orange-200 group transition-all">
                 <div className="flex items-center gap-3 mb-4">
-                  <span className="px-3 py-1 rounded-full bg-indigo-50 text-indigo-600 text-[10px] font-black uppercase tracking-widest border border-indigo-100">
+                  <span className="px-3 py-1 rounded-full bg-orange-50 text-orange-600 text-[10px] font-black uppercase tracking-widest border border-orange-100">
                     {event.type}
                   </span>
                 </div>
@@ -108,7 +109,7 @@ export default function StudentDashboard() {
           <h2 className="text-xl font-black text-slate-900 tracking-tight">Quick Actions</h2>
           <div className="bg-white rounded-[2rem] p-6 border border-slate-200 divide-y divide-slate-100">
             <button className="flex items-center gap-4 py-4 w-full text-left group">
-              <div className="size-10 rounded-xl bg-slate-50 flex items-center justify-center text-slate-400 group-hover:bg-indigo-50 group-hover:text-indigo-600 transition-all">
+              <div className="size-10 rounded-xl bg-slate-50 flex items-center justify-center text-slate-400 group-hover:bg-orange-50 group-hover:text-orange-600 transition-all">
                 <LuIdCard className="size-5" />
               </div>
               <div>
@@ -117,7 +118,7 @@ export default function StudentDashboard() {
               </div>
             </button>
             <button className="flex items-center gap-4 py-4 w-full text-left group">
-              <div className="size-10 rounded-xl bg-slate-50 flex items-center justify-center text-slate-400 group-hover:bg-indigo-50 group-hover:text-indigo-600 transition-all">
+              <div className="size-10 rounded-xl bg-slate-50 flex items-center justify-center text-slate-400 group-hover:bg-orange-50 group-hover:text-orange-600 transition-all">
                 <LuHistory className="size-5" />
               </div>
               <div>

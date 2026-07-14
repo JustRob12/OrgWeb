@@ -47,69 +47,69 @@
 
 @layer base {
   :root {
-    --background: 210 40% 98%; /* Soft blue-ish white #f8f9fc */
-    --foreground: 222.2 84% 4.9%;
+    --background: 24 20% 99%; /* Clean warm off-white */
+    --foreground: 24 15% 10%; /* Dark warm charcoal */
 
     --card: 0 0% 100%;
-    --card-foreground: 222.2 84% 4.9%;
+    --card-foreground: 24 15% 10%;
 
     --popover: 0 0% 100%;
-    --popover-foreground: 222.2 84% 4.9%;
+    --popover-foreground: 24 15% 10%;
 
-    --primary: 221.2 83.2% 33.3%; /* Deep Blue #1e3a8a */
-    --primary-foreground: 210 40% 98%;
+    --primary: 24 95% 50%; /* Premium Vibrant Orange #f97316 */
+    --primary-foreground: 0 0% 100%;
 
-    --secondary: 210 40% 96.1%;
-    --secondary-foreground: 222.2 47.4% 11.2%;
+    --secondary: 24 30% 96%; /* Soft warm peach-white */
+    --secondary-foreground: 24 80% 20%;
 
-    --muted: 210 40% 96.1%;
-    --muted-foreground: 215.4 16.3% 46.9%;
+    --muted: 24 15% 95%;
+    --muted-foreground: 24 10% 45%;
 
-    --accent: 262.1 83.3% 61.2%; /* Soft Purple #7c3aed */
-    --accent-foreground: 210 40% 98%;
+    --accent: 32 95% 55%; /* Warm gold/amber #f59e0b */
+    --accent-foreground: 0 0% 100%;
 
     --destructive: 0 84.2% 60.2%;
     --destructive-foreground: 210 40% 98%;
 
-    --border: 214.3 31.8% 91.4%;
-    --input: 214.3 31.8% 91.4%;
-    --ring: 221.2 83.2% 33.3%;
+    --border: 24 15% 92%;
+    --input: 24 15% 92%;
+    --ring: 24 95% 50%;
 
     --radius: 0.75rem;
 
-    /* Extra OrgWeb Colors */
-    --teal: 173 80% 30%; /* #0d9488 */
-    --teal-foreground: 210 40% 98%;
+    /* Extra Colors mapped to orange */
+    --teal: 24 95% 50%; 
+    --teal-foreground: 0 0% 100%;
   }
 
   .dark {
-    --background: 222.2 84% 4.9%;
-    --foreground: 210 40% 98%;
+    --background: 24 15% 6%; /* Deep rich dark charcoal-brown */
+    --foreground: 30 20% 98%;
 
-    --card: 222.2 84% 4.9%;
-    --card-foreground: 210 40% 98%;
+    --card: 24 15% 8%;
+    --card-foreground: 30 20% 98%;
 
-    --popover: 222.2 84% 4.9%;
-    --popover-foreground: 210 40% 98%;
+    --popover: 24 15% 8%;
+    --popover-foreground: 30 20% 98%;
 
-    --primary: 217.2 91.2% 59.8%;
-    --primary-foreground: 222.2 47.4% 11.2%;
+    --primary: 24 95% 55%; /* Slightly brighter orange for dark mode contrast */
+    --primary-foreground: 24 15% 6%;
 
-    --secondary: 217.2 32.6% 17.5%;
-    --secondary-foreground: 210 40% 98%;
+    --secondary: 24 15% 12%;
+    --secondary-foreground: 30 20% 98%;
 
-    --muted: 217.2 32.6% 17.5%;
-    --muted-foreground: 215 20.2% 65.1%;
+    --muted: 24 15% 12%;
+    --muted-foreground: 24 10% 65%;
 
-    --accent: 217.2 32.6% 17.5%;
-    --accent-foreground: 210 40% 98%;
+    --accent: 32 95% 55%;
+    --accent-foreground: 30 20% 98%;
 
     --destructive: 0 62.8% 30.6%;
     --destructive-foreground: 210 40% 98%;
 
-    --border: 217.2 32.6% 17.5%;
-    --input: 217.2 32.6% 17.5%;
-    --ring: 224.3 76.3% 48%;
+    --border: 24 15% 14%;
+    --input: 24 15% 14%;
+    --ring: 24 95% 55%;
   }
 }
 
@@ -141,9 +141,9 @@
 }
 
 .gradient-primary {
-  background: linear-gradient(135deg, #1e3a8a 0%, #2563eb 50%, #7c3aed 100%);
+  background: linear-gradient(135deg, #ea580c 0%, #f97316 50%, #f59e0b 100%);
 }
 
 .gradient-card {
-  background: linear-gradient(160deg, #ffffff 0%, #f0f4ff 100%);
+  background: linear-gradient(160deg, #ffffff 0%, #fff7ed 100%);
 }

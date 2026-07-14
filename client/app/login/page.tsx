@@ -44,11 +44,11 @@ export default function LoginPage() {
 
       // 2. Role detection: 0 is Admin, 1 is Member/Student
       if (userAccount.role === 0) {
-        localStorage.setItem("orgweb_user", JSON.stringify(userAccount));
+        localStorage.setItem("acetrack_user", JSON.stringify(userAccount));
         toast.success("Welcome, Admin!");
         router.push("/admin");
       } else if (userAccount.role === 1) {
-        localStorage.setItem("orgweb_user", JSON.stringify(userAccount));
+        localStorage.setItem("acetrack_user", JSON.stringify(userAccount));
         toast.success("Welcome to the Student Portal!");
         router.push("/student");
       } else {
@@ -76,7 +76,7 @@ export default function LoginPage() {
             <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-white/20 backdrop-blur-md border border-white/30 transition-transform group-hover:scale-110">
               <LuGraduationCap className="size-8" />
             </div>
-            <span className="text-2xl font-bold tracking-tight">OrgWeb</span>
+            <span className="text-2xl font-bold tracking-tight">ACETRACK 3.0</span>
           </a>
 
           <div className="max-w-md space-y-8 animate-in fade-in slide-in-from-left-10 duration-1000">
@@ -97,15 +97,15 @@ export default function LoginPage() {
             <div className="flex -space-x-3">
               {[1, 2, 3, 4].map((i) => (
                 <div key={i} className="h-10 w-10 rounded-full border-2 border-primary bg-slate-200 overflow-hidden ring-2 ring-primary/20">
-                  <img src={`https://i.pravatar.cc/150?u=orgweb${i}`} alt="Avatar" className="h-full w-full object-cover" />
+                  <img src={`https://i.pravatar.cc/150?u=acetrack${i}`} alt="Avatar" className="h-full w-full object-cover" />
                 </div>
               ))}
             </div>
             <p className="text-sm font-bold text-white/80">Already used by the school executive board.</p>
           </div>
           <div className="flex items-center justify-between text-[11px] font-bold uppercase tracking-[0.2em] text-white/40">
-            <span>© 2026 OrgWeb Organization</span>
-            <span>System v2.4</span>
+            <span>© 2026 ACETRACK 3.0</span>
+            <span>System v3.0</span>
           </div>
         </div>
       </div>
@@ -118,7 +118,7 @@ export default function LoginPage() {
             <div className="h-16 w-16 bg-primary rounded-2xl flex items-center justify-center text-primary-foreground shadow-2xl shadow-primary/20 mb-4 animate-float">
               <LuGraduationCap className="size-10" />
             </div>
-            <h2 className="text-3xl font-semibold tracking-tight text-primary">OrgWeb</h2>
+            <h2 className="text-3xl font-semibold tracking-tight text-primary">ACETRACK 3.0</h2>
           </div>
 
           <div className="text-center md:text-left">

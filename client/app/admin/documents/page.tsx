@@ -307,7 +307,7 @@ export default function DocumentsPage() {
           <Button
             onClick={() => fileInputRef.current?.click()}
             disabled={uploading}
-            className="h-12 px-6 rounded-2xl font-black bg-blue-600 hover:bg-blue-700 text-white shadow-xl shadow-blue-500/20 transition-all"
+            className="h-12 px-6 rounded-2xl font-black bg-primary hover:bg-primary/95 text-white shadow-xl shadow-primary/20 transition-all"
           >
             {uploading ? <LuLoader className="size-5 mr-2 animate-spin" /> : <LuUpload className="size-5 mr-2" />}
             {uploading ? "Uploading..." : "Upload File"}
@@ -336,7 +336,7 @@ export default function DocumentsPage() {
                   placeholder="e.g. Activity Proposals"
                   value={newFolderName}
                   onChange={(e) => setNewFolderName(e.target.value)}
-                  className="w-full h-14 px-6 bg-slate-50 border border-slate-200 rounded-2xl text-sm font-bold text-slate-700 outline-none focus:bg-white focus:border-blue-500 focus:ring-4 ring-blue-50 transition-all"
+                  className="w-full h-14 px-6 bg-slate-50 border border-slate-200 rounded-2xl text-sm font-bold text-slate-700 outline-none focus:bg-white focus:border-primary focus:ring-4 ring-primary/10 transition-all"
                 />
               </div>
               <div className="flex gap-3">
@@ -380,7 +380,7 @@ export default function DocumentsPage() {
             <React.Fragment key={crumb.id || 'root'}>
               <button
                 onClick={() => setCurrentFolderId(crumb.id)}
-                className={`text-sm font-bold transition-colors whitespace-nowrap px-3 py-1.5 rounded-lg ${idx === breadcrumbs.length - 1 ? 'bg-blue-50 text-blue-700' : 'text-slate-500 hover:bg-slate-200/50'}`}
+                className={`text-sm font-bold transition-colors whitespace-nowrap px-3 py-1.5 rounded-lg ${idx === breadcrumbs.length - 1 ? 'bg-primary/10 text-primary' : 'text-slate-500 hover:bg-slate-200/50'}`}
               >
                 {crumb.name}
               </button>
@@ -393,7 +393,7 @@ export default function DocumentsPage() {
         <div className="p-8 flex-1">
           {loading ? (
             <div className="flex flex-col items-center justify-center py-20 gap-4">
-              <LuLoader className="size-10 text-blue-500 animate-spin" />
+              <LuLoader className="size-10 text-primary animate-spin" />
               <p className="text-xs font-black text-slate-400 uppercase tracking-widest">Fetching Contents...</p>
             </div>
           ) : folders.length === 0 && documents.length === 0 ? (
@@ -415,17 +415,17 @@ export default function DocumentsPage() {
                     {folders.map(folder => (
                       <div
                         key={folder.id}
-                        className="group flex items-center justify-between p-4 bg-white border border-slate-200 rounded-2xl hover:border-blue-300 hover:shadow-md cursor-pointer transition-all"
+                        className="group flex items-center justify-between p-4 bg-white border border-slate-200 rounded-2xl hover:border-primary/50 hover:shadow-md cursor-pointer transition-all"
                         onClick={() => setCurrentFolderId(folder.id)}
                       >
                         <div className="flex items-center gap-3 overflow-hidden">
-                          <LuFolder className="size-6 text-blue-500 fill-blue-500/20 flex-shrink-0" />
+                          <LuFolder className="size-6 text-primary fill-primary/20 flex-shrink-0" />
                           <span className="text-sm font-bold text-slate-700 truncate">{folder.name}</span>
                         </div>
                         <div className="flex items-center">
                           <button
                             onClick={(e) => { e.stopPropagation(); handleDownloadFolder(folder); }}
-                            className="p-2 text-slate-400 hover:text-blue-500 hover:bg-blue-50 rounded-xl transition-all"
+                            className="p-2 text-slate-400 hover:text-primary hover:bg-primary/10 rounded-xl transition-all"
                             title="Download Folder"
                           >
                             <LuDownload className="size-4" />
@@ -458,7 +458,7 @@ export default function DocumentsPage() {
                           className="group flex flex-col p-5 bg-white border border-slate-200 rounded-2xl hover:border-slate-300 hover:shadow-md transition-all relative"
                         >
                           <div className="flex items-start justify-between mb-4">
-                            <div className={`p-3 rounded-xl ${isPdf ? 'bg-rose-50 text-rose-500' : isWord ? 'bg-blue-50 text-blue-500' : 'bg-slate-100 text-slate-500'}`}>
+                            <div className={`p-3 rounded-xl ${isPdf ? 'bg-rose-50 text-rose-500' : isWord ? 'bg-primary/10 text-primary' : 'bg-slate-100 text-slate-500'}`}>
                               <LuFileText className="size-6" />
                             </div>
                             <div className="flex items-center gap-1 transition-all">
@@ -466,7 +466,7 @@ export default function DocumentsPage() {
                                 href={doc.web_view_link}
                                 target="_blank"
                                 rel="noopener noreferrer"
-                                className="p-2 text-slate-400 hover:text-blue-500 hover:bg-blue-50 rounded-xl transition-all"
+                                className="p-2 text-slate-400 hover:text-primary hover:bg-primary/10 rounded-xl transition-all"
                                 title="Open File"
                               >
                                 <LuExternalLink className="size-4" />
@@ -477,7 +477,7 @@ export default function DocumentsPage() {
                                   e.stopPropagation();
                                   handleDownloadFile(doc);
                                 }}
-                                className="p-2 text-slate-400 hover:text-blue-500 hover:bg-blue-50 rounded-xl transition-all"
+                                className="p-2 text-slate-400 hover:text-primary hover:bg-primary/10 rounded-xl transition-all"
                                 title="Download File"
                               >
                                 <LuDownload className="size-4" />
@@ -500,7 +500,7 @@ export default function DocumentsPage() {
                             }}
                             className="block outline-none group/link text-left w-full mt-2"
                           >
-                            <h5 className="text-sm font-bold text-slate-800 line-clamp-2 leading-snug group-hover/link:text-blue-600 transition-colors mb-2" title={doc.name}>
+                            <h5 className="text-sm font-bold text-slate-800 line-clamp-2 leading-snug group-hover/link:text-primary transition-colors mb-2" title={doc.name}>
                               {doc.name}
                             </h5>
                             <div className="flex items-center gap-2">

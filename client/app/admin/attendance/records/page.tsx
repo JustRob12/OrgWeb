@@ -222,13 +222,13 @@ export default function AttendanceRecordsPage() {
               </div>
             </div>
 
-            <div className="bg-blue-50 p-6 rounded-3xl border border-blue-100 flex items-center gap-5">
-              <div className="size-14 rounded-2xl bg-white shadow-sm flex items-center justify-center text-blue-600 border border-blue-100">
+            <div className="bg-orange-50 p-6 rounded-3xl border border-orange-100 flex items-center gap-5">
+              <div className="size-14 rounded-2xl bg-white shadow-sm flex items-center justify-center text-orange-600 border border-orange-100">
                 <LuFileSpreadsheet className="size-6" />
               </div>
               <div>
-                <p className="text-2xl font-black text-blue-900">{stats.both}</p>
-                <p className="text-[10px] font-black uppercase tracking-widest text-blue-700/60 leading-none mt-1">Completed Both</p>
+                <p className="text-2xl font-black text-orange-900">{stats.both}</p>
+                <p className="text-[10px] font-black uppercase tracking-widest text-orange-700/60 leading-none mt-1">Completed Both</p>
               </div>
             </div>
           </div>

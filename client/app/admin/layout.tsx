@@ -3,16 +3,16 @@
 import React, { useState } from "react"
 import Link from "next/link"
 import { usePathname } from "next/navigation"
-import { 
-  LuLayoutDashboard, 
-  LuUsers, 
-  LuMegaphone, 
-  LuCalendar, 
-  LuClipboardCheck, 
-  LuCircleDollarSign, 
-  LuFiles, 
-  LuVote, 
-  LuActivity, 
+import {
+  LuLayoutDashboard,
+  LuUsers,
+  LuMegaphone,
+  LuCalendar,
+  LuClipboardCheck,
+  LuPhilippinePeso,
+  LuFiles,
+  LuVote,
+  LuActivity,
   LuSettings,
   LuMenu,
   LuX,
@@ -29,9 +29,9 @@ import { ConfirmModal } from "../Components/ui/confirm-modal"
 
 const menuItems = [
   { name: "Dashboard", icon: LuLayoutDashboard, href: "/admin" },
-  { 
-    name: "Members", 
-    icon: LuUsers, 
+  {
+    name: "Members",
+    icon: LuUsers,
     href: "/admin/members",
     subItems: [
       { name: "View Members", href: "/admin/members/view" },
@@ -41,18 +41,18 @@ const menuItems = [
   },
   { name: "Announcements", icon: LuMegaphone, href: "/admin/announcements" },
   { name: "Events", icon: LuCalendar, href: "/admin/events" },
-  { 
-    name: "Attendance", 
-    icon: LuClipboardCheck, 
+  {
+    name: "Attendance",
+    icon: LuClipboardCheck,
     href: "/admin/attendance",
     subItems: [
       { name: "Scan Attendance", href: "/admin/attendance" },
       { name: "Attendance Records", href: "/admin/attendance/records" },
     ]
   },
-  { 
-    name: "Finance", 
-    icon: LuCircleDollarSign, 
+  {
+    name: "Finance",
+    icon: LuPhilippinePeso,
     href: "/admin/finance",
     subItems: [
       { name: "Manage Finance", href: "/admin/finance" },
@@ -81,8 +81,8 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
     <div className="min-h-screen bg-slate-50 flex">
       {/* Sidebar Overlay (Mobile) */}
       {isSidebarOpen && (
-        <div 
-          className="fixed inset-0 bg-black/50 z-40 lg:hidden" 
+        <div
+          className="fixed inset-0 bg-black/50 z-40 lg:hidden"
           onClick={() => setIsSidebarOpen(false)}
         />
       )}
@@ -94,9 +94,9 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
       )}>
         <div className="h-full flex flex-col overflow-hidden">
           <div className="p-6 border-b border-slate-100 flex items-center justify-between">
-            <Link href="/" className="flex items-center gap-2">
-              <div className="size-8 bg-primary rounded-lg flex items-center justify-center text-white font-bold shrink-0">O</div>
-              <span className="font-bold text-xl tracking-tight">OrgWeb Admin</span>
+            <Link href="/admin" className="flex items-center gap-2">
+              <div className="size-8 bg-primary rounded-lg flex items-center justify-center text-white font-bold shrink-0">A</div>
+              <span className="font-bold text-xl tracking-tight">ACETRACK</span>
             </Link>
             <button className="lg:hidden" onClick={() => setIsSidebarOpen(false)}>
               <LuX className="size-6 text-slate-400" />
@@ -116,8 +116,8 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
                       href={item.href}
                       className={cn(
                         "flex items-center justify-between px-3 py-2 rounded-lg text-sm font-medium transition-all group",
-                        isActive 
-                          ? "bg-primary text-primary-foreground shadow-lg shadow-primary/20" 
+                        isActive
+                          ? "bg-primary text-primary-foreground shadow-lg shadow-primary/20"
                           : "text-slate-600 hover:bg-slate-50"
                       )}
                       onClick={() => !hasSubItems && setIsSidebarOpen(false)}
@@ -146,8 +146,8 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
                                 href={sub.href}
                                 className={cn(
                                   "block px-3 py-2 rounded-lg text-xs font-bold transition-all relative",
-                                  isSubActive 
-                                    ? "text-primary bg-primary/5 border-l-2 border-primary" 
+                                  isSubActive
+                                    ? "text-primary bg-primary/5 border-l-2 border-primary"
                                     : "text-slate-400 hover:text-slate-900 border-l-2 border-transparent hover:border-slate-100"
                                 )}
                                 onClick={() => setIsSidebarOpen(false)}
@@ -176,8 +176,8 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
                 <p className="text-[10px] uppercase font-black text-primary tracking-widest leading-none mt-0.5">Roberto</p>
               </div>
             </div>
-            
-            <button 
+
+            <button
               onClick={() => setIsLogoutModalOpen(true)}
               className="p-2.5 hover:bg-rose-50 hover:text-rose-600 rounded-xl text-slate-400 transition-all group-hover/user:text-slate-600"
               title="Logout"
@@ -193,7 +193,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
         onClose={() => setIsLogoutModalOpen(false)}
         onConfirm={handleLogout}
         title="Sign Out"
-        description="Are you sure you want to log out of the OrgWeb Admin Dashboard?"
+        description="Are you sure you want to log out of the ACETRACK 3.0 Admin Dashboard?"
         confirmText="Logout"
         variant="danger"
       />
@@ -203,7 +203,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
         {/* Top Navbar */}
         <header className="h-16 bg-white border-b border-slate-200 px-4 lg:px-8 flex items-center justify-between z-30 shrink-0">
           <div className="flex items-center gap-4">
-            <button 
+            <button
               className="lg:hidden p-2 hover:bg-slate-100 rounded-lg text-slate-600"
               onClick={() => setIsSidebarOpen(true)}
             >
@@ -211,9 +211,9 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
             </button>
             <div className="relative hidden md:block group w-72">
               <LuSearch className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-slate-400 group-focus-within:text-primary" />
-              <input 
-                type="text" 
-                placeholder="Search anything..." 
+              <input
+                type="text"
+                placeholder="Search anything..."
                 className="w-full h-10 pl-10 pr-4 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:bg-white focus:outline-none focus:ring-2 focus:ring-primary/20 transition-all"
               />
             </div>

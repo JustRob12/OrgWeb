@@ -100,9 +100,9 @@ export default function StudentEventsPage() {
                       </div>
                     )}
                     <div className="absolute top-4 left-4">
-                       <span className="px-4 py-1.5 rounded-full bg-white/90 backdrop-blur-md shadow-lg border border-white/20 text-indigo-600 text-[10px] font-black uppercase tracking-widest flex items-center gap-2">
-                          <LuSparkles className="size-3 fill-indigo-600" /> New Activity
-                       </span>
+                        <span className="px-4 py-1.5 rounded-full bg-white/90 backdrop-blur-md shadow-lg border border-white/20 text-orange-600 text-[10px] font-black uppercase tracking-widest flex items-center gap-2">
+                           <LuSparkles className="size-3 fill-orange-600" /> New Activity
+                        </span>
                     </div>
                  </div>
 

@@ -7,7 +7,7 @@ import {
   LuLoader, 
   LuCircleCheck, 
   LuUserCheck, 
-  LuCircleDollarSign,
+  LuPhilippinePeso,
   LuHistory,
   LuCoins,
   LuTerminal,
@@ -404,7 +404,7 @@ export default function FinanceScanPage() {
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-6">
         <div className="space-y-1">
           <div className="inline-flex items-center gap-2 px-3 py-1 bg-slate-900 text-white rounded-full">
-            <LuCircleDollarSign className="size-3" />
+            <LuPhilippinePeso className="size-3" />
             <span className="text-[9px] font-black uppercase tracking-widest leading-none mt-0.5">Terminal</span>
           </div>
           <h1 className="text-4xl font-black text-slate-900 tracking-tight leading-none mb-1">Scan to Pay</h1>

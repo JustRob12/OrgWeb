@@ -45,7 +45,7 @@ export default function StudentLayout({ children }: { children: React.ReactNode 
         email = authUser.email;
       } else {
         // 2. Try localStorage
-        const storedUser = localStorage.getItem("orgweb_user");
+        const storedUser = localStorage.getItem("acetrack_user");
         if (storedUser) {
           try {
             email = JSON.parse(storedUser).email;
@@ -73,7 +73,7 @@ export default function StudentLayout({ children }: { children: React.ReactNode 
 
   const handleLogout = async () => {
     await supabase.auth.signOut();
-    localStorage.removeItem("orgweb_user");
+    localStorage.removeItem("acetrack_user");
     router.push("/login");
   };
 
@@ -175,7 +175,7 @@ export default function StudentLayout({ children }: { children: React.ReactNode 
                   {user?.student_id || "Role 1"}
                 </p>
               </div>
-              <div className="size-10 rounded-2xl bg-indigo-50 border border-indigo-100 flex items-center justify-center text-indigo-600 font-black overflow-hidden shadow-sm">
+              <div className="size-10 rounded-2xl bg-orange-50 border border-orange-100 flex items-center justify-center text-orange-600 font-black overflow-hidden shadow-sm">
                 {user?.profile_picture ? (
                   <img src={user.profile_picture} alt="Avatar" className="size-full object-cover" />
                 ) : (

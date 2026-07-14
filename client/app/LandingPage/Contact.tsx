@@ -29,13 +29,13 @@ export default function Contact() {
   const contactFeatures = [
     {
       icon: <LuMail className="size-5" />,
-      colorClass: "bg-blue-500/10 text-blue-600 border-blue-200",
+      colorClass: "bg-orange-500/10 text-orange-600 border-orange-200",
       title: "Email Us",
-      desc: "orgweb@school.edu.ph",
+      desc: "acetrack@school.edu.ph",
     },
     {
       icon: <LuPhone className="size-5" />,
-      colorClass: "bg-purple-500/10 text-purple-600 border-purple-200",
+      colorClass: "bg-amber-500/10 text-amber-600 border-amber-200",
       title: "Call Us",
       desc: "+63 912 345 6789",
     },
@@ -49,7 +49,7 @@ export default function Contact() {
       icon: <LuShare2 className="size-5" />,
       colorClass: "bg-amber-500/10 text-amber-600 border-amber-200",
       title: "Follow Us",
-      desc: "@OrgWebOrganization",
+      desc: "@AceTrack",
     },
   ]
 
@@ -74,10 +74,10 @@ export default function Contact() {
           <div className="lg:col-span-2 space-y-8 animate-in fade-in slide-in-from-left-10 duration-700">
             <div>
               <h3 className="text-2xl font-bold tracking-tight text-primary mb-4">
-                Reach Out to <span className="text-foreground">OrgWeb</span>
+                Reach Out to <span className="text-foreground">ACETRACK 3.0</span>
               </h3>
               <p className="text-muted-foreground leading-relaxed">
-                Have questions about OrgWeb? Want to collaborate or partner with
+                Have questions about ACETRACK 3.0? Want to collaborate or partner with
                 us? Reach out through any of the channels below and our team will
                 respond promptly.
               </p>

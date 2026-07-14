@@ -8,13 +8,13 @@ export default function Features() {
   const features = [
     {
       icon: <LuUsers className="size-6" />,
-      colorClass: "bg-blue-500/10 text-blue-600 border-blue-200",
+      colorClass: "bg-orange-500/10 text-orange-600 border-orange-200",
       title: "Member Management",
       desc: "Keep track of all members with ease. Maintain profiles, attendance history, and roles in a single organized system.",
     },
     {
       icon: <LuCalendarDays className="size-6" />,
-      colorClass: "bg-indigo-500/10 text-indigo-600 border-indigo-200",
+      colorClass: "bg-amber-500/10 text-amber-600 border-amber-200",
       title: "Event Planning",
       desc: "Organize and manage school events seamlessly. Schedule, notify, and track participation from start to finish.",
     },

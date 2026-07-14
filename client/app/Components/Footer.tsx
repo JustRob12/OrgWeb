@@ -61,7 +61,7 @@ export default function Footer() {
                   <LuGraduationCap className="size-6" />
                 </div>
                 <span className="text-xl font-semibold tracking-tight text-white">
-                  OrgWeb <span className="opacity-60 font-light">Organization</span>
+                  ACETRACK 3.0
                 </span>
               </a>
               <p className="max-w-xs text-sm leading-relaxed text-slate-400">
@@ -134,7 +134,7 @@ export default function Footer() {
         <div className="flex flex-col gap-6 md:flex-row md:items-center md:justify-between animate-in fade-in duration-1000 slide-in-from-bottom-2">
           <div className="space-y-2">
             <span className="text-xs font-bold text-slate-500 uppercase tracking-widest">
-              © 2026 OrgWeb Organization. All rights reserved.
+              © 2026 ACETRACK 3.0. All rights reserved.
             </span>
             <div className="flex items-center gap-1.5 text-[10px] text-slate-600 font-medium italic">
               Made with <LuHeart className="size-2 text-rose-500 fill-rose-500" /> for Student Excellence.

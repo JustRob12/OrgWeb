@@ -3,7 +3,7 @@
 import React, { useState, useEffect } from "react";
 import { 
   LuPlus, 
-  LuCircleDollarSign, 
+  LuPhilippinePeso, 
   LuCalendar, 
   LuSearch, 
   LuLoader,
@@ -228,7 +228,7 @@ export default function ManageFinancePage() {
           <div className="bg-white rounded-[2.5rem] border border-slate-200 overflow-hidden shadow-sm">
             <div className="p-8 border-b border-slate-100 flex items-center justify-between bg-slate-50/50">
                <h3 className="text-sm font-black text-slate-900 uppercase tracking-widest flex items-center gap-2">
-                 <LuCircleDollarSign className="size-4 text-emerald-500" />
+                 <LuPhilippinePeso className="size-4 text-emerald-500" />
                  Official Finance Items
                </h3>
                <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">{items.length} Total Items</span>

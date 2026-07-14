@@ -56,7 +56,7 @@ export default function Gallery() {
           </h2>
           <p className="text-lg text-muted-foreground">
             A glimpse into the events, activities, and moments that define the
-            OrgWeb Organization experience.
+            ACETRACK 3.0 experience.
           </p>
         </div>
 
