@@ -18,6 +18,8 @@ import {
   LuEye,
   LuPencil,
   LuSave,
+  LuToggleLeft,
+  LuToggleRight,
 } from "react-icons/lu";
 import { createClient } from "@/utils/supabase/client";
 import { Button } from "@/app/Components/ui/button";
@@ -28,6 +30,7 @@ import { Modal } from "@/app/Components/ui/modal";
 import { ConfirmModal } from "@/app/Components/ui/confirm-modal";
 import { cn } from "@/lib/utils";
 import { deleteEventImage } from "./actions";
+import { toast } from "sonner";
 
 interface Event {
   id: string;
@@ -309,6 +312,22 @@ export default function EventsPage() {
     }
   };
 
+  const toggleEventActive = async (id: string, currentActive: number) => {
+    const nextActive = currentActive === 1 ? 0 : 1;
+    try {
+      const { error } = await supabase
+        .from("events")
+        .update({ active: nextActive })
+        .eq("id", id);
+
+      if (error) throw error;
+      toast.success("Event status updated successfully.");
+      fetchEvents();
+    } catch (err: any) {
+      toast.error(`Failed to update event status: ${err.message}`);
+    }
+  };
+
   const openEdit = (event: Event) => {
     setEditingEvent(event);
     setEditFormData({
@@ -475,12 +494,36 @@ export default function EventsPage() {
                   </div>
                 )}
                 {event.active === 0 && (
-                  <div className="absolute inset-0 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center">
+                  <div className="absolute inset-0 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center pointer-events-none">
                     <span className="bg-white/20 text-white text-[10px] font-black uppercase tracking-widest px-4 py-1.5 rounded-full border border-white/20">
                       Inactive
                     </span>
                   </div>
                 )}
+                <div className="absolute top-4 right-4 z-10">
+                  <button
+                    onClick={() => toggleEventActive(event.id, event.active)}
+                    className={cn(
+                      "px-3 py-1.5 rounded-xl text-[10px] font-black uppercase tracking-widest shadow-lg transition-all border flex items-center gap-1.5 cursor-pointer",
+                      event.active === 1
+                        ? "bg-emerald-500 text-white border-emerald-400 hover:bg-emerald-600 hover:scale-105"
+                        : "bg-slate-800 text-slate-300 border-slate-700 hover:bg-slate-700 hover:scale-105"
+                    )}
+                    title={event.active === 1 ? "Deactivate Event" : "Activate Event"}
+                  >
+                    {event.active === 1 ? (
+                      <>
+                        <span className="size-1.5 rounded-full bg-white animate-pulse" />
+                        Active
+                      </>
+                    ) : (
+                      <>
+                        <span className="size-1.5 rounded-full bg-slate-400" />
+                        Inactive
+                      </>
+                    )}
+                  </button>
+                </div>
               </div>
 
               {/* Content */}
@@ -595,19 +638,35 @@ export default function EventsPage() {
                     <div className="flex justify-end gap-1">
                       <button
                         onClick={() => openReadMore(event)}
-                        className="p-2 text-slate-400 hover:text-primary hover:bg-primary/5 rounded-xl transition-colors"
+                        className="p-2 text-slate-400 hover:text-primary hover:bg-primary/5 rounded-xl transition-colors cursor-pointer"
                       >
                         <LuEye className="size-4" />
                       </button>
                       <button
                         onClick={() => openEdit(event)}
-                        className="p-2 text-slate-400 hover:text-primary hover:bg-primary/5 rounded-xl transition-colors"
+                        className="p-2 text-slate-400 hover:text-primary hover:bg-primary/5 rounded-xl transition-colors cursor-pointer"
                       >
                         <LuPencil className="size-4" />
                       </button>
                       <button
+                        onClick={() => toggleEventActive(event.id, event.active)}
+                        className={cn(
+                          "p-2 rounded-xl transition-colors cursor-pointer",
+                          event.active === 1
+                            ? "text-emerald-500 hover:bg-emerald-50"
+                            : "text-slate-400 hover:bg-slate-100"
+                        )}
+                        title={event.active === 1 ? "Deactivate Event" : "Activate Event"}
+                      >
+                        {event.active === 1 ? (
+                          <LuToggleRight className="size-5" />
+                        ) : (
+                          <LuToggleLeft className="size-5" />
+                        )}
+                      </button>
+                      <button
                         onClick={() => requestDelete(event.id, event.image_url)}
-                        className="p-2 text-slate-400 hover:text-rose-500 hover:bg-rose-50 rounded-xl transition-colors"
+                        className="p-2 text-slate-400 hover:text-rose-500 hover:bg-rose-50 rounded-xl transition-colors cursor-pointer"
                       >
                         <LuTrash className="size-4" />
                       </button>
@@ -752,6 +811,20 @@ export default function EventsPage() {
                 placeholder="Describe the event..."
                 className="min-h-[120px] rounded-xl resize-none"
               />
+            </div>
+            <div className="space-y-2">
+              <Label className="text-xs font-bold uppercase tracking-wider text-slate-500 ml-1">
+                Status
+              </Label>
+              <select
+                name="active"
+                className="w-full h-11 rounded-xl border border-slate-200 bg-white px-3 text-sm focus:ring-2 focus:ring-primary/20 outline-none transition-all"
+                value={formData.active}
+                onChange={(e) => setFormData((prev) => ({ ...prev, active: Number(e.target.value) }))}
+              >
+                <option value={1}>Active</option>
+                <option value={0}>Inactive</option>
+              </select>
             </div>
           </div>
 

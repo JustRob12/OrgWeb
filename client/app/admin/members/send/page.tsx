@@ -24,6 +24,7 @@ import { Modal } from "@/app/Components/ui/modal";
 interface MemberToNotify {
   id: string;
   first_name: string;
+  middle_initial?: string;
   last_name: string;
   email: string;
   student_id: string;
@@ -59,7 +60,7 @@ export default function SendCredentialsPage() {
       const { data, error } = await supabase
         .from("users")
         .select(`
-          id, first_name, last_name, email, student_id,
+          id, first_name, middle_initial, last_name, email, student_id,
           accounts:accounts!inner(role),
           send_credentials:send_credentials(id, sent_at, status)
         `)
@@ -91,7 +92,7 @@ export default function SendCredentialsPage() {
 
   const handleViewCredentials = async (member: MemberToNotify) => {
     const password = generateNewPassword(member.first_name, member.last_name);
-    const name = `${member.first_name} ${member.last_name}`;
+    const name = `${member.first_name} ${member.middle_initial ? member.middle_initial + " " : ""}${member.last_name}`;
     
     try {
       const { error: updateError } = await supabase
@@ -127,7 +128,7 @@ export default function SendCredentialsPage() {
 
   const handleSendEmail = async (member: MemberToNotify) => {
     const password = generateNewPassword(member.first_name, member.last_name);
-    const name = `${member.first_name} ${member.last_name}`;
+    const name = `${member.first_name} ${member.middle_initial ? member.middle_initial + " " : ""}${member.last_name}`;
     
     try {
       // 1. Update the password in the database (this triggers the hash trigger)
@@ -169,7 +170,7 @@ export default function SendCredentialsPage() {
 
   const filteredMembers = members.filter(member => {
     const matchesSearch = 
-      `${member.first_name} ${member.last_name}`.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      `${member.first_name} ${member.middle_initial ? member.middle_initial + " " : ""}${member.last_name}`.toLowerCase().includes(searchQuery.toLowerCase()) ||
       member.email?.toLowerCase().includes(searchQuery.toLowerCase()) ||
       (member.student_id || "").toLowerCase().includes(searchQuery.toLowerCase());
     
@@ -186,8 +187,8 @@ export default function SendCredentialsPage() {
   );
 
   return (
-    <div className="space-y-6 animate-in fade-in duration-700">
-      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+    <div className="flex flex-col space-y-6 animate-in fade-in duration-700 h-[calc(100vh-6rem)] lg:h-[calc(100vh-8rem)] overflow-hidden">
+      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 shrink-0">
         <div>
           <h1 className="text-4xl font-black tracking-tight text-slate-900">Send Credentials</h1>
           <p className="text-slate-500 font-medium mt-1">Provide accounts credentials to students via email.</p>
@@ -220,7 +221,7 @@ export default function SendCredentialsPage() {
       </div>
 
       {viewMode === "Pending" && (
-        <div className="bg-primary/5 border border-primary/10 p-5 rounded-[2rem] flex items-start gap-4">
+        <div className="bg-primary/5 border border-primary/10 p-5 rounded-[2rem] flex items-start gap-4 shrink-0">
           <div className="size-10 rounded-2xl bg-primary/10 flex items-center justify-center text-primary shrink-0">
             <LuInfo className="size-6" />
           </div>
@@ -234,8 +235,8 @@ export default function SendCredentialsPage() {
         </div>
       )}
 
-      <Card className="border-slate-200 shadow-2xl shadow-slate-200/50 rounded-[2.5rem] overflow-hidden bg-white">
-        <div className="p-6 border-b border-slate-100">
+      <Card className="flex-1 flex flex-col overflow-hidden border-slate-200 shadow-2xl shadow-slate-200/50 rounded-[2.5rem] bg-white">
+        <div className="p-6 border-b border-slate-100 shrink-0">
           <div className="relative group max-w-md">
             <LuSearch className="absolute left-4 top-1/2 -translate-y-1/2 size-4 text-slate-400 group-focus-within:text-primary transition-colors" />
             <input 
@@ -248,7 +249,7 @@ export default function SendCredentialsPage() {
           </div>
         </div>
 
-        <div className="overflow-x-auto">
+        <div className="overflow-x-auto flex-1 overflow-y-auto custom-scrollbar">
           <table className="w-full text-left border-collapse">
             <thead>
               <tr className="bg-slate-50/50">
@@ -281,7 +282,9 @@ export default function SendCredentialsPage() {
                           {member.first_name[0]}{member.last_name[0]}
                         </div>
                         <div>
-                          <div className="font-black text-slate-900 text-base">{member.first_name} {member.last_name}</div>
+                          <div className="font-black text-slate-900 text-base">
+                            {member.first_name} {member.middle_initial ? member.middle_initial + " " : ""}{member.last_name}
+                          </div>
                           <div className="text-xs font-bold text-slate-400 tracking-tight">
                             {member.email} • <span className="text-primary font-black">ID: {member.student_id || 'NOT SET'}</span>
                           </div>
@@ -341,7 +344,7 @@ export default function SendCredentialsPage() {
           </table>
         </div>
         
-        <div className="p-6 bg-slate-50/50 border-t border-slate-100 flex items-center justify-between">
+        <div className="p-6 bg-slate-50/50 border-t border-slate-100 flex items-center justify-between shrink-0">
           <p className="text-xs font-bold text-slate-500 uppercase tracking-widest">
             Showing <span className="text-slate-900">{Math.min(filteredMembers.length, (currentPage - 1) * itemsPerPage + 1)}-{Math.min(filteredMembers.length, currentPage * itemsPerPage)}</span> of <span className="text-slate-900">{filteredMembers.length}</span> students
           </p>
@@ -368,7 +371,7 @@ export default function SendCredentialsPage() {
         </div>
       </Card>
       
-      <div className="text-center">
+      <div className="text-center shrink-0">
         <p className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-300">
           Sender Email: roberto.prisoris12@gmail.com
         </p>

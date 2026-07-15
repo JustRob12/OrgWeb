@@ -599,25 +599,37 @@ export default function AddMembersPage() {
                 className="rounded-xl h-11"
               />
             </div>
-            <div className="space-y-2">
-              <Label className="text-xs font-bold uppercase tracking-wider text-slate-500">First Name *</Label>
-              <Input
-                placeholder="John"
-                value={manualMember.first_name}
-                onChange={(e) => setManualMember({ ...manualMember, first_name: e.target.value })}
-                required
-                className="rounded-xl h-11"
-              />
-            </div>
-            <div className="space-y-2">
-              <Label className="text-xs font-bold uppercase tracking-wider text-slate-500">Last Name *</Label>
-              <Input
-                placeholder="Doe"
-                value={manualMember.last_name}
-                onChange={(e) => setManualMember({ ...manualMember, last_name: e.target.value })}
-                required
-                className="rounded-xl h-11"
-              />
+            <div className="md:col-span-2 grid grid-cols-1 md:grid-cols-3 gap-4">
+              <div className="space-y-2">
+                <Label className="text-xs font-bold uppercase tracking-wider text-slate-500">First Name *</Label>
+                <Input
+                  placeholder="John"
+                  value={manualMember.first_name}
+                  onChange={(e) => setManualMember({ ...manualMember, first_name: e.target.value })}
+                  required
+                  className="rounded-xl h-11"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label className="text-xs font-bold uppercase tracking-wider text-slate-500">Middle Initial</Label>
+                <Input
+                  placeholder="M."
+                  value={manualMember.middle_initial || ""}
+                  onChange={(e) => setManualMember({ ...manualMember, middle_initial: e.target.value })}
+                  maxLength={5}
+                  className="rounded-xl h-11"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label className="text-xs font-bold uppercase tracking-wider text-slate-500">Last Name *</Label>
+                <Input
+                  placeholder="Doe"
+                  value={manualMember.last_name}
+                  onChange={(e) => setManualMember({ ...manualMember, last_name: e.target.value })}
+                  required
+                  className="rounded-xl h-11"
+                />
+              </div>
             </div>
             <div className="space-y-2">
               <Label className="text-xs font-bold uppercase tracking-wider text-slate-500">Course *</Label>

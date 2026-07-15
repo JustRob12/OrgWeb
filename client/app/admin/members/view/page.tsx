@@ -169,8 +169,8 @@ export default function ViewMembersPage() {
   );
 
   return (
-    <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-700">
-      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+    <div className="flex flex-col space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-700 h-[calc(100vh-6rem)] lg:h-[calc(100vh-8rem)] overflow-hidden">
+      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 shrink-0">
         <div>
           <h1 className="text-4xl font-bold tracking-tight text-slate-900">Registered Members</h1>
           <p className="text-slate-500 mt-1">Manage, edit, and track registered students and their membership status.</p>
@@ -183,7 +183,7 @@ export default function ViewMembersPage() {
         </Link>
       </div>
 
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4 shrink-0">
         {/* Stats Cards */}
         <Card className="bg-emerald-50/50 border-emerald-100 rounded-3xl overflow-hidden group">
           <CardContent className="p-6">
@@ -256,8 +256,8 @@ export default function ViewMembersPage() {
         </Card>
       </div>
 
-      <Card className="border-slate-200 shadow-2xl shadow-slate-200/50 rounded-[2.5rem] overflow-hidden bg-white">
-        <div className="p-6 border-b border-slate-100 space-y-4">
+      <Card className="flex-1 flex flex-col overflow-hidden border-slate-200 shadow-2xl shadow-slate-200/50 rounded-[2.5rem] bg-white">
+        <div className="p-6 border-b border-slate-100 space-y-4 shrink-0">
           <div className="flex flex-col md:flex-row justify-between items-center gap-4">
             <div className="relative w-full md:w-96 group">
               <LuSearch className="absolute left-4 top-1/2 -translate-y-1/2 size-4 text-slate-400 group-focus-within:text-primary transition-colors" />
@@ -290,7 +290,7 @@ export default function ViewMembersPage() {
           </div>
         </div>
 
-        <div className="overflow-x-auto">
+        <div className="overflow-x-auto flex-1 overflow-y-auto custom-scrollbar">
           <table className="w-full text-left border-collapse">
             <thead>
               <tr className="bg-slate-50/50">
@@ -328,7 +328,9 @@ export default function ViewMembersPage() {
                           {member.first_name[0]}{member.last_name[0]}
                         </div>
                         <div>
-                          <div className="font-black text-slate-900">{member.first_name} {member.last_name}</div>
+                          <div className="font-black text-slate-900">
+                            {member.first_name} {member.middle_initial ? member.middle_initial + " " : ""}{member.last_name}
+                          </div>
                           <div className="text-xs font-bold text-primary tracking-tight">ID: {member.student_id || 'NOT SET'}</div>
                         </div>
                       </div>
@@ -414,7 +416,7 @@ export default function ViewMembersPage() {
           </table>
         </div>
 
-        <div className="p-6 bg-slate-50/50 border-t border-slate-100 flex items-center justify-between">
+        <div className="p-6 bg-slate-50/50 border-t border-slate-100 flex items-center justify-between shrink-0">
           <p className="text-xs font-bold text-slate-500 uppercase tracking-widest">
             Showing <span className="text-slate-900">{Math.min(filteredMembers.length, (currentPage - 1) * itemsPerPage + 1)}-{Math.min(filteredMembers.length, currentPage * itemsPerPage)}</span> of <span className="text-slate-900">{filteredMembers.length}</span> results
           </p>
