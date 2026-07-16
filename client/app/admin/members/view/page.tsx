@@ -24,6 +24,7 @@ import { toast } from "sonner";
 import { createClient } from "@/utils/supabase/client";
 import Link from "next/link";
 import { ConfirmModal } from "@/app/Components/ui/confirm-modal";
+import { Modal } from "@/app/Components/ui/modal";
 
 interface MemberWithStatus {
   id: string;
@@ -55,6 +56,125 @@ export default function ViewMembersPage() {
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 10;
   const supabase = createClient();
+
+  // Edit Member Modal States
+  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+  const [selectedMemberForEdit, setSelectedMemberForEdit] = useState<MemberWithStatus | null>(null);
+  const [editFirstName, setEditFirstName] = useState("");
+  const [editMiddleInitial, setEditMiddleInitial] = useState("");
+  const [editLastName, setEditLastName] = useState("");
+  const [editStudentId, setEditStudentId] = useState("");
+  const [editCourse, setEditCourse] = useState("");
+  const [editSection, setEditSection] = useState("");
+  const [editYear, setEditYear] = useState("");
+  const [editEmail, setEditEmail] = useState("");
+  const [editStatus, setEditStatus] = useState("Not Paid");
+  const [editPayment, setEditPayment] = useState(0);
+  const [isSavingEdit, setIsSavingEdit] = useState(false);
+
+  const handleEditClick = (member: MemberWithStatus) => {
+    setSelectedMemberForEdit(member);
+    setEditFirstName(member.first_name || "");
+    setEditMiddleInitial(member.middle_initial || "");
+    setEditLastName(member.last_name || "");
+    setEditStudentId(member.student_id || "");
+    setEditCourse(member.course || "");
+    setEditSection(member.section || "");
+    setEditYear(member.year || "");
+    setEditEmail(member.email || "");
+    setEditStatus(member.memberships?.status || "Not Paid");
+    setEditPayment(member.memberships?.payment || 0);
+    setIsEditModalOpen(true);
+  };
+
+  const handleSaveEdit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!selectedMemberForEdit) return;
+
+    setIsSavingEdit(true);
+    try {
+      // 1. Update user details in the users table
+      const { error: userError } = await supabase
+        .from("users")
+        .update({
+          first_name: editFirstName.trim(),
+          middle_initial: editMiddleInitial.trim() || null,
+          last_name: editLastName.trim(),
+          student_id: editStudentId.trim(),
+          course: editCourse.trim(),
+          section: editSection.trim(),
+          year: editYear.trim(),
+          email: editEmail.trim(),
+        })
+        .eq("id", selectedMemberForEdit.id);
+
+      if (userError) throw userError;
+
+      // 2. Check if a membership record exists
+      const { data: membershipData } = await supabase
+        .from("memberships")
+        .select("id")
+        .eq("user_id", selectedMemberForEdit.id)
+        .maybeSingle();
+
+      if (membershipData) {
+        // Update existing record
+        const { error: membershipError } = await supabase
+          .from("memberships")
+          .update({
+            status: editStatus,
+            payment: editPayment,
+          })
+          .eq("user_id", selectedMemberForEdit.id);
+
+        if (membershipError) throw membershipError;
+      } else {
+        // Insert new record
+        const { error: membershipError } = await supabase
+          .from("memberships")
+          .insert({
+            user_id: selectedMemberForEdit.id,
+            status: editStatus,
+            payment: editPayment,
+          });
+
+        if (membershipError) throw membershipError;
+      }
+
+      toast.success("Member details updated successfully.");
+      
+      // Update local state
+      setMembers((prev) =>
+        prev.map((m) =>
+          m.id === selectedMemberForEdit.id
+            ? {
+                ...m,
+                first_name: editFirstName.trim(),
+                middle_initial: editMiddleInitial.trim(),
+                last_name: editLastName.trim(),
+                student_id: editStudentId.trim(),
+                course: editCourse.trim(),
+                section: editSection.trim(),
+                year: editYear.trim(),
+                email: editEmail.trim(),
+                memberships: {
+                  status: editStatus,
+                  payment: editPayment,
+                  created_at: m.memberships?.created_at,
+                },
+              }
+            : m
+        )
+      );
+
+      setIsEditModalOpen(false);
+    } catch (err: any) {
+      console.error("Save edit failed:", err);
+      toast.error(err.message || "Failed to save member details.");
+    } finally {
+      setIsSavingEdit(false);
+    }
+  };
 
   const fetchMembers = async () => {
     setLoading(true);
@@ -396,7 +516,12 @@ export default function ViewMembersPage() {
                     </td>
                     <td className="px-6 py-5 text-right">
                       <div className="flex justify-end gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                        <Button variant="outline" size="sm" className="size-9 p-0 rounded-xl hover:bg-primary hover:text-white hover:border-primary transition-all">
+                        <Button 
+                          variant="outline" 
+                          size="sm" 
+                          onClick={() => handleEditClick(member)}
+                          className="size-9 p-0 rounded-xl hover:bg-primary hover:text-white hover:border-primary transition-all"
+                        >
                           <LuPencil className="size-4" />
                         </Button>
                         <Button 
@@ -453,6 +578,150 @@ export default function ViewMembersPage() {
         variant="danger"
         isLoading={isDeleting}
       />
+
+      <Modal 
+        isOpen={isEditModalOpen} 
+        onClose={() => setIsEditModalOpen(false)} 
+        title="Edit Member Details"
+        className="max-w-2xl"
+      >
+        <form onSubmit={handleSaveEdit} className="space-y-6">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div className="space-y-1">
+              <label className="text-xs font-bold text-slate-500 uppercase">First Name</label>
+              <input
+                type="text"
+                required
+                value={editFirstName}
+                onChange={(e) => setEditFirstName(e.target.value)}
+                className="w-full h-11 px-3 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:bg-white focus:outline-none focus:ring-4 focus:ring-primary/10 transition-all font-medium"
+              />
+            </div>
+            <div className="space-y-1">
+              <label className="text-xs font-bold text-slate-500 uppercase">Last Name</label>
+              <input
+                type="text"
+                required
+                value={editLastName}
+                onChange={(e) => setEditLastName(e.target.value)}
+                className="w-full h-11 px-3 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:bg-white focus:outline-none focus:ring-4 focus:ring-primary/10 transition-all font-medium"
+              />
+            </div>
+          </div>
+
+          <div className="grid grid-cols-3 gap-4">
+            <div className="space-y-1 col-span-1">
+              <label className="text-xs font-bold text-slate-500 uppercase">M.I.</label>
+              <input
+                type="text"
+                maxLength={2}
+                value={editMiddleInitial}
+                onChange={(e) => setEditMiddleInitial(e.target.value)}
+                className="w-full h-11 px-3 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:bg-white focus:outline-none focus:ring-4 focus:ring-primary/10 transition-all font-medium"
+              />
+            </div>
+            <div className="space-y-1 col-span-2">
+              <label className="text-xs font-bold text-slate-500 uppercase">Student ID</label>
+              <input
+                type="text"
+                required
+                value={editStudentId}
+                onChange={(e) => setEditStudentId(e.target.value)}
+                className="w-full h-11 px-3 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:bg-white focus:outline-none focus:ring-4 focus:ring-primary/10 transition-all font-medium"
+              />
+            </div>
+          </div>
+
+          <div className="space-y-1">
+            <label className="text-xs font-bold text-slate-500 uppercase">Email Address</label>
+            <input
+              type="email"
+              required
+              value={editEmail}
+              onChange={(e) => setEditEmail(e.target.value)}
+              className="w-full h-11 px-3 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:bg-white focus:outline-none focus:ring-4 focus:ring-primary/10 transition-all font-medium"
+            />
+          </div>
+
+          <div className="grid grid-cols-3 gap-4">
+            <div className="space-y-1">
+              <label className="text-xs font-bold text-slate-500 uppercase">Course</label>
+              <input
+                type="text"
+                required
+                value={editCourse}
+                onChange={(e) => setEditCourse(e.target.value)}
+                className="w-full h-11 px-3 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:bg-white focus:outline-none focus:ring-4 focus:ring-primary/10 transition-all font-medium"
+              />
+            </div>
+            <div className="space-y-1">
+              <label className="text-xs font-bold text-slate-500 uppercase">Section</label>
+              <input
+                type="text"
+                required
+                value={editSection}
+                onChange={(e) => setEditSection(e.target.value)}
+                className="w-full h-11 px-3 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:bg-white focus:outline-none focus:ring-4 focus:ring-primary/10 transition-all font-medium"
+              />
+            </div>
+            <div className="space-y-1">
+              <label className="text-xs font-bold text-slate-500 uppercase">Year</label>
+              <input
+                type="text"
+                required
+                value={editYear}
+                onChange={(e) => setEditYear(e.target.value)}
+                className="w-full h-11 px-3 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:bg-white focus:outline-none focus:ring-4 focus:ring-primary/10 transition-all font-medium"
+              />
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-4 border-t border-slate-100">
+            <div className="space-y-1">
+              <label className="text-xs font-bold text-slate-500 uppercase">Membership Status</label>
+              <select
+                value={editStatus}
+                onChange={(e) => setEditStatus(e.target.value)}
+                className="w-full h-11 px-3 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:bg-white focus:outline-none focus:ring-4 focus:ring-primary/10 transition-all font-medium"
+              >
+                <option value="Not Paid">Not Paid</option>
+                <option value="Partial">Partial</option>
+                <option value="Half Semester Paid">Half Semester Paid</option>
+                <option value="Fully Paid">Fully Paid</option>
+              </select>
+            </div>
+            <div className="space-y-1">
+              <label className="text-xs font-bold text-slate-500 uppercase">Payment Amount (₱)</label>
+              <input
+                type="number"
+                min={0}
+                required
+                value={editPayment}
+                onChange={(e) => setEditPayment(parseFloat(e.target.value) || 0)}
+                className="w-full h-11 px-3 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:bg-white focus:outline-none focus:ring-4 focus:ring-primary/10 transition-all font-medium"
+              />
+            </div>
+          </div>
+
+          <div className="pt-6 flex justify-end gap-3 border-t border-slate-100 shrink-0">
+            <Button
+              type="button"
+              variant="ghost"
+              onClick={() => setIsEditModalOpen(false)}
+              className="rounded-xl font-bold"
+            >
+              Cancel
+            </Button>
+            <Button
+              type="submit"
+              disabled={isSavingEdit}
+              className="rounded-xl font-bold bg-primary text-white hover:bg-primary/90"
+            >
+              {isSavingEdit ? "Saving..." : "Save Changes"}
+            </Button>
+          </div>
+        </form>
+      </Modal>
     </div>
   );
 }

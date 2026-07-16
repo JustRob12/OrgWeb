@@ -28,7 +28,7 @@ export function Modal({ isOpen, onClose, title, children, className }: ModalProp
   if (!isOpen) return null
 
   return (
-    <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
+    <div className="fixed inset-0 z-[100] flex items-center justify-center p-2 sm:p-4">
       {/* Backdrop */}
       <div 
         className="absolute inset-0 bg-slate-900/40 backdrop-blur-sm animate-in fade-in duration-300"
@@ -37,7 +37,7 @@ export function Modal({ isOpen, onClose, title, children, className }: ModalProp
       
       {/* Modal Content */}
       <div className={cn(
-        "relative w-full max-w-lg bg-white rounded-2xl shadow-2xl border border-slate-200 animate-in zoom-in-95 fade-in duration-300 overflow-hidden flex flex-col",
+        "relative w-full max-w-lg max-h-[90vh] sm:max-h-[85vh] bg-white rounded-2xl shadow-2xl border border-slate-200 animate-in zoom-in-95 fade-in duration-300 overflow-hidden flex flex-col",
         className
       )}>
         {/* Header */}

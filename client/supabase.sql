@@ -173,3 +173,144 @@ CREATE TABLE IF NOT EXISTS documents (
     web_view_link TEXT,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
 );
+
+-- 16. Create the Polls Table
+CREATE TABLE IF NOT EXISTS polls (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    title TEXT NOT NULL,
+    description TEXT,
+    start_time TIMESTAMP WITH TIME ZONE NOT NULL,
+    end_time TIMESTAMP WITH TIME ZONE NOT NULL,
+    is_anonymous BOOLEAN DEFAULT TRUE,
+    status TEXT CHECK (status IN ('draft', 'active', 'completed')) DEFAULT 'draft',
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+);
+
+-- 17. Create the Poll Questions Table (Positions)
+CREATE TABLE IF NOT EXISTS poll_questions (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    poll_id UUID REFERENCES polls(id) ON DELETE CASCADE,
+    title TEXT NOT NULL,
+    max_selections INTEGER DEFAULT 1,
+    order_index INTEGER DEFAULT 0,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+);
+
+-- 18. Create the Poll Options Table (Candidates)
+CREATE TABLE IF NOT EXISTS poll_options (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    question_id UUID REFERENCES poll_questions(id) ON DELETE CASCADE,
+    name TEXT NOT NULL,
+    details TEXT,
+    image_url TEXT,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+);
+
+-- 19. Create the Ballots Table (Voter Tracking)
+CREATE TABLE IF NOT EXISTS ballots (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    user_id UUID REFERENCES users(id) ON DELETE CASCADE,
+    poll_id UUID REFERENCES polls(id) ON DELETE CASCADE,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT unique_user_poll UNIQUE (user_id, poll_id)
+);
+
+-- 20. Create the Votes Table (Anonymous Tallying)
+CREATE TABLE IF NOT EXISTS votes (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    poll_id UUID REFERENCES polls(id) ON DELETE CASCADE,
+    question_id UUID REFERENCES poll_questions(id) ON DELETE CASCADE,
+    option_id UUID REFERENCES poll_options(id) ON DELETE CASCADE,
+    user_id UUID REFERENCES users(id) ON DELETE SET NULL,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+);
+
+-- Enable RLS (Public access for this development phase)
+ALTER TABLE polls ENABLE ROW LEVEL SECURITY;
+ALTER TABLE poll_questions ENABLE ROW LEVEL SECURITY;
+ALTER TABLE poll_options ENABLE ROW LEVEL SECURITY;
+ALTER TABLE ballots ENABLE ROW LEVEL SECURITY;
+ALTER TABLE votes ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY "Public polls access" ON polls FOR ALL USING (true) WITH CHECK (true);
+CREATE POLICY "Public poll_questions access" ON poll_questions FOR ALL USING (true) WITH CHECK (true);
+CREATE POLICY "Public poll_options access" ON poll_options FOR ALL USING (true) WITH CHECK (true);
+CREATE POLICY "Public ballots access" ON ballots FOR ALL USING (true) WITH CHECK (true);
+CREATE POLICY "Public votes access" ON votes FOR ALL USING (true) WITH CHECK (true);
+
+GRANT SELECT, INSERT, UPDATE, DELETE ON polls TO anon, authenticated, service_role;
+GRANT SELECT, INSERT, UPDATE, DELETE ON poll_questions TO anon, authenticated, service_role;
+GRANT SELECT, INSERT, UPDATE, DELETE ON poll_options TO anon, authenticated, service_role;
+GRANT SELECT, INSERT, UPDATE, DELETE ON ballots TO anon, authenticated, service_role;
+GRANT SELECT, INSERT, UPDATE, DELETE ON votes TO anon, authenticated, service_role;
+
+-- 21. Create cast_ballot Stored Procedure
+CREATE OR REPLACE FUNCTION cast_ballot(
+    p_poll_id UUID,
+    p_user_id UUID,
+    p_selections JSONB
+)
+RETURNS BOOLEAN AS $$
+DECLARE
+    v_has_voted BOOLEAN;
+    v_selection RECORD;
+    v_poll_status TEXT;
+    v_start_time TIMESTAMP WITH TIME ZONE;
+    v_end_time TIMESTAMP WITH TIME ZONE;
+BEGIN
+    -- 1. Fetch poll status and times
+    SELECT status, start_time, end_time INTO v_poll_status, v_start_time, v_end_time
+    FROM polls
+    WHERE id = p_poll_id;
+
+    -- 2. Validate that the poll is currently active and within schedule
+    IF v_poll_status IS NULL OR v_poll_status != 'active' THEN
+        RAISE EXCEPTION 'This poll is not currently active.';
+    END IF;
+
+    IF NOW() < v_start_time THEN
+        RAISE EXCEPTION 'This poll has not started yet.';
+    END IF;
+
+    IF NOW() > v_end_time THEN
+        RAISE EXCEPTION 'This poll has ended (deadline reached).';
+    END IF;
+
+    -- 3. Check if user already voted
+    SELECT EXISTS (
+        SELECT 1 FROM ballots 
+        WHERE user_id = p_user_id AND poll_id = p_poll_id
+    ) INTO v_has_voted;
+
+    IF v_has_voted THEN
+        -- Allow changing vote: delete previous vote records for this user & poll
+        DELETE FROM votes 
+        WHERE user_id = p_user_id AND poll_id = p_poll_id;
+        
+        -- Update the ballot timestamp
+        UPDATE ballots 
+        SET created_at = CURRENT_TIMESTAMP 
+        WHERE user_id = p_user_id AND poll_id = p_poll_id;
+    ELSE
+        -- First time voting: insert a ballot record
+        INSERT INTO ballots (user_id, poll_id)
+        VALUES (p_user_id, p_poll_id);
+    END IF;
+
+    -- 4. Insert selections (we store user_id to allow vote changes)
+    FOR v_selection IN 
+        SELECT * FROM jsonb_to_recordset(p_selections) 
+        AS x(question_id UUID, option_id UUID)
+    LOOP
+        INSERT INTO votes (poll_id, question_id, option_id, user_id)
+        VALUES (p_poll_id, v_selection.question_id, v_selection.option_id, p_user_id);
+    END LOOP;
+
+    RETURN TRUE;
+END;
+$$ LANGUAGE plpgsql;
+
+-- 22. Add category column to polls table
+ALTER TABLE polls ADD COLUMN IF NOT EXISTS category TEXT CHECK (category IN ('standard', 'visual', 'pageant')) DEFAULT 'standard';
+
+

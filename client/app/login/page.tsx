@@ -17,6 +17,22 @@ export default function LoginPage() {
   const [password, setPassword] = React.useState("")
   const router = useRouter()
 
+  React.useEffect(() => {
+    const storedUser = localStorage.getItem("acetrack_user");
+    if (storedUser) {
+      try {
+        const parsed = JSON.parse(storedUser);
+        if (parsed.role === 0) {
+          router.replace("/admin");
+        } else if (parsed.role === 1) {
+          router.replace("/student");
+        }
+      } catch (e) {
+        console.error("Session restore error:", e);
+      }
+    }
+  }, [router]);
+
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault()
     setIsLoading(true)

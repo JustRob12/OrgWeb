@@ -14,7 +14,8 @@ import {
   LuWallet,
   LuIdCard,
   LuBell,
-  LuSearch
+  LuSearch,
+  LuVote
 } from "react-icons/lu";
 import { cn } from "@/lib/utils";
 import { Button } from "@/app/Components/ui/button";
@@ -26,12 +27,14 @@ const navItems = [
   { name: "Attendance", href: "/student/attendance", icon: LuHistory },
   { name: "Events", href: "/student/events", icon: LuCalendar },
   { name: "Finance", href: "/student/finance", icon: LuWallet },
+  { name: "Voting", href: "/student/voting", icon: LuVote },
   { name: "Profile", href: "/student/profile", icon: LuUserRound },
 ];
 
 export default function StudentLayout({ children }: { children: React.ReactNode }) {
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [user, setUser] = useState<any>(null);
+  const [loading, setLoading] = useState(true);
   const pathname = usePathname();
   const router = useRouter();
   const supabase = createClient();
@@ -55,18 +58,25 @@ export default function StudentLayout({ children }: { children: React.ReactNode 
         }
       }
 
-      if (email) {
-        // Fetch full profile from 'users' table
-        const { data, error } = await supabase
-          .from("users")
-          .select("*")
-          .eq("email", email)
-          .single();
-        
-        if (!error && data) {
-          setUser(data);
-        }
+      if (!email) {
+        router.replace("/login");
+        return;
       }
+
+      // Fetch full profile from 'users' table
+      const { data, error } = await supabase
+        .from("users")
+        .select("*")
+        .eq("email", email)
+        .single();
+      
+      if (error || !data) {
+        router.replace("/login");
+        return;
+      }
+
+      setUser(data);
+      setLoading(false);
     };
     getUserData();
   }, []);
@@ -76,6 +86,14 @@ export default function StudentLayout({ children }: { children: React.ReactNode 
     localStorage.removeItem("acetrack_user");
     router.push("/login");
   };
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-slate-50 flex items-center justify-center w-full">
+        <div className="h-8 w-8 border-4 border-orange-500 border-t-transparent rounded-full animate-spin" />
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-[#F8FAFC]">

@@ -1,6 +1,6 @@
 "use client"
 
-import React, { useState } from "react"
+import React, { useState, useEffect } from "react"
 import Link from "next/link"
 import { usePathname } from "next/navigation"
 import {
@@ -26,6 +26,7 @@ import { cn } from "@/lib/utils"
 import { Button } from "../Components/ui/button"
 import { useRouter } from "next/navigation"
 import { ConfirmModal } from "../Components/ui/confirm-modal"
+import { createClient } from "@/utils/supabase/client"
 
 const menuItems = [
   { name: "Dashboard", icon: LuLayoutDashboard, href: "/admin" },
@@ -69,12 +70,45 @@ const menuItems = [
 export default function AdminLayout({ children }: { children: React.ReactNode }) {
   const [isSidebarOpen, setIsSidebarOpen] = useState(false)
   const [isLogoutModalOpen, setIsLogoutModalOpen] = useState(false)
+  const [loading, setLoading] = useState(true)
   const pathname = usePathname()
   const router = useRouter()
+  const supabase = createClient()
 
-  const handleLogout = () => {
-    // Perform any logout logic here (e.g., supabase.auth.signOut())
-    router.push("/login")
+  useEffect(() => {
+    const checkAdmin = async () => {
+      const storedUser = localStorage.getItem("acetrack_user");
+      if (!storedUser) {
+        router.replace("/login");
+        return;
+      }
+      try {
+        const parsed = JSON.parse(storedUser);
+        if (parsed.role !== 0) {
+          router.replace("/login");
+          return;
+        }
+      } catch (e) {
+        router.replace("/login");
+        return;
+      }
+      setLoading(false);
+    };
+    checkAdmin();
+  }, [router]);
+
+  const handleLogout = async () => {
+    await supabase.auth.signOut();
+    localStorage.removeItem("acetrack_user");
+    router.push("/login");
+  }
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-slate-50 flex items-center justify-center w-full">
+        <div className="h-8 w-8 border-4 border-slate-350 border-t-transparent rounded-full animate-spin" />
+      </div>
+    );
   }
 
   return (
