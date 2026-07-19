@@ -134,8 +134,9 @@ CREATE TABLE IF NOT EXISTS finance_transactions (
 ALTER TABLE finance_items ENABLE ROW LEVEL SECURITY;
 ALTER TABLE finance_transactions ENABLE ROW LEVEL SECURITY;
 CREATE POLICY "Public items access" ON finance_items FOR ALL USING (true) WITH CHECK (true);
-GRANT SELECT ON finance_items TO anon, authenticated;
-GRANT SELECT ON finance_transactions TO anon, authenticated;
+CREATE POLICY "Public transactions access" ON finance_transactions FOR ALL USING (true) WITH CHECK (true);
+GRANT SELECT, INSERT, UPDATE, DELETE ON finance_items TO anon, authenticated, service_role;
+GRANT SELECT, INSERT, UPDATE, DELETE ON finance_transactions TO anon, authenticated, service_role;
 
 -- 13. Create Finance Audit View (for flat searching)
 CREATE OR REPLACE VIEW finance_audit_view AS
@@ -312,5 +313,29 @@ $$ LANGUAGE plpgsql;
 
 -- 22. Add category column to polls table
 ALTER TABLE polls ADD COLUMN IF NOT EXISTS category TEXT CHECK (category IN ('standard', 'visual', 'pageant')) DEFAULT 'standard';
+
+-- 23. Create the Attendance Table
+CREATE TABLE IF NOT EXISTS attendance (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    event_id UUID REFERENCES events(id) ON DELETE CASCADE,
+    user_id UUID REFERENCES users(id) ON DELETE CASCADE,
+    student_id TEXT NOT NULL,
+    full_name TEXT NOT NULL,
+    email TEXT,
+    course TEXT,
+    section TEXT,
+    year TEXT,
+    time_in TIMESTAMP WITH TIME ZONE,
+    time_out TIMESTAMP WITH TIME ZONE,
+    status TEXT DEFAULT 'Present',
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT unique_event_student UNIQUE (event_id, student_id)
+);
+
+-- Enable RLS for attendance
+ALTER TABLE attendance ENABLE ROW LEVEL SECURITY;
+CREATE POLICY "Public attendance access" ON attendance FOR ALL USING (true) WITH CHECK (true);
+GRANT SELECT, INSERT, UPDATE, DELETE ON attendance TO anon, authenticated, service_role;
+
 
 

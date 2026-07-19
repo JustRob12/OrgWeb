@@ -1,12 +1,12 @@
 "use client";
 
 import React, { useEffect, useState } from "react";
+import Link from "next/link";
 import { 
   LuCalendar, 
   LuHistory, 
   LuIdCard, 
   LuWallet,
-  LuSparkles,
   LuArrowUpRight,
   LuClock,
   LuMapPin,
@@ -25,6 +25,8 @@ export default function StudentDashboard() {
     { name: "Total Fees Paid", value: "₱0.00", icon: LuWallet, color: "text-rose-600", bg: "bg-rose-50" },
   ]);
   const [upcomingEvents, setUpcomingEvents] = useState<any[]>([]);
+  const [polls, setPolls] = useState<any[]>([]);
+  const [fees, setFees] = useState<any[]>([]);
   const [lastScanned, setLastScanned] = useState<string>("Never scanned");
 
   const supabase = createClient();
@@ -66,14 +68,13 @@ export default function StudentDashboard() {
           ? Math.round(((totalPresent || 0) / totalEvents) * 100) 
           : 100;
 
-        // 3. Fetch upcoming events count and actual events list
-        const { data: upcomingEventsData } = await supabase
+        // 3. Fetch active events list
+        const { data: eventsData } = await supabase
           .from("events")
           .select("*")
           .eq("active", 1)
-          .gt("start_time", nowStr)
           .order("start_time", { ascending: true })
-          .limit(2);
+          .limit(5);
 
         const { count: upcomingCount } = await supabase
           .from("events")
@@ -81,12 +82,34 @@ export default function StudentDashboard() {
           .eq("active", 1)
           .gt("start_time", nowStr);
 
+        // 3.5 Fetch active polls
+        const { data: pollsData } = await supabase
+          .from("polls")
+          .select("*")
+          .eq("status", "active")
+          .order("created_at", { ascending: false })
+          .limit(5);
+
         // 4. Fetch membership and payments details
         const { data: membershipData } = await supabase
           .from("memberships")
           .select("*")
           .eq("user_id", userData.id)
           .maybeSingle();
+
+        // 4.5 Fetch finance items and transactions
+        const { data: items } = await supabase
+          .from("finance_items")
+          .select("*")
+          .order("deadline", { ascending: true })
+          .limit(5);
+
+        const { data: txs } = await supabase
+          .from("finance_audit_view")
+          .select("*")
+          .eq("student_id", userData.student_id);
+
+        const paidItemIds = new Set((txs || []).map((t: any) => t.finance_id));
 
         // 5. Fetch last check-in details
         const { data: lastScanData } = await supabase
@@ -137,18 +160,45 @@ export default function StudentDashboard() {
         ]);
 
         // Map events to display layout
-        if (upcomingEventsData) {
-          const mapped = upcomingEventsData.map((ev: any) => {
+        if (eventsData) {
+          const mapped = eventsData.map((ev: any) => {
             const evDate = new Date(ev.start_time);
             return {
+              id: ev.id,
               title: ev.title,
-              date: evDate.toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" }),
+              date: evDate.toLocaleDateString("en-US", { month: "short", day: "2-digit", year: "numeric" }),
               time: evDate.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
               location: ev.location || "Online / TBD",
               type: ev.description?.slice(0, 15) || "Activity"
             };
           });
           setUpcomingEvents(mapped);
+        }
+
+        if (pollsData) {
+          const mappedPolls = pollsData.map((p: any) => {
+            const endDate = new Date(p.end_time);
+            return {
+              id: p.id,
+              title: p.title,
+              deadline: endDate.toLocaleDateString("en-US", { month: "short", day: "2-digit" }),
+              status: p.status
+            };
+          });
+          setPolls(mappedPolls);
+        }
+
+        if (items) {
+          const mappedFees = items.map((item: any) => {
+            const isPaid = paidItemIds.has(item.id);
+            return {
+              id: item.id,
+              title: item.title,
+              amount: `₱${(item.amount || 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}`,
+              isPaid
+            };
+          });
+          setFees(mappedFees);
         }
 
       } catch (err) {
@@ -172,31 +222,10 @@ export default function StudentDashboard() {
 
   return (
     <div className="space-y-8">
-      {/* Welcome Hero */}
-      <div className="relative overflow-hidden bg-slate-900 rounded-3xl md:rounded-[2.5rem] p-6 sm:p-8 md:p-12 text-white">
-        <div className="relative z-10 max-w-2xl space-y-4">
-          <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-white/10 backdrop-blur-md border border-white/10 text-[10px] sm:text-xs font-black uppercase tracking-widest text-orange-300">
-            <LuSparkles className="size-3" /> Welcome Back, {user?.first_name || "Member"}
-          </div>
-          <h1 className="text-2xl sm:text-4xl md:text-5xl font-black tracking-tight leading-tight">
-            Ready for your next <span className="text-orange-400">organization adventure?</span>
-          </h1>
-          <p className="text-xs sm:text-sm md:text-lg text-slate-400 font-medium leading-relaxed max-w-lg">
-            Check your attendance, verify your digital ID, and stay updated with the latest organization activities and deadlines.
-          </p>
-          <div className="pt-4 flex flex-wrap gap-4">
-            <Button className="h-12 px-8 rounded-xl font-bold bg-white text-slate-900 hover:bg-slate-100 shadow-xl shadow-white/5 transition-all">
-              Join Event
-            </Button>
-            <Button variant="outline" className="h-12 px-8 rounded-xl font-bold border-white/20 text-white hover:bg-white/10 transition-all">
-              View Schedule
-            </Button>
-          </div>
-        </div>
-        
-        {/* Background Decor */}
-        <div className="absolute top-0 right-0 w-1/3 h-full bg-gradient-to-l from-orange-500/20 to-transparent pointer-events-none" />
-        <div className="absolute -bottom-24 -right-24 size-64 bg-orange-600/30 rounded-full blur-[100px]" />
+      {/* Simple Dashboard Header */}
+      <div>
+        <h1 className="text-3xl font-black text-slate-900 tracking-tight leading-none mb-2">Dashboard</h1>
+        <p className="text-slate-500 font-medium tracking-tight">Welcome back, {user?.first_name || "Member"}. Track your attendance, status, and upcoming events.</p>
       </div>
 
       {/* Quick Stats */}
@@ -217,63 +246,154 @@ export default function StudentDashboard() {
 
       {/* Activities Grid */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-        {/* Recent Attendance */}
-        <div className="lg:col-span-2 space-y-6">
-          <div className="flex items-center justify-between">
-            <h2 className="text-xl font-black text-slate-900 tracking-tight">Upcoming Activities</h2>
-            <Button variant="ghost" className="text-xs font-black text-orange-600 hover:bg-orange-50 rounded-xl">View All</Button>
+        {/* Left Column: Activities & Vote Polls */}
+        <div className="lg:col-span-2 space-y-8">
+          {/* The Activities List */}
+          <div className="space-y-4">
+            <div className="flex items-center justify-between">
+              <h2 className="text-xl font-black text-slate-900 tracking-tight">The Activities</h2>
+              <Link href="/student/events">
+                <Button variant="ghost" className="text-xs font-black text-orange-600 hover:bg-orange-50 rounded-xl">View All</Button>
+              </Link>
+            </div>
+            {upcomingEvents.length === 0 ? (
+              <div className="p-8 rounded-3xl bg-white border border-slate-200 text-center text-slate-400 font-medium">
+                No activities scheduled.
+              </div>
+            ) : (
+              <div className="bg-white rounded-3xl border border-slate-200 overflow-hidden shadow-sm divide-y divide-slate-100">
+                {upcomingEvents.map((event) => (
+                  <div key={event.id} className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 p-5 hover:bg-slate-50/50 transition-colors">
+                    <div className="flex items-center gap-4">
+                      <div className="size-10 rounded-xl bg-orange-50 text-orange-600 flex items-center justify-center font-bold">
+                        <LuCalendar className="size-5" />
+                      </div>
+                      <div>
+                        <p className="font-bold text-slate-900 leading-tight">{event.title}</p>
+                        <p className="text-xs text-slate-400 mt-1 flex items-center gap-1">
+                          <LuMapPin className="size-3" /> {event.location}
+                        </p>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-6">
+                      <div className="text-left sm:text-right">
+                        <p className="text-xs font-bold text-slate-700">{event.date}</p>
+                        <p className="text-[10px] font-medium text-slate-400 mt-0.5">{event.time}</p>
+                      </div>
+                      <Link href="/student/events">
+                        <Button variant="outline" className="h-9 px-4 rounded-xl text-xs font-bold border-slate-200 hover:bg-slate-50">
+                          View
+                        </Button>
+                      </Link>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
-          {upcomingEvents.length === 0 ? (
-            <div className="p-12 rounded-[2rem] bg-white border border-slate-200 text-center text-slate-400 font-medium">
-              No upcoming activities scheduled.
+
+          {/* Active Polls List */}
+          <div className="space-y-4">
+            <div className="flex items-center justify-between">
+              <h2 className="text-xl font-black text-slate-900 tracking-tight">Active Vote Polls</h2>
+              <Link href="/student/voting">
+                <Button variant="ghost" className="text-xs font-black text-orange-600 hover:bg-orange-50 rounded-xl">Go to Voting</Button>
+              </Link>
             </div>
-          ) : (
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
-              {upcomingEvents.map((event) => (
-                <div key={event.title} className="p-5 rounded-2xl sm:rounded-[2rem] bg-white border border-slate-200 shadow-sm hover:border-orange-200 group transition-all">
-                  <div className="flex items-center gap-3 mb-4">
-                    <span className="px-3 py-1 rounded-full bg-orange-50 text-orange-600 text-[10px] font-black uppercase tracking-widest border border-orange-100">
-                      {event.type}
-                    </span>
+            {polls.length === 0 ? (
+              <div className="p-8 rounded-3xl bg-white border border-slate-200 text-center text-slate-400 font-medium">
+                No active voting polls.
+              </div>
+            ) : (
+              <div className="bg-white rounded-3xl border border-slate-200 overflow-hidden shadow-sm divide-y divide-slate-100">
+                {polls.map((poll) => (
+                  <div key={poll.id} className="flex items-center justify-between gap-4 p-5 hover:bg-slate-50/50 transition-colors">
+                    <div className="flex items-center gap-4">
+                      <div className="size-10 rounded-xl bg-purple-50 text-purple-600 flex items-center justify-center font-bold">
+                        <LuClock className="size-5" />
+                      </div>
+                      <div>
+                        <p className="font-bold text-slate-900 leading-tight">{poll.title}</p>
+                        <p className="text-[10px] font-black text-purple-600 uppercase tracking-widest mt-1">Active</p>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-6">
+                      <p className="text-xs font-bold text-slate-400">Ends: {poll.deadline}</p>
+                      <Link href="/student/voting">
+                        <Button variant="outline" className="h-9 px-4 rounded-xl text-xs font-bold border-slate-200 hover:bg-slate-50">
+                          Vote
+                        </Button>
+                      </Link>
+                    </div>
                   </div>
-                  <h3 className="text-lg font-black text-slate-900 mb-4">{event.title}</h3>
-                  <div className="space-y-2">
-                    <div className="flex items-center gap-2 text-slate-500 text-xs font-bold">
-                      <LuCalendar className="size-4 text-slate-300" /> {event.date}
-                    </div>
-                    <div className="flex items-center gap-2 text-slate-500 text-xs font-bold">
-                      <LuClock className="size-4 text-slate-300" /> {event.time}
-                    </div>
-                    <div className="flex items-center gap-2 text-slate-400 text-xs font-bold">
-                      <LuMapPin className="size-4 text-slate-300" /> {event.location}
-                    </div>
-                  </div>
-                </div>
-              ))}
-            </div>
-          )}
+                ))}
+              </div>
+            )}
+          </div>
         </div>
 
-        {/* Profile Snapshot */}
-        <div className="space-y-6">
-          <h2 className="text-xl font-black text-slate-900 tracking-tight">Quick Actions</h2>
-          <div className="bg-white rounded-2xl sm:rounded-[2rem] p-4 sm:p-6 border border-slate-200 divide-y divide-slate-100">
-            <button className="flex items-center gap-4 py-4 w-full text-left group">
-              <div className="size-10 rounded-xl bg-slate-50 flex items-center justify-center text-slate-400 group-hover:bg-orange-50 group-hover:text-orange-600 transition-all">
-                <LuIdCard className="size-5" />
+        {/* Right Column: Fees & Quick Actions */}
+        <div className="space-y-8">
+          {/* Fees & Dues List */}
+          <div className="space-y-4">
+            <div className="flex items-center justify-between">
+              <h2 className="text-xl font-black text-slate-900 tracking-tight">Fees & Dues</h2>
+              <Link href="/student/finance">
+                <Button variant="ghost" className="text-xs font-black text-orange-600 hover:bg-orange-50 rounded-xl">View Details</Button>
+              </Link>
+            </div>
+            {fees.length === 0 ? (
+              <div className="p-6 rounded-3xl bg-white border border-slate-200 text-center text-slate-400 font-medium">
+                No fee records.
               </div>
-              <div>
-                <p className="text-sm font-bold text-slate-900">Download ID</p>
-                <p className="text-xs text-slate-400">Offline digital copy</p>
+            ) : (
+              <div className="bg-white rounded-3xl border border-slate-200 overflow-hidden shadow-sm divide-y divide-slate-100">
+                {fees.map((fee) => (
+                  <div key={fee.id} className="flex items-center justify-between gap-3 p-4 hover:bg-slate-50/50 transition-colors">
+                    <div>
+                      <p className="text-sm font-bold text-slate-900 leading-tight">{fee.title}</p>
+                      <p className="text-xs font-black text-slate-950 mt-1">{fee.amount}</p>
+                    </div>
+                    <div>
+                      {fee.isPaid ? (
+                        <span className="px-2.5 py-1 rounded-full bg-emerald-50 text-emerald-600 font-black text-[9px] uppercase tracking-widest border border-emerald-100/50">
+                          Paid
+                        </span>
+                      ) : (
+                        <span className="px-2.5 py-1 rounded-full bg-amber-50 text-amber-600 font-black text-[9px] uppercase tracking-widest border border-amber-100/50">
+                          Pending
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                ))}
               </div>
-            </button>
-            <div className="flex items-center gap-4 py-4 w-full text-left group">
-              <div className="size-10 rounded-xl bg-slate-50 flex items-center justify-center text-slate-400 group-hover:bg-orange-50 group-hover:text-orange-600 transition-all">
-                <LuHistory className="size-5" />
-              </div>
-              <div>
-                <p className="text-sm font-bold text-slate-900">Last Scanned</p>
-                <p className="text-xs text-slate-400">{lastScanned}</p>
+            )}
+          </div>
+
+          {/* Quick Actions */}
+          <div className="space-y-4">
+            <h2 className="text-xl font-black text-slate-900 tracking-tight">Quick Actions</h2>
+            <div className="bg-white rounded-3xl p-6 border border-slate-200 divide-y divide-slate-100 shadow-sm">
+              <Link href="/student/id">
+                <button className="flex items-center gap-4 py-4 w-full text-left group">
+                  <div className="size-10 rounded-xl bg-slate-50 flex items-center justify-center text-slate-400 group-hover:bg-orange-50 group-hover:text-orange-600 transition-all">
+                    <LuIdCard className="size-5" />
+                  </div>
+                  <div>
+                    <p className="text-sm font-bold text-slate-900">View ID</p>
+                    <p className="text-xs text-slate-400">Scan at attendance desk</p>
+                  </div>
+                </button>
+              </Link>
+              <div className="flex items-center gap-4 py-4 w-full text-left group">
+                <div className="size-10 rounded-xl bg-slate-50 flex items-center justify-center text-slate-400 group-hover:bg-orange-50 group-hover:text-orange-600 transition-all">
+                  <LuHistory className="size-5" />
+                </div>
+                <div>
+                  <p className="text-sm font-bold text-slate-900">Last Scanned</p>
+                  <p className="text-xs text-slate-400">{lastScanned}</p>
+                </div>
               </div>
             </div>
           </div>

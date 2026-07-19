@@ -16,10 +16,12 @@ import { createClient } from "@/utils/supabase/client";
 interface AttendanceRecord {
   title: string;
   date: string;
-  time: string;
+  timeIn: string;
+  timeOut: string;
   location: string;
   status: string;
 }
+
 
 export default function StudentAttendancePage() {
   const [loading, setLoading] = useState(true);
@@ -72,19 +74,25 @@ export default function StudentAttendancePage() {
         const mappedRecords = (pastEvents || []).map((ev) => {
           const hasCheckin = checkinMap.get(ev.id);
           const evDate = new Date(ev.start_time);
-          
+
           if (hasCheckin) presentCount++;
           else absentCount++;
 
-          let timeStr = "----";
+          let timeInStr = "--:--";
           if (hasCheckin?.time_in) {
-            timeStr = new Date(hasCheckin.time_in).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+            timeInStr = new Date(hasCheckin.time_in).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+          }
+
+          let timeOutStr = "--:--";
+          if (hasCheckin?.time_out) {
+            timeOutStr = new Date(hasCheckin.time_out).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
           }
 
           return {
             title: ev.title,
             date: evDate.toLocaleDateString("en-US", { month: "short", day: "2-digit", year: "numeric" }),
-            time: timeStr,
+            timeIn: timeInStr,
+            timeOut: timeOutStr,
             location: ev.location || "TBD",
             status: hasCheckin ? "Present" : "Absent",
           };
@@ -141,15 +149,17 @@ export default function StudentAttendancePage() {
             <thead>
               <tr className="bg-slate-50/50 border-b border-slate-100">
                 <th className="px-8 py-5 text-[10px] font-black uppercase tracking-widest text-slate-400">Activity & Location</th>
-                <th className="px-8 py-5 text-[10px] font-black uppercase tracking-widest text-slate-400">Date & Time</th>
+                <th className="px-8 py-5 text-[10px] font-black uppercase tracking-widest text-slate-400">Date</th>
+                <th className="px-8 py-5 text-[10px] font-black uppercase tracking-widest text-slate-400">Time In</th>
+                <th className="px-8 py-5 text-[10px] font-black uppercase tracking-widest text-slate-400">Time Out</th>
                 <th className="px-8 py-5 text-[10px] font-black uppercase tracking-widest text-slate-400">Status</th>
-                <th className="px-8 py-5 text-[10px] font-black uppercase tracking-widest text-slate-400 text-right">Action</th>
+
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
               {filteredRecords.length === 0 ? (
                 <tr>
-                  <td colSpan={4} className="px-8 py-12 text-center text-slate-400 font-medium">
+                  <td colSpan={6} className="px-8 py-12 text-center text-slate-400 font-medium">
                     No attendance records found.
                   </td>
                 </tr>
@@ -170,12 +180,17 @@ export default function StudentAttendancePage() {
                       </div>
                     </td>
                     <td className="px-8 py-6">
-                      <div className="space-y-0.5">
-                        <p className="text-sm font-black text-slate-700 tracking-tight leading-none">{record.date}</p>
-                        <p className="flex items-center gap-1.5 text-[10px] font-bold text-slate-400 uppercase tracking-widest">
-                          <LuClock className="size-3" /> {record.time}
-                        </p>
-                      </div>
+                      <p className="text-sm font-black text-slate-700 tracking-tight leading-none">{record.date}</p>
+                    </td>
+                    <td className="px-8 py-6">
+                      <span className={`inline-flex items-center gap-1.5 text-xs font-bold ${record.timeIn !== "--:--" ? "text-slate-700" : "text-slate-300"}`}>
+                        <LuClock className="size-3" /> {record.timeIn}
+                      </span>
+                    </td>
+                    <td className="px-8 py-6">
+                      <span className={`inline-flex items-center gap-1.5 text-xs font-bold ${record.timeOut !== "--:--" ? "text-slate-700" : "text-slate-300"}`}>
+                        <LuClock className="size-3" /> {record.timeOut}
+                      </span>
                     </td>
                     <td className="px-8 py-6">
                       {record.status === "Present" ? (
@@ -188,11 +203,7 @@ export default function StudentAttendancePage() {
                         </span>
                       )}
                     </td>
-                    <td className="px-8 py-6 text-right">
-                      <button className="text-[10px] font-black uppercase tracking-widest text-slate-400 hover:text-primary transition-colors">
-                        Details
-                      </button>
-                    </td>
+                    {/*  */}
                   </tr>
                 ))
               )}

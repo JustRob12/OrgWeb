@@ -188,7 +188,7 @@ export default function ViewMembersPage() {
           send_credentials:send_credentials(id)
         `)
         .eq('accounts.role', 1)
-        .order('last_name', { ascending: true });
+        .order('created_at', { ascending: false });
 
       if (error) throw error;
       

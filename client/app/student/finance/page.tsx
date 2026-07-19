@@ -139,14 +139,14 @@ export default function StudentFinancePage() {
 
          <div className="grid grid-cols-1 lg:grid-cols-3 gap-10">
             {/* Transaction History */}
-            <div className="lg:col-span-2 space-y-6">
+            <div className="order-2 lg:order-1 lg:col-span-2 space-y-6">
                <div className="flex items-center justify-between ml-2">
                   <h2 className="text-xl font-black text-slate-900 tracking-tight flex items-center gap-2">
                      <LuHistory className="size-5 text-slate-300" /> Transaction History
                   </h2>
                   <Button variant="ghost" className="text-xs font-black text-rose-500 hover:bg-rose-50 rounded-xl">View Full Statement</Button>
                </div>
-
+ 
                <div className="bg-white rounded-[2.5rem] border border-slate-200 overflow-hidden shadow-sm">
                   {transactions.length === 0 ? (
                      <div className="p-12 text-center text-slate-400 font-medium">
@@ -180,9 +180,9 @@ export default function StudentFinancePage() {
                   )}
                </div>
             </div>
-
+ 
             {/* Fees Information */}
-            <div className="space-y-6">
+            <div className="order-1 lg:order-2 space-y-6">
                <h2 className="text-xl font-black text-slate-900 tracking-tight ml-2">All Fees & Dues</h2>
                <div className="bg-white rounded-[2.5rem] border border-slate-200 p-8 space-y-8 shadow-sm">
                   {recurringDues.length === 0 ? (

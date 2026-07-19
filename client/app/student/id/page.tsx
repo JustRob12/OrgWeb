@@ -308,7 +308,7 @@ export default function StudentIDPage() {
 
                 {/* School/Org Name at Bottom */}
                 <div className="pt-1 border-t border-slate-200/50 w-full text-center">
-                  <p className="text-[11px] font-black text-slate-900 tracking-widest uppercase opacity-40">ACETRACK 3.0 University</p>
+                  <p className="text-[11px] font-black text-slate-900 tracking-widest uppercase opacity-40">ACETRACK 3.0</p>
                 </div>
               </div>
             </div>

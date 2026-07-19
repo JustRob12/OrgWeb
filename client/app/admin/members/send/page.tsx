@@ -65,7 +65,7 @@ export default function SendCredentialsPage() {
           send_credentials:send_credentials(id, sent_at, status)
         `)
         .eq('accounts.role', 1)
-        .order('last_name', { ascending: true });
+        .order('created_at', { ascending: false });
 
       if (error) throw error;
       

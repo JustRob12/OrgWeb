@@ -13,7 +13,8 @@ import {
   LuTrash,
   LuPlay,
   LuCheck,
-  LuClock
+  LuClock,
+  LuSearch
 } from "react-icons/lu";
 import { Button } from "@/app/Components/ui/button";
 import { Input } from "@/app/Components/ui/input";
@@ -85,6 +86,39 @@ export default function AdminVotingPage() {
   const [resultsQuestions, setResultsQuestions] = useState<QuestionDb[]>([]);
   const [resultsVotes, setResultsVotes] = useState<Record<string, number>>({});
   const [resultsLoading, setResultsLoading] = useState(false);
+
+  // Search filter
+  const [searchQuery, setSearchQuery] = useState("");
+  const [dateFilter, setDateFilter] = useState("");
+
+  const filteredPolls = polls.filter((poll) => {
+    const matchesSearch = 
+      poll.title?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      poll.description?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      poll.category?.toLowerCase().includes(searchQuery.toLowerCase());
+
+    if (!matchesSearch) return false;
+
+    if (dateFilter) {
+      const [filterYear, filterMonth] = dateFilter.split("-").map(Number);
+      
+      const start = new Date(poll.start_time);
+      const end = new Date(poll.end_time);
+      
+      const startYear = start.getFullYear();
+      const startMonth = start.getMonth() + 1;
+      
+      const endYear = end.getFullYear();
+      const endMonth = end.getMonth() + 1;
+      
+      const pollStartsBeforeOrInMonth = startYear < filterYear || (startYear === filterYear && startMonth <= filterMonth);
+      const pollEndsAfterOrInMonth = endYear > filterYear || (endYear === filterYear && endMonth >= filterMonth);
+      
+      return pollStartsBeforeOrInMonth && pollEndsAfterOrInMonth;
+    }
+
+    return true;
+  });
 
   const supabase = createClient();
 
@@ -430,97 +464,164 @@ export default function AdminVotingPage() {
         </div>
       </div>
 
-      {/* Main List */}
-      <div className="bg-white rounded-[2.5rem] border border-slate-200 shadow-sm overflow-hidden">
-        <div className="p-6 border-b border-slate-100 flex items-center justify-between">
-          <h2 className="text-lg font-black text-slate-800 tracking-tight">Poll Directory</h2>
+      {/* Search and Filters Header */}
+      <div className="flex flex-col md:flex-row justify-between items-center gap-4 bg-white p-5 rounded-3xl border border-slate-200 shadow-sm shrink-0 w-full">
+        <div className="flex flex-col sm:flex-row gap-4 w-full md:w-auto flex-1">
+          <div className="relative flex-1 max-w-md group">
+            <LuSearch className="absolute left-4 top-1/2 -translate-y-1/2 size-4 text-slate-400 group-focus-within:text-primary transition-colors" />
+            <input 
+              type="text" 
+              placeholder="Search polls by title or category..." 
+              className="w-full h-11 pl-12 pr-4 bg-slate-50 border border-slate-200 rounded-2xl text-xs sm:text-sm focus:bg-white focus:outline-none focus:ring-4 focus:ring-primary/10 transition-all font-medium"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+            />
+          </div>
+
+          <div className="relative group flex items-center gap-2">
+            <input 
+              type="month" 
+              className="h-11 px-4 bg-slate-50 border border-slate-200 rounded-2xl text-xs sm:text-sm focus:bg-white focus:outline-none focus:ring-4 focus:ring-primary/10 transition-all font-medium text-slate-650 cursor-pointer"
+              value={dateFilter}
+              onChange={(e) => setDateFilter(e.target.value)}
+            />
+            {dateFilter && (
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => setDateFilter("")}
+                className="h-9 px-2.5 rounded-xl text-xs font-bold text-rose-500 hover:bg-rose-50 border border-transparent hover:border-rose-100 whitespace-nowrap"
+              >
+                Clear Date
+              </Button>
+            )}
+          </div>
         </div>
 
-        {polls.length === 0 ? (
-          <div className="p-12 text-center text-slate-400 font-medium">
-            No elections or polls created yet. Click "Create New Poll" to get started.
-          </div>
-        ) : (
-          <div className="divide-y divide-slate-100">
-            {polls.map((poll) => {
-              const turnout = totalStudents > 0 ? Math.round(((poll.voter_count || 0) / totalStudents) * 100) : 0;
-              return (
-                <div key={poll.id} className="p-6 flex flex-col md:flex-row md:items-center justify-between gap-6 hover:bg-slate-50 transition-colors">
-                  <div className="space-y-1.5 flex-1 min-w-0">
-                    <div className="flex items-center gap-2 flex-wrap">
-                      <span className={`px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider border ${
-                        poll.status === "active" 
-                          ? "bg-emerald-50 text-emerald-700 border-emerald-100" 
-                          : poll.status === "completed"
-                          ? "bg-slate-100 text-slate-600 border-slate-200" 
-                          : "bg-amber-50 text-amber-700 border-amber-100"
-                      }`}>
-                        {poll.status}
-                      </span>
-                      <span className="px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider bg-slate-100 text-slate-700 border border-slate-200">
+        <div className="flex items-center gap-2 w-full md:w-auto justify-end shrink-0">
+          <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest leading-none">
+            Showing {filteredPolls.length} of {polls.length} Polls
+          </p>
+        </div>
+      </div>
+
+      {/* Main Grid List */}
+      {filteredPolls.length === 0 ? (
+        <div className="bg-white rounded-[2.5rem] p-12 text-center text-slate-400 font-medium border border-slate-200 shadow-sm">
+          {polls.length === 0 ? "No elections or polls created yet. Click \"Create New Poll\" to get started." : "No polls match your search query."}
+        </div>
+      ) : (
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          {filteredPolls.map((poll) => {
+            const turnout = totalStudents > 0 ? Math.round(((poll.voter_count || 0) / totalStudents) * 100) : 0;
+            return (
+              <div 
+                key={poll.id} 
+                className="bg-white rounded-[2rem] border border-slate-200 shadow-md hover:shadow-xl hover:-translate-y-1 transition-all duration-300 flex flex-col justify-between overflow-hidden group"
+              >
+                {/* Card Header with Badges */}
+                <div className="p-6 pb-4 space-y-4 flex-1">
+                  <div className="flex items-center justify-between flex-wrap gap-2">
+                    <span className={`px-2.5 py-1 rounded-lg text-[9px] font-black uppercase tracking-widest border transition-all ${
+                      poll.status === "active" 
+                        ? "bg-emerald-50 text-emerald-700 border-emerald-100" 
+                        : poll.status === "completed"
+                        ? "bg-slate-50 text-slate-500 border-slate-200" 
+                        : "bg-amber-50 text-amber-700 border-amber-100"
+                    }`}>
+                      {poll.status}
+                    </span>
+                    
+                    <div className="flex gap-1.5 items-center">
+                      <span className="px-2.5 py-1 rounded-lg text-[9px] font-black uppercase tracking-widest bg-slate-50 text-slate-650 border border-slate-200">
                         {poll.category}
                       </span>
-                      {poll.is_anonymous ? (
-                        <span className="flex items-center gap-1 text-[10px] font-bold text-slate-400 bg-slate-50 border border-slate-100 px-2 py-0.5 rounded-full">
-                          <LuLock className="size-2.5" /> Anonymous
-                        </span>
-                      ) : (
-                        <span className="flex items-center gap-1 text-[10px] font-bold text-slate-400 bg-slate-50 border border-slate-100 px-2 py-0.5 rounded-full">
-                          Public
+                      {poll.is_anonymous && (
+                        <span className="flex items-center justify-center p-1 rounded-lg bg-slate-50 border border-slate-100 text-slate-400" title="Anonymous submission">
+                          <LuLock className="size-3.5" />
                         </span>
                       )}
                     </div>
-                    <h3 className="font-black text-slate-900 text-lg truncate">{poll.title}</h3>
-                    <div className="flex gap-4 text-xs font-bold text-slate-400 flex-wrap">
-                      <span className="flex items-center gap-1">
-                        <LuCalendar className="size-3.5" /> Schedule: {new Date(poll.start_time).toLocaleDateString()} - {new Date(poll.end_time).toLocaleDateString()}
-                      </span>
-                      <span>•</span>
-                      <span>Turnout: {poll.voter_count} / {totalStudents} students ({turnout}%)</span>
-                    </div>
                   </div>
 
-                  <div className="flex items-center gap-2 shrink-0">
-                    <Button
-                      variant="outline"
-                      onClick={() => handleOpenResults(poll)}
-                      className="rounded-xl font-bold border-slate-200 hover:bg-slate-100 flex items-center gap-2 text-slate-700"
-                    >
-                      <LuChartBar className="size-4 text-slate-400" /> Results
-                    </Button>
+                  <div className="space-y-1.5">
+                    <h3 className="font-black text-slate-900 text-lg group-hover:text-primary transition-colors leading-snug line-clamp-1">
+                      {poll.title}
+                    </h3>
+                    <p className="text-xs text-slate-400 font-medium line-clamp-2 leading-relaxed">
+                      {poll.description || "No description provided."}
+                    </p>
+                  </div>
 
-                    {poll.status === "draft" && (
-                      <Button
-                        onClick={() => handleUpdateStatus(poll.id, "active")}
-                        className="rounded-xl font-bold bg-emerald-600 hover:bg-emerald-700 text-white flex items-center gap-1.5"
-                      >
-                        <LuPlay className="size-4" /> Start Poll
-                      </Button>
-                    )}
+                  {/* Progress/Turnout */}
+                  <div className="space-y-2 pt-2">
+                    <div className="flex justify-between items-center text-[10px] font-bold text-slate-550">
+                      <span>Voter Turnout</span>
+                      <span>{poll.voter_count} / {totalStudents} ({turnout}%)</span>
+                    </div>
+                    <div className="h-2 bg-slate-50 rounded-full overflow-hidden border border-slate-100 shadow-inner">
+                      <div 
+                        className="h-full bg-gradient-to-r from-orange-500 to-orange-450 rounded-full transition-all duration-1000"
+                        style={{ width: `${turnout}%` }}
+                      />
+                    </div>
+                  </div>
+                </div>
 
-                    {poll.status === "active" && (
+                {/* Card Footer with Details & Actions */}
+                <div className="bg-slate-50/50 border-t border-slate-100 p-6 space-y-4">
+                  <div className="flex items-center gap-2 text-[10px] font-bold text-slate-400 flex-wrap">
+                    <LuCalendar className="size-3.5" />
+                    <span>{new Date(poll.start_time).toLocaleDateString()} - {new Date(poll.end_time).toLocaleDateString()}</span>
+                  </div>
+
+                  <div className="flex items-center gap-2 justify-between">
+                    <div className="flex gap-2">
                       <Button
-                        onClick={() => handleUpdateStatus(poll.id, "completed")}
-                        className="rounded-xl font-bold bg-slate-800 hover:bg-slate-900 text-white flex items-center gap-1.5"
+                        variant="outline"
+                        size="sm"
+                        onClick={() => handleOpenResults(poll)}
+                        className="rounded-xl font-bold border-slate-200 bg-white hover:bg-slate-100 flex items-center gap-2 text-slate-700 h-9"
                       >
-                        <LuCheck className="size-4" /> End Poll
+                        <LuChartBar className="size-4 text-slate-400" /> Results
                       </Button>
-                    )}
+
+                      {poll.status === "draft" && (
+                        <Button
+                          size="sm"
+                          onClick={() => handleUpdateStatus(poll.id, "active")}
+                          className="rounded-xl font-bold bg-emerald-600 hover:bg-emerald-700 text-white flex items-center gap-1.5 h-9"
+                        >
+                          <LuPlay className="size-4" /> Start
+                        </Button>
+                      )}
+
+                      {poll.status === "active" && (
+                        <Button
+                          size="sm"
+                          onClick={() => handleUpdateStatus(poll.id, "completed")}
+                          className="rounded-xl font-bold bg-slate-800 hover:bg-slate-900 text-white flex items-center gap-1.5 h-9"
+                        >
+                          <LuCheck className="size-4" /> End
+                        </Button>
+                      )}
+                    </div>
 
                     <Button
                       variant="ghost"
+                      size="sm"
                       onClick={() => handleDeletePoll(poll.id)}
-                      className="size-10 p-0 rounded-xl hover:bg-rose-50 text-slate-400 hover:text-rose-600 border border-transparent hover:border-rose-100"
+                      className="size-9 p-0 rounded-xl hover:bg-rose-50 text-slate-400 hover:text-rose-600 border border-transparent hover:border-rose-100 flex items-center justify-center shrink-0"
                     >
                       <LuTrash className="size-4" />
                     </Button>
                   </div>
                 </div>
-              );
-            })}
-          </div>
-        )}
-      </div>
+              </div>
+            );
+          })}
+        </div>
+      )}
 
       {/* CREATE POLL MODAL */}
       <Modal isOpen={isCreateOpen} onClose={() => setIsCreateOpen(false)} title="Create New Poll" className="max-w-2xl">

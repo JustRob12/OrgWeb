@@ -1,6 +1,8 @@
 import type { Metadata } from "next";
 import { Roboto } from "next/font/google";
 import "./globals.css";
+import { Toaster } from "sonner";
+import DisableDevTools from "@/app/Components/DisableDevTools";
 
 const roboto = Roboto({
   subsets: ["latin"],
@@ -27,7 +29,11 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en" className={roboto.className} suppressHydrationWarning>
-      <body suppressHydrationWarning>{children}</body>
+      <body suppressHydrationWarning>
+        <DisableDevTools />
+        {children}
+        <Toaster richColors position="top-center" />
+      </body>
     </html>
   );
 }
