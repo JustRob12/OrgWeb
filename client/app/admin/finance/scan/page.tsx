@@ -237,6 +237,48 @@ export default function FinanceScanPage() {
 
       if (error) throw error;
 
+      // Sync status to memberships table if paying membership fee
+      const membershipItem = financeItems.find(
+        (fi) => fi.title.toLowerCase().trim() === "membership fee" || fi.title.toLowerCase().trim() === "membership"
+      );
+
+      if (membershipItem && selectedItems[membershipItem.id]?.checked) {
+        // Fetch all transactions for this student for the membership fee item to calculate cumulative payment
+        const { data: allMemTxs } = await supabase
+          .from("finance_transactions")
+          .select("amount")
+          .eq("user_id", scannedStudent.id)
+          .eq("finance_id", membershipItem.id);
+
+        const cumulativePaid = (allMemTxs || []).reduce((sum, tx) => sum + (parseFloat(tx.amount) || 0), 0);
+        const requiredAmount = parseFloat(membershipItem.amount) || 0;
+
+        let newStatus = "Not Paid";
+        if (requiredAmount > 0) {
+          if (cumulativePaid >= requiredAmount) {
+            newStatus = "Fully Paid";
+          } else if (cumulativePaid >= requiredAmount / 2) {
+            newStatus = "Half Semester Paid";
+          } else if (cumulativePaid > 0) {
+            newStatus = "Partial";
+          }
+        } else {
+          if (cumulativePaid > 0) {
+            newStatus = "Fully Paid";
+          }
+        }
+
+        // Upsert into memberships table
+        await supabase
+          .from("memberships")
+          .upsert({
+            user_id: scannedStudent.id,
+            status: newStatus,
+            payment: cumulativePaid,
+            receipt: receiptNumber || null
+          }, { onConflict: "user_id" });
+      }
+
       toast.success(`${activePayments.length} payment(s) recorded for ${scannedStudent.first_name}!`);
       closeModal();
     } catch (err: any) {

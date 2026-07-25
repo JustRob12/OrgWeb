@@ -48,9 +48,48 @@ export default function ManageFinancePage() {
     const { data, error } = await supabase
       .from("finance_items")
       .select("*")
-      .order("created_at", { ascending: false });
+      .order("created_at", { ascending: true });
     
     if (!error && data) {
+      const membershipItems = data.filter(
+        (i: any) => i.title.toLowerCase().trim() === "membership fee" || i.title.toLowerCase().trim() === "membership"
+      );
+
+      if (membershipItems.length === 0) {
+        const { error: insertError } = await supabase
+          .from("finance_items")
+          .insert([{
+            title: "Membership Fee",
+            description: "Default official organization membership fee.",
+            amount: 100,
+            deadline: null
+          }]);
+
+        if (!insertError) {
+          const { data: refetched } = await supabase
+            .from("finance_items")
+            .select("*")
+            .order("created_at", { ascending: false });
+          setItems(refetched || []);
+          setLoading(false);
+          return;
+        }
+      } else if (membershipItems.length > 1) {
+        // Delete extra duplicate default items from DB to enforce exactly 1
+        const duplicateIds = membershipItems.slice(1).map((di: any) => di.id);
+        await supabase
+          .from("finance_items")
+          .delete()
+          .in("id", duplicateIds);
+
+        const cleanData = data.filter((i: any) => !duplicateIds.includes(i.id));
+        cleanData.sort((a: any, b: any) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
+        setItems(cleanData);
+        setLoading(false);
+        return;
+      }
+
+      data.sort((a: any, b: any) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
       setItems(data);
     }
     setLoading(false);
@@ -112,14 +151,23 @@ export default function ManageFinancePage() {
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
-  const handleDeleteItem = async (id: string) => {
+  const handleDeleteItem = async (item: any) => {
+    const isDefaultMembership = 
+      item.title.toLowerCase().trim() === "membership fee" || 
+      item.title.toLowerCase().trim() === "membership";
+
+    if (isDefaultMembership) {
+      toast.error("The default Membership Fee item cannot be deleted.");
+      return;
+    }
+
     if (!confirm("Are you sure you want to delete this finance item? This will also remove all associated payment records.")) return;
 
     try {
       const { error } = await supabase
         .from("finance_items")
         .delete()
-        .eq("id", id);
+        .eq("id", item.id);
 
       if (error) throw error;
 
@@ -129,6 +177,11 @@ export default function ManageFinancePage() {
       toast.error("Failed to delete item.");
     }
   };
+
+  const isEditingDefaultMembership = editingItem && (
+    editingItem.title.toLowerCase().trim() === "membership fee" || 
+    editingItem.title.toLowerCase().trim() === "membership"
+  );
 
   return (
     <div className="max-w-7xl mx-auto space-y-8 pb-20">
@@ -170,11 +223,17 @@ export default function ManageFinancePage() {
                     <input 
                       type="text"
                       required
+                      disabled={isEditingDefaultMembership}
                       placeholder="e.g. Fun Run Registration"
                       value={title}
                       onChange={(e) => setTitle(e.target.value)}
-                      className="w-full h-14 px-6 bg-slate-50 border border-slate-200 rounded-2xl text-sm font-bold text-slate-700 outline-none focus:bg-white focus:ring-4 focus:ring-primary/5 transition-all"
+                      className={`w-full h-14 px-6 bg-slate-50 border border-slate-200 rounded-2xl text-sm font-bold text-slate-700 outline-none focus:bg-white focus:ring-4 focus:ring-primary/5 transition-all ${
+                        isEditingDefaultMembership ? "opacity-60 cursor-not-allowed bg-slate-100" : ""
+                      }`}
                     />
+                    {isEditingDefaultMembership && (
+                      <p className="text-[10px] font-bold text-slate-400 ml-1">Default fee title cannot be renamed.</p>
+                    )}
                   </div>
                   <div className="space-y-3">
                     <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Base Amount</label>
@@ -253,48 +312,63 @@ export default function ManageFinancePage() {
                       </td>
                     </tr>
                   ) : items.length > 0 ? (
-                    items.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage).map((item) => (
-                      <tr key={item.id} className="hover:bg-slate-50/50 transition-colors group">
-                        <td className="px-10 py-6">
-                           <p className="text-sm font-black text-slate-900 uppercase tracking-tight">{item.title}</p>
-                           <p className="text-xs font-medium text-slate-400 mt-1 max-w-xs">{item.description || "No description provided."}</p>
-                        </td>
-                        <td className="px-10 py-6">
-                           <div className="flex items-center gap-1.5">
-                             <span className="text-xs font-black text-emerald-600">₱</span>
-                             <span className="text-lg font-black text-slate-900 tracking-tighter">{(item.amount || 0).toLocaleString()}</span>
-                           </div>
-                        </td>
-                        <td className="px-10 py-6">
-                           {item.deadline ? (
-                             <div className="inline-flex items-center gap-2 px-3 py-1 bg-amber-50 text-amber-700 rounded-lg border border-amber-100">
-                               <LuCalendar className="size-3" />
-                               <span className="text-[10px] font-black text-amber-800 uppercase leading-none">{new Date(item.deadline).toLocaleDateString()}</span>
-                             </div>
-                           ) : (
-                             <span className="text-xs font-bold text-slate-300">No Deadline</span>
-                           )}
-                        </td>
-                        <td className="px-10 py-6 text-right">
-                          <div className="flex justify-end gap-2">
-                             <button 
-                               onClick={() => handleEditClick(item)}
-                               className="p-3 text-slate-300 hover:text-primary hover:bg-primary/5 rounded-xl transition-all"
-                               title="Edit"
-                             >
-                               <LuPencil className="size-5" />
-                             </button>
-                             <button 
-                               onClick={() => handleDeleteItem(item.id)}
-                               className="p-3 text-slate-300 hover:text-rose-500 hover:bg-rose-50 rounded-xl transition-all"
-                               title="Delete"
-                             >
-                               <LuTrash2 className="size-5" />
-                             </button>
-                          </div>
-                        </td>
-                      </tr>
-                    ))
+                    items.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage).map((item) => {
+                      const isDefaultMembership = 
+                        item.title.toLowerCase().trim() === "membership fee" || 
+                        item.title.toLowerCase().trim() === "membership";
+
+                      return (
+                        <tr key={item.id} className="hover:bg-slate-50/50 transition-colors group">
+                          <td className="px-10 py-6">
+                            <div className="flex items-center gap-2.5 flex-wrap">
+                              <p className="text-sm font-black text-slate-900 uppercase tracking-tight">{item.title}</p>
+                              {isDefaultMembership && (
+                                <span className="inline-flex items-center px-2 py-0.5 rounded-md text-[9px] font-black uppercase tracking-wider bg-primary/10 text-primary border border-primary/20">
+                                  Default Membership
+                                </span>
+                              )}
+                            </div>
+                            <p className="text-xs font-medium text-slate-400 mt-1 max-w-xs">{item.description || "No description provided."}</p>
+                          </td>
+                          <td className="px-10 py-6">
+                            <div className="flex items-center gap-1.5">
+                              <span className="text-xs font-black text-emerald-600">₱</span>
+                              <span className="text-lg font-black text-slate-900 tracking-tighter">{(item.amount || 0).toLocaleString()}</span>
+                            </div>
+                          </td>
+                          <td className="px-10 py-6">
+                            {item.deadline ? (
+                              <div className="inline-flex items-center gap-2 px-3 py-1 bg-amber-50 text-amber-700 rounded-lg border border-amber-100">
+                                <LuCalendar className="size-3" />
+                                <span className="text-[10px] font-black text-amber-800 uppercase leading-none">{new Date(item.deadline).toLocaleDateString()}</span>
+                              </div>
+                            ) : (
+                              <span className="text-xs font-bold text-slate-300">No Deadline</span>
+                            )}
+                          </td>
+                          <td className="px-10 py-6 text-right">
+                            <div className="flex justify-end gap-2">
+                              <button 
+                                onClick={() => handleEditClick(item)}
+                                className="p-3 text-slate-300 hover:text-primary hover:bg-primary/5 rounded-xl transition-all"
+                                title="Edit"
+                              >
+                                <LuPencil className="size-5" />
+                              </button>
+                              {!isDefaultMembership && (
+                                <button 
+                                  onClick={() => handleDeleteItem(item)}
+                                  className="p-3 text-slate-300 hover:text-rose-500 hover:bg-rose-50 rounded-xl transition-all"
+                                  title="Delete"
+                                >
+                                  <LuTrash2 className="size-5" />
+                                </button>
+                              )}
+                            </div>
+                          </td>
+                        </tr>
+                      );
+                    })
                   ) : (
                     <tr>
                        <td colSpan={4} className="py-20 text-center">

@@ -155,7 +155,67 @@ FROM finance_transactions ft
 JOIN users u ON ft.user_id = u.id
 JOIN finance_items fi ON ft.finance_id = fi.id;
 
-GRANT SELECT ON finance_audit_view TO anon, authenticated, service_role;
+-- Seed Default Membership Fee Item
+INSERT INTO finance_items (title, description, amount)
+SELECT 'Membership Fee', 'Default official organization membership fee.', 100
+WHERE NOT EXISTS (
+    SELECT 1 FROM finance_items WHERE LOWER(TRIM(title)) IN ('membership fee', 'membership')
+);
+
+-- Trigger to sync membership status when finance_transactions are inserted/updated for Membership Fee
+CREATE OR REPLACE FUNCTION sync_membership_status_on_payment()
+RETURNS TRIGGER AS $$
+DECLARE
+    mem_item_id UUID;
+    req_amount NUMERIC;
+    total_paid NUMERIC;
+    new_status TEXT;
+BEGIN
+    SELECT id, amount INTO mem_item_id, req_amount 
+    FROM finance_items 
+    WHERE LOWER(TRIM(title)) IN ('membership fee', 'membership') 
+    LIMIT 1;
+
+    IF mem_item_id IS NOT NULL AND NEW.finance_id = mem_item_id THEN
+        SELECT COALESCE(SUM(amount), 0) INTO total_paid 
+        FROM finance_transactions 
+        WHERE user_id = NEW.user_id AND finance_id = mem_item_id;
+
+        IF req_amount > 0 THEN
+            IF total_paid >= req_amount THEN
+                new_status := 'Fully Paid';
+            ELSIF total_paid >= (req_amount / 2) THEN
+                new_status := 'Half Semester Paid';
+            ELSIF total_paid > 0 THEN
+                new_status := 'Partial';
+            ELSE
+                new_status := 'Not Paid';
+            END IF;
+        ELSE
+            IF total_paid > 0 THEN
+                new_status := 'Fully Paid';
+            ELSE
+                new_status := 'Not Paid';
+            END IF;
+        END IF;
+
+        INSERT INTO memberships (user_id, status, payment, receipt)
+        VALUES (NEW.user_id, new_status, total_paid, NEW.receipt_number)
+        ON CONFLICT (user_id) DO UPDATE 
+        SET status = EXCLUDED.status, 
+            payment = EXCLUDED.payment,
+            receipt = COALESCE(EXCLUDED.receipt, memberships.receipt);
+    END IF;
+
+    RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+DROP TRIGGER IF EXISTS trigger_sync_membership_status ON finance_transactions;
+CREATE TRIGGER trigger_sync_membership_status
+AFTER INSERT OR UPDATE ON finance_transactions
+FOR EACH ROW
+EXECUTE FUNCTION sync_membership_status_on_payment();
 
 -- 14. Create Document Folders Table
 CREATE TABLE IF NOT EXISTS document_folders (

@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useMemo } from "react";
 import { 
   LuMail, 
   LuSearch, 
@@ -12,7 +12,8 @@ import {
   LuSend,
   LuCircleAlert,
   LuChevronLeft,
-  LuChevronRight
+  LuChevronRight,
+  LuFilter
 } from "react-icons/lu";
 import { Button } from "@/app/Components/ui/button";
 import { Card, CardContent } from "@/app/Components/ui/card";
@@ -28,6 +29,7 @@ interface MemberToNotify {
   last_name: string;
   email: string;
   student_id: string;
+  course?: string;
   accounts: {
     role: number;
   } | null;
@@ -41,6 +43,7 @@ export default function SendCredentialsPage() {
   const [members, setMembers] = useState<MemberToNotify[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
+  const [selectedCourse, setSelectedCourse] = useState<string>("All");
   const [viewMode, setViewMode] = useState<"Pending" | "Sent">("Pending");
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 10;
@@ -60,7 +63,7 @@ export default function SendCredentialsPage() {
       const { data, error } = await supabase
         .from("users")
         .select(`
-          id, first_name, middle_initial, last_name, email, student_id,
+          id, first_name, middle_initial, last_name, email, student_id, course,
           accounts:accounts!inner(role),
           send_credentials:send_credentials(id, sent_at, status)
         `)
@@ -82,6 +85,11 @@ export default function SendCredentialsPage() {
       setLoading(false);
     }
   };
+
+  const uniqueCourses = useMemo(() => {
+    const courses = members.map(m => m.course).filter(Boolean) as string[];
+    return Array.from(new Set(courses)).sort();
+  }, [members]);
 
   const generateNewPassword = (firstName: string, lastName: string) => {
     const first2 = firstName.substring(0, 2).toLowerCase();
@@ -124,7 +132,7 @@ export default function SendCredentialsPage() {
   // Reset to page 1 when filters change
   useEffect(() => {
     setCurrentPage(1);
-  }, [searchQuery, viewMode]);
+  }, [searchQuery, viewMode, selectedCourse]);
 
   const handleSendEmail = async (member: MemberToNotify) => {
     const password = generateNewPassword(member.first_name, member.last_name);
@@ -172,12 +180,14 @@ export default function SendCredentialsPage() {
     const matchesSearch = 
       `${member.first_name} ${member.middle_initial ? member.middle_initial + " " : ""}${member.last_name}`.toLowerCase().includes(searchQuery.toLowerCase()) ||
       member.email?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      (member.student_id || "").toLowerCase().includes(searchQuery.toLowerCase());
+      (member.student_id || "").toLowerCase().includes(searchQuery.toLowerCase()) ||
+      (member.course || "").toLowerCase().includes(searchQuery.toLowerCase());
     
+    const matchesCourse = selectedCourse === "All" || member.course === selectedCourse;
     const isSent = !!member.send_credentials;
     const matchesTab = viewMode === "Sent" ? isSent : !isSent;
 
-    return matchesSearch && matchesTab;
+    return matchesSearch && matchesCourse && matchesTab;
   });
 
   const totalPages = Math.ceil(filteredMembers.length / itemsPerPage);
@@ -237,15 +247,35 @@ export default function SendCredentialsPage() {
 
       <Card className="flex-1 flex flex-col overflow-hidden border-slate-200 shadow-2xl shadow-slate-200/50 rounded-[2.5rem] bg-white">
         <div className="p-6 border-b border-slate-100 shrink-0">
-          <div className="relative group max-w-md">
-            <LuSearch className="absolute left-4 top-1/2 -translate-y-1/2 size-4 text-slate-400 group-focus-within:text-primary transition-colors" />
-            <input 
-              type="text" 
-              placeholder="Filter by name or email..." 
-              className="w-full h-12 pl-12 pr-4 bg-slate-50 border border-slate-200 rounded-2xl text-sm focus:bg-white focus:outline-none focus:ring-4 focus:ring-primary/10 transition-all font-medium"
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-            />
+          <div className="flex flex-col sm:flex-row gap-4 items-center justify-between">
+            <div className="relative group max-w-md w-full">
+              <LuSearch className="absolute left-4 top-1/2 -translate-y-1/2 size-4 text-slate-400 group-focus-within:text-primary transition-colors" />
+              <input 
+                type="text" 
+                placeholder="Filter by name, email, or course..." 
+                className="w-full h-12 pl-12 pr-4 bg-slate-50 border border-slate-200 rounded-2xl text-sm focus:bg-white focus:outline-none focus:ring-4 focus:ring-primary/10 transition-all font-medium"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+              />
+            </div>
+
+            <div className="flex items-center gap-3 w-full sm:w-auto">
+              <div className="flex items-center gap-2 bg-slate-50 border border-slate-200 rounded-2xl px-4 h-12 w-full sm:w-auto focus-within:ring-4 focus-within:ring-primary/10 focus-within:bg-white transition-all">
+                <LuFilter className="size-4 text-slate-400 shrink-0" />
+                <select
+                  value={selectedCourse}
+                  onChange={(e) => setSelectedCourse(e.target.value)}
+                  className="bg-transparent text-sm font-bold text-slate-700 focus:outline-none cursor-pointer w-full"
+                >
+                  <option value="All">All Courses</option>
+                  {uniqueCourses.map((course) => (
+                    <option key={course} value={course}>
+                      {course}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            </div>
           </div>
         </div>
 
@@ -285,8 +315,18 @@ export default function SendCredentialsPage() {
                           <div className="font-black text-slate-900 text-base">
                             {member.first_name} {member.middle_initial ? member.middle_initial + " " : ""}{member.last_name}
                           </div>
-                          <div className="text-xs font-bold text-slate-400 tracking-tight">
-                            {member.email} • <span className="text-primary font-black">ID: {member.student_id || 'NOT SET'}</span>
+                          <div className="text-xs font-bold text-slate-400 tracking-tight flex items-center gap-1.5 flex-wrap mt-0.5">
+                            <span>{member.email}</span>
+                            <span>•</span>
+                            <span className="text-primary font-black">ID: {member.student_id || 'NOT SET'}</span>
+                            {member.course && (
+                              <>
+                                <span>•</span>
+                                <span className="bg-primary/10 text-primary px-2 py-0.5 rounded-md font-extrabold text-[10px] uppercase tracking-wider">
+                                  {member.course}
+                                </span>
+                              </>
+                            )}
                           </div>
                         </div>
                       </div>
