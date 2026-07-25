@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
 import { 
   LuVote, 
   LuLoader, 
@@ -14,7 +15,8 @@ import {
   LuPlay,
   LuCheck,
   LuClock,
-  LuSearch
+  LuSearch,
+  LuPenLine
 } from "react-icons/lu";
 import { Button } from "@/app/Components/ui/button";
 import { Input } from "@/app/Components/ui/input";
@@ -23,12 +25,14 @@ import { Modal } from "@/app/Components/ui/modal";
 import { createClient } from "@/utils/supabase/client";
 
 interface Option {
+  id?: string;
   name: string;
   details: string;
   image_url: string;
 }
 
 interface QuestionForm {
+  id?: string;
   title: string;
   max_selections: number;
   options: Option[];
@@ -64,10 +68,12 @@ interface Poll {
 }
 
 export default function AdminVotingPage() {
+  const router = useRouter();
   const [polls, setPolls] = useState<Poll[]>([]);
   const [totalStudents, setTotalStudents] = useState<number>(0);
   const [loading, setLoading] = useState(true);
   const [isCreateOpen, setIsCreateOpen] = useState(false);
+  const [editingPollId, setEditingPollId] = useState<string | null>(null);
 
   // Form State
   const [title, setTitle] = useState("");
@@ -80,12 +86,6 @@ export default function AdminVotingPage() {
     { title: "President", max_selections: 1, options: [{ name: "", details: "", image_url: "" }] }
   ]);
   const [creating, setCreating] = useState(false);
-
-  // Stats / Results Drawer State
-  const [selectedPollForResults, setSelectedPollForResults] = useState<Poll | null>(null);
-  const [resultsQuestions, setResultsQuestions] = useState<QuestionDb[]>([]);
-  const [resultsVotes, setResultsVotes] = useState<Record<string, number>>({});
-  const [resultsLoading, setResultsLoading] = useState(false);
 
   // Search filter
   const [searchQuery, setSearchQuery] = useState("");
@@ -124,6 +124,28 @@ export default function AdminVotingPage() {
 
   const [uploadingOptions, setUploadingOptions] = useState<Record<string, boolean>>({});
 
+  const deleteCloudinaryImage = async (imageUrl: string) => {
+    if (!imageUrl || !imageUrl.includes("cloudinary.com")) return;
+    try {
+      const parts = imageUrl.split("/");
+      const uploadIndex = parts.indexOf("upload");
+      if (uploadIndex !== -1 && parts.length > uploadIndex + 2) {
+        const publicIdWithExtension = parts.slice(uploadIndex + 2).join("/");
+        const lastDotIndex = publicIdWithExtension.lastIndexOf(".");
+        const public_id = lastDotIndex !== -1 ? publicIdWithExtension.substring(0, lastDotIndex) : publicIdWithExtension;
+        
+        await fetch("/api/cloudinary/delete", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ public_id }),
+        });
+        console.log("Deleted Cloudinary image:", public_id);
+      }
+    } catch (err) {
+      console.error("Failed to delete picture from Cloudinary:", err);
+    }
+  };
+
   const uploadOptionImage = async (file: File, qIdx: number, oIdx: number) => {
     const key = `${qIdx}-${oIdx}`;
     setUploadingOptions((prev) => ({ ...prev, [key]: true }));
@@ -133,6 +155,12 @@ export default function AdminVotingPage() {
 
       if (!cloudName || !uploadPreset) {
         throw new Error("Cloudinary configuration missing. Set NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME and NEXT_PUBLIC_CLOUDINARY_UPLOAD_PRESET.");
+      }
+
+      // If there is an existing image, delete it from Cloudinary
+      const existingUrl = questions[qIdx]?.options[oIdx]?.image_url;
+      if (existingUrl) {
+        await deleteCloudinaryImage(existingUrl);
       }
 
       const formData = new FormData();
@@ -218,6 +246,14 @@ export default function AdminVotingPage() {
   };
 
   const handleRemoveQuestion = (qIdx: number) => {
+    const question = questions[qIdx];
+    if (question && question.options) {
+      question.options.forEach(async (o) => {
+        if (o.image_url) {
+          await deleteCloudinaryImage(o.image_url);
+        }
+      });
+    }
     setQuestions((prev) => prev.filter((_, idx) => idx !== qIdx));
   };
 
@@ -237,7 +273,11 @@ export default function AdminVotingPage() {
     );
   };
 
-  const handleRemoveOption = (qIdx: number, oIdx: number) => {
+  const handleRemoveOption = async (qIdx: number, oIdx: number) => {
+    const option = questions[qIdx]?.options[oIdx];
+    if (option && option.image_url) {
+      await deleteCloudinaryImage(option.image_url);
+    }
     setQuestions((prev) =>
       prev.map((q, idx) =>
         idx === qIdx
@@ -320,19 +360,270 @@ export default function AdminVotingPage() {
         if (optError) throw optError;
       }
 
-      // Reset state and fetch updated list
-      setTitle("");
-      setDescription("");
-      setStartTime("");
-      setEndTime("");
-      setIsAnonymous(true);
-      setCategory("standard");
-      setQuestions([{ title: "President", max_selections: 1, options: [{ name: "", details: "", image_url: "" }] }]);
-      setIsCreateOpen(false);
+      resetFormState();
       await fetchDashboardData();
     } catch (err: any) {
       console.error("Error creating poll:", err);
       alert(err.message || "Failed to create poll.");
+    } finally {
+      setCreating(false);
+    }
+  };
+
+  const resetFormState = () => {
+    setTitle("");
+    setDescription("");
+    setStartTime("");
+    setEndTime("");
+    setIsAnonymous(true);
+    setCategory("standard");
+    setQuestions([{ title: "President", max_selections: 1, options: [{ name: "", details: "", image_url: "" }] }]);
+    setEditingPollId(null);
+    setIsCreateOpen(false);
+  };
+
+  const formatForDateTimeLocal = (isoString: string) => {
+    if (!isoString) return "";
+    const date = new Date(isoString);
+    const year = date.getFullYear();
+    const month = String(date.getMonth() + 1).padStart(2, "0");
+    const day = String(date.getDate()).padStart(2, "0");
+    const hours = String(date.getHours()).padStart(2, "0");
+    const minutes = String(date.getMinutes()).padStart(2, "0");
+    return `${year}-${month}-${day}T${hours}:${minutes}`;
+  };
+
+  const handleOpenEdit = async (poll: Poll) => {
+    setEditingPollId(poll.id);
+    setTitle(poll.title);
+    setDescription(poll.description || "");
+    setStartTime(formatForDateTimeLocal(poll.start_time));
+    setEndTime(formatForDateTimeLocal(poll.end_time));
+    setIsAnonymous(poll.is_anonymous);
+    setCategory(poll.category);
+
+    setLoading(true);
+    try {
+      // 1. Fetch questions
+      const { data: questionsData, error: qError } = await supabase
+        .from("poll_questions")
+        .select("*")
+        .eq("poll_id", poll.id)
+        .order("order_index", { ascending: true });
+
+      if (qError) throw qError;
+
+      // 2. Fetch options
+      const qIds = (questionsData || []).map((q) => q.id);
+      let formattedQuestions: QuestionForm[] = [];
+
+      if (qIds.length > 0) {
+        const { data: optionsData, error: optError } = await supabase
+          .from("poll_options")
+          .select("*")
+          .in("question_id", qIds);
+
+        if (optError) throw optError;
+
+        formattedQuestions = (questionsData || []).map((q) => ({
+          id: q.id,
+          title: q.title,
+          max_selections: q.max_selections,
+          options: (optionsData || [])
+            .filter((o) => o.question_id === q.id)
+            .map((o) => ({
+              id: o.id,
+              name: o.name,
+              details: o.details || "",
+              image_url: o.image_url || "",
+            })),
+        }));
+      }
+
+      if (formattedQuestions.length === 0) {
+        formattedQuestions = [{ title: "President", max_selections: 1, options: [{ name: "", details: "", image_url: "" }] }];
+      }
+
+      setQuestions(formattedQuestions);
+      setIsCreateOpen(true);
+    } catch (err) {
+      console.error("Error loading poll details for edit:", err);
+      alert("Failed to load poll details.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleEditPollSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editingPollId) return;
+    if (!title || !startTime || !endTime) {
+      alert("Please fill in the title, start time, and end time.");
+      return;
+    }
+
+    setCreating(true);
+    try {
+      // 1. Update Poll
+      const { error: pollError } = await supabase
+        .from("polls")
+        .update({
+          title,
+          description,
+          start_time: new Date(startTime).toISOString(),
+          end_time: new Date(endTime).toISOString(),
+          is_anonymous: isAnonymous,
+          category,
+        })
+        .eq("id", editingPollId);
+
+      if (pollError) throw pollError;
+
+      // 2. Fetch existing questions and options from DB to determine what to delete
+      const { data: dbQuestions, error: dbQError } = await supabase
+        .from("poll_questions")
+        .select("id")
+        .eq("poll_id", editingPollId);
+      if (dbQError) throw dbQError;
+      
+      const dbQuestionIds = (dbQuestions || []).map((q) => q.id);
+
+      let dbOptions: any[] = [];
+      if (dbQuestionIds.length > 0) {
+        const { data: dbOpts, error: dbOptError } = await supabase
+          .from("poll_options")
+          .select("id, question_id")
+          .in("question_id", dbQuestionIds);
+        if (dbOptError) throw dbOptError;
+        dbOptions = dbOpts || [];
+      }
+
+      // Delete questions that are no longer in the form
+      const formQuestionIds = questions.map((q) => q.id).filter(Boolean);
+      const questionsToDelete = dbQuestionIds.filter((id) => !formQuestionIds.includes(id));
+      if (questionsToDelete.length > 0) {
+        // Fetch options of the questions we are about to delete
+        const optionsForDeletedQuestions = dbOptions.filter((o) => questionsToDelete.includes(o.question_id));
+        
+        // Delete their images from Cloudinary
+        await Promise.all(
+          optionsForDeletedQuestions
+            .map((o) => o.image_url)
+            .filter(Boolean)
+            .map((url) => deleteCloudinaryImage(url))
+        );
+
+        const { error: delQError } = await supabase
+          .from("poll_questions")
+          .delete()
+          .in("id", questionsToDelete);
+        if (delQError) throw delQError;
+      }
+
+      // 3. Process each question in the form
+      for (let qIdx = 0; qIdx < questions.length; qIdx++) {
+        const qForm = questions[qIdx];
+        let questionId = qForm.id;
+
+        if (!questionId) {
+          // A. Insert new question
+          const { data: newQ, error: newQError } = await supabase
+            .from("poll_questions")
+            .insert({
+              poll_id: editingPollId,
+              title: qForm.title,
+              max_selections: qForm.max_selections,
+              order_index: qIdx,
+            })
+            .select()
+            .single();
+          if (newQError) throw newQError;
+          questionId = newQ.id;
+
+          // Insert all options for this new question
+          const optionsToInsert = qForm.options.map((o) => ({
+            question_id: questionId,
+            name: o.name,
+            details: o.details || null,
+            image_url: o.image_url || null,
+          }));
+          const { error: insOptError } = await supabase
+            .from("poll_options")
+            .insert(optionsToInsert);
+          if (insOptError) throw insOptError;
+        } else {
+          // B. Update existing question
+          const { error: updQError } = await supabase
+            .from("poll_questions")
+            .update({
+              title: qForm.title,
+              max_selections: qForm.max_selections,
+              order_index: qIdx,
+            })
+            .eq("id", questionId);
+          if (updQError) throw updQError;
+
+          // Process options for this existing question
+          const dbQuestionOptions = dbOptions.filter((o) => o.question_id === questionId);
+          const dbQuestionOptionIds = dbQuestionOptions.map((o) => o.id);
+
+          // Delete options no longer in this question
+          const formOptionIds = qForm.options.map((o) => o.id).filter(Boolean);
+          const optionsToDeleteObjects = dbQuestionOptions.filter((o) => !formOptionIds.includes(o.id));
+          const optionsToDelete = optionsToDeleteObjects.map((o) => o.id);
+          
+          if (optionsToDelete.length > 0) {
+            // Delete from Cloudinary
+            await Promise.all(
+              optionsToDeleteObjects
+                .map((o) => o.image_url)
+                .filter(Boolean)
+                .map((url) => deleteCloudinaryImage(url))
+            );
+
+            // Delete from database
+            const { error: delOptError } = await supabase
+              .from("poll_options")
+              .delete()
+              .in("id", optionsToDelete);
+            if (delOptError) throw delOptError;
+          }
+
+          // Update existing options or insert new options
+          for (let oIdx = 0; oIdx < qForm.options.length; oIdx++) {
+            const oForm = qForm.options[oIdx];
+            if (!oForm.id) {
+              // Insert new option
+              const { error: insOptError } = await supabase
+                .from("poll_options")
+                .insert({
+                  question_id: questionId,
+                  name: oForm.name,
+                  details: oForm.details || null,
+                  image_url: oForm.image_url || null,
+                });
+              if (insOptError) throw insOptError;
+            } else {
+              // Update existing option
+              const { error: updOptError } = await supabase
+                .from("poll_options")
+                .update({
+                  name: oForm.name,
+                  details: oForm.details || null,
+                  image_url: oForm.image_url || null,
+                })
+                .eq("id", oForm.id);
+              if (updOptError) throw updOptError;
+            }
+          }
+        }
+      }
+
+      resetFormState();
+      await fetchDashboardData();
+    } catch (err: any) {
+      console.error("Error editing poll:", err);
+      alert(err.message || "Failed to update poll.");
     } finally {
       setCreating(false);
     }
@@ -347,9 +638,6 @@ export default function AdminVotingPage() {
 
       if (error) throw error;
       await fetchDashboardData();
-      if (selectedPollForResults?.id === pollId) {
-        setSelectedPollForResults((prev: any) => prev ? { ...prev, status: newStatus } : null);
-      }
     } catch (err) {
       console.error("Error updating status:", err);
     }
@@ -358,6 +646,33 @@ export default function AdminVotingPage() {
   const handleDeletePoll = async (pollId: string) => {
     if (!confirm("Are you sure you want to delete this election/poll? This deletes all associated ballot counts and votes permanently.")) return;
     try {
+      // 1. Fetch questions for the poll
+      const { data: dbQuestions } = await supabase
+        .from("poll_questions")
+        .select("id")
+        .eq("poll_id", pollId);
+      
+      const qIds = (dbQuestions || []).map((q) => q.id);
+      
+      if (qIds.length > 0) {
+        // 2. Fetch options to get Cloudinary images
+        const { data: dbOptions } = await supabase
+          .from("poll_options")
+          .select("image_url")
+          .in("question_id", qIds);
+        
+        // 3. Delete each image from Cloudinary
+        if (dbOptions && dbOptions.length > 0) {
+          await Promise.all(
+            dbOptions
+              .map((o) => o.image_url)
+              .filter(Boolean)
+              .map((url) => deleteCloudinaryImage(url))
+          );
+        }
+      }
+
+      // 4. Delete the poll
       const { error } = await supabase
         .from("polls")
         .delete()
@@ -370,50 +685,7 @@ export default function AdminVotingPage() {
     }
   };
 
-  const handleOpenResults = async (poll: Poll) => {
-    setSelectedPollForResults(poll);
-    setResultsLoading(true);
-    try {
-      // 1. Fetch Questions
-      const { data: questionsData } = await supabase
-        .from("poll_questions")
-        .select("*")
-        .eq("poll_id", poll.id)
-        .order("order_index", { ascending: true });
 
-      const qIds = (questionsData || []).map((q) => q.id);
-
-      // 2. Fetch Options
-      const { data: optionsData } = await supabase
-        .from("poll_options")
-        .select("*")
-        .in("question_id", qIds);
-
-      const formattedQuestions = (questionsData || []).map((q) => ({
-        ...q,
-        options: (optionsData || []).filter((o) => o.question_id === q.id)
-      }));
-
-      setResultsQuestions(formattedQuestions);
-
-      // 3. Fetch Votes Count grouped by option_id
-      const { data: votesData } = await supabase
-        .from("votes")
-        .select("option_id")
-        .eq("poll_id", poll.id);
-
-      const counts: Record<string, number> = {};
-      (votesData || []).forEach((v: any) => {
-        counts[v.option_id] = (counts[v.option_id] || 0) + 1;
-      });
-
-      setResultsVotes(counts);
-    } catch (err) {
-      console.error("Error loading live results:", err);
-    } finally {
-      setResultsLoading(false);
-    }
-  };
 
   return (
     <div className="space-y-8 animate-in fade-in duration-500">
@@ -580,11 +852,22 @@ export default function AdminVotingPage() {
                       <Button
                         variant="outline"
                         size="sm"
-                        onClick={() => handleOpenResults(poll)}
+                        onClick={() => router.push(`/admin/voting/results?id=${poll.id}`)}
                         className="rounded-xl font-bold border-slate-200 bg-white hover:bg-slate-100 flex items-center gap-2 text-slate-700 h-9"
                       >
                         <LuChartBar className="size-4 text-slate-400" /> Results
                       </Button>
+
+                      {poll.status !== "completed" && (
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => handleOpenEdit(poll)}
+                          className="rounded-xl font-bold border-slate-200 bg-white hover:bg-slate-100 flex items-center gap-1.5 text-slate-700 h-9"
+                        >
+                          <LuPenLine className="size-4 text-slate-400" /> Edit
+                        </Button>
+                      )}
 
                       {poll.status === "draft" && (
                         <Button
@@ -624,8 +907,8 @@ export default function AdminVotingPage() {
       )}
 
       {/* CREATE POLL MODAL */}
-      <Modal isOpen={isCreateOpen} onClose={() => setIsCreateOpen(false)} title="Create New Poll" className="max-w-2xl">
-        <form onSubmit={handleCreatePollSubmit} className="space-y-6">
+      <Modal isOpen={isCreateOpen} onClose={resetFormState} title={editingPollId ? "Edit Poll" : "Create New Poll"} className="max-w-2xl">
+        <form onSubmit={editingPollId ? handleEditPollSubmit : handleCreatePollSubmit} className="space-y-6">
           <div className="space-y-4">
             <div className="space-y-1">
               <label className="text-xs font-black text-slate-500 uppercase">Poll Title</label>
@@ -769,7 +1052,13 @@ export default function AdminVotingPage() {
                                 />
                                 <button
                                   type="button"
-                                  onClick={() => handleOptionChange(qIdx, oIdx, "image_url", "")}
+                                  onClick={async () => {
+                                    const imgUrl = option.image_url;
+                                    handleOptionChange(qIdx, oIdx, "image_url", "");
+                                    if (imgUrl) {
+                                      await deleteCloudinaryImage(imgUrl);
+                                    }
+                                  }}
                                   className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 flex items-center justify-center text-white transition-opacity rounded-lg"
                                 >
                                   <LuTrash2 className="size-3.5" />
@@ -838,7 +1127,7 @@ export default function AdminVotingPage() {
             <Button 
               type="button" 
               variant="ghost" 
-              onClick={() => setIsCreateOpen(false)}
+              onClick={resetFormState}
               className="rounded-xl font-bold"
             >
               Cancel
@@ -848,111 +1137,12 @@ export default function AdminVotingPage() {
               disabled={creating}
               className="h-12 px-6 rounded-xl font-bold bg-slate-900 hover:bg-slate-800 text-white shadow-xl shadow-slate-900/10"
             >
-              {creating ? "Creating..." : "Save Draft"}
+              {editingPollId ? (creating ? "Saving..." : "Save Changes") : (creating ? "Creating..." : "Save Draft")}
             </Button>
           </div>
         </form>
       </Modal>
 
-      {/* RESULTS DISPLAY PANEL */}
-      <Modal 
-        isOpen={!!selectedPollForResults} 
-        onClose={() => setSelectedPollForResults(null)} 
-        title={selectedPollForResults?.title || "Tally & Turnout"}
-        className="max-w-2xl"
-      >
-        {selectedPollForResults && (
-          <div className="space-y-6 py-2">
-            {/* Quick Turnout Statistics */}
-            <div className="p-4 bg-slate-950 text-white rounded-2xl border border-slate-900 flex items-center justify-between">
-              <div>
-                <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Turnout Rate</p>
-                <h3 className="text-2xl font-black">
-                  {totalStudents > 0 ? Math.round(((selectedPollForResults.voter_count || 0) / totalStudents) * 100) : 0}%
-                </h3>
-                <p className="text-xs text-slate-500 font-bold mt-1">
-                  {selectedPollForResults.voter_count} out of {totalStudents} cast ballots
-                </p>
-              </div>
-              <div className="size-10 bg-white/10 text-orange-400 rounded-xl flex items-center justify-center border border-white/5">
-                <LuUsers className="size-5" />
-              </div>
-            </div>
-
-            {resultsLoading ? (
-              <div className="flex h-[30vh] items-center justify-center">
-                <LuLoader className="size-6 animate-spin text-orange-600" />
-              </div>
-            ) : (
-              <div className="space-y-6">
-                {resultsQuestions.map((question) => {
-                  const questionOptions = question.options.map(o => o.id);
-                  const totalQVotes = Object.entries(resultsVotes)
-                    .filter(([optId]) => questionOptions.includes(optId))
-                    .reduce((sum, [_, val]) => sum + val, 0);
-
-                  return (
-                    <div key={question.id} className="space-y-4">
-                      <div className="flex items-center justify-between border-b border-slate-100 pb-2">
-                        <h4 className="font-black text-slate-800 tracking-tight">{question.title}</h4>
-                        <span className="text-xs font-bold text-slate-400">Total votes: {totalQVotes}</span>
-                      </div>
-
-                      <div className="space-y-4">
-                        {question.options.map((option) => {
-                          const count = resultsVotes[option.id] || 0;
-                          const percent = totalQVotes > 0 ? Math.round((count / totalQVotes) * 100) : 0;
-
-                          return (
-                            <div key={option.id} className="space-y-1">
-                              <div className="flex justify-between items-center text-xs font-bold">
-                                <span className="text-slate-800">{option.name}</span>
-                                <span className="text-slate-500">{count} votes ({percent}%)</span>
-                              </div>
-                              <div className="h-2.5 bg-slate-50 rounded-full overflow-hidden border border-slate-100">
-                                <div 
-                                  className="h-full bg-gradient-to-r from-orange-500 to-orange-400 rounded-full transition-all duration-1000"
-                                  style={{ width: `${percent}%` }}
-                                />
-                              </div>
-                            </div>
-                          );
-                        })}
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-            )}
-
-            {/* Quick action helper inside modal */}
-            <div className="pt-6 border-t border-slate-100 flex items-center justify-end gap-2">
-              {selectedPollForResults.status === "draft" && (
-                <Button
-                  onClick={() => handleUpdateStatus(selectedPollForResults.id, "active")}
-                  className="rounded-xl font-bold bg-emerald-600 hover:bg-emerald-700 text-white flex items-center gap-1.5 text-xs"
-                >
-                  <LuPlay className="size-4" /> Start Poll
-                </Button>
-              )}
-              {selectedPollForResults.status === "active" && (
-                <Button
-                  onClick={() => handleUpdateStatus(selectedPollForResults.id, "completed")}
-                  className="rounded-xl font-bold bg-slate-800 hover:bg-slate-900 text-white flex items-center gap-1.5 text-xs"
-                >
-                  <LuCheck className="size-4" /> End Poll
-                </Button>
-              )}
-              <Button 
-                onClick={() => setSelectedPollForResults(null)}
-                className="rounded-xl font-bold bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs"
-              >
-                Close Panel
-              </Button>
-            </div>
-          </div>
-        )}
-      </Modal>
     </div>
   );
 }

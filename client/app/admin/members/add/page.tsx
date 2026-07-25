@@ -23,6 +23,7 @@ interface RawMemberData {
   email: string;
   membership_status: "Partial" | "Fully Paid" | "Not Paid" | "Half Semester Paid";
   payment: number;
+  receipt?: string;
 }
 
 export default function AddMembersPage() {
@@ -45,7 +46,8 @@ export default function AddMembersPage() {
     year: "",
     email: "",
     membership_status: "Not Paid",
-    payment: 0
+    payment: 0,
+    receipt: ""
   });
   const supabase = createClient();
 
@@ -85,8 +87,9 @@ export default function AddMembersPage() {
             section: (row.section || row["Section"] || "").trim(),
             year: String(row.year || row["Year"] || "").trim(),
             email: email,
-            membership_status: (row.membership_status || row["Membership Status"] || "Not Paid").trim() as any,
-            payment: Number(row.payment || row["Payment"] || row["Amount"] || 0),
+            membership_status: (row.membership_status || row["Membership Status"] || "Not Paid").toString().trim() as any || "Not Paid",
+            payment: Number(row.payment || row["Payment"] || row["Amount"] || 0) || 0,
+            receipt: (row.receipt || row["Receipt"] || row["Receipt Number"] || row["Receipt No"] || "").toString().trim(),
           });
         });
 
@@ -140,7 +143,8 @@ export default function AddMembersPage() {
       year: "",
       email: "",
       membership_status: "Not Paid",
-      payment: 0
+      payment: 0,
+      receipt: ""
     });
 
     toast.success("Member added to preview list.");
@@ -184,7 +188,8 @@ export default function AddMembersPage() {
       year: "",
       email: "",
       membership_status: "Not Paid",
-      payment: 0
+      payment: 0,
+      receipt: ""
     });
 
     toast.success("Member details updated.");
@@ -285,6 +290,7 @@ export default function AddMembersPage() {
               user_id: userData.id,
               status: member.membership_status,
               payment: member.payment,
+              receipt: member.receipt || null,
             }, { onConflict: 'user_id' });
 
           if (membershipError) throw membershipError;
@@ -499,6 +505,7 @@ export default function AddMembersPage() {
                     <th className="px-6 py-4 text-xs font-bold uppercase tracking-wider text-slate-500">Email</th>
                     <th className="px-6 py-4 text-xs font-bold uppercase tracking-wider text-slate-500">Status</th>
                     <th className="px-6 py-4 text-xs font-bold uppercase tracking-wider text-slate-500">Amount Paid</th>
+                    <th className="px-6 py-4 text-xs font-bold uppercase tracking-wider text-slate-500">Receipt</th>
                     <th className="px-6 py-4 text-xs font-bold uppercase tracking-wider text-slate-500 text-right">Actions</th>
                   </tr>
                 </thead>
@@ -529,6 +536,9 @@ export default function AddMembersPage() {
                       </td>
                       <td className="px-6 py-4">
                         <div className="font-bold text-slate-900">₱{member.payment.toLocaleString()}</div>
+                      </td>
+                      <td className="px-6 py-4">
+                        <div className="text-sm font-semibold text-slate-600">{member.receipt || "—"}</div>
                       </td>
                       <td className="px-6 py-4 text-right">
                         <div className="flex justify-end gap-2">
@@ -582,7 +592,8 @@ export default function AddMembersPage() {
             year: "",
             email: "",
             membership_status: "Not Paid",
-            payment: 0
+            payment: 0,
+            receipt: ""
           });
         }}
         title={editingIndex !== null ? "Edit Member Details" : "Add Specific Member"}
@@ -661,29 +672,7 @@ export default function AddMembersPage() {
                 className="rounded-xl h-11"
               />
             </div>
-            <div className="space-y-2">
-              <Label className="text-xs font-bold uppercase tracking-wider text-slate-500">Status</Label>
-              <select
-                className="w-full h-11 rounded-xl border border-slate-200 bg-white px-3 text-sm focus:ring-2 focus:ring-primary outline-none transition-all"
-                value={manualMember.membership_status}
-                onChange={(e) => setManualMember({ ...manualMember, membership_status: e.target.value as any })}
-              >
-                <option value="Not Paid">Not Paid</option>
-                <option value="Partial">Partial</option>
-                <option value="Half Semester Paid">Half Semester Paid</option>
-                <option value="Fully Paid">Fully Paid</option>
-              </select>
-            </div>
-            <div className="space-y-2">
-              <Label className="text-xs font-bold uppercase tracking-wider text-slate-500">Payment (₱)</Label>
-              <Input
-                type="number"
-                placeholder="0.00"
-                value={manualMember.payment || ""}
-                onChange={(e) => setManualMember({ ...manualMember, payment: Number(e.target.value) })}
-                className="rounded-xl h-11"
-              />
-            </div>
+
           </div>
 
           <div className="flex gap-3 pt-4">
@@ -704,7 +693,8 @@ export default function AddMembersPage() {
                   year: "",
                   email: "",
                   membership_status: "Not Paid",
-                  payment: 0
+                  payment: 0,
+                  receipt: ""
                 });
               }}
             >

@@ -1,7 +1,7 @@
-Student ID,First Name,Middle Initial,Last Name,Course,Section,Year,Email,Membership Status,Payment
-2024-0001,John,D,Doe,BSIT,A,3,john.doe@example.com,Fully Paid,100
-2024-0002,Jane,S,Smith,BSCS,B,2,jane.smith@example.org,Partial,50
-2024-0003,Alice,M,Johnson,BSCE,C,1,alice.j@uni.edu,Not Paid,0
-2024-0004,Bob,L,Brown,BSIT,A,4,bob.brown@company.com,Fully Paid,100
-2024-0005,Charlie,K,Davis,BSCS,B,2,charlie.d@example.com,Half Semester Paid,75
+Student ID,First Name,Middle Initial,Last Name,Course,Section,Year,Email,Membership Status,Payment,Receipt
+2024-0001,John,D,Doe,BSIT,A,3,john.doe@example.com,Fully Paid,100,131234
+2024-0002,Jane,S,Smith,BSCS,B,2,jane.smith@example.org,Partial,50,3423
+2024-0003,Alice,M,Johnson,BSCE,C,1,alice.j@uni.edu,Not Paid,0,2342
+2024-0004,Bob,L,Brown,BSIT,A,4,bob.brown@company.com,Fully Paid,100,1343200
+2024-0005,Charlie,K,Davis,BSCS,B,2,charlie.d@example.com,Half Semester Paid,75,95832
 

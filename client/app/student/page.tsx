@@ -109,7 +109,12 @@ export default function StudentDashboard() {
           .select("*")
           .eq("student_id", userData.student_id);
 
-        const paidItemIds = new Set((txs || []).map((t: any) => t.finance_id));
+        const paidAmountsMap: Record<string, number> = {};
+        (txs || []).forEach((t: any) => {
+          if (t.finance_id) {
+            paidAmountsMap[t.finance_id] = (paidAmountsMap[t.finance_id] || 0) + parseFloat(t.amount || 0);
+          }
+        });
 
         // 5. Fetch last check-in details
         const { data: lastScanData } = await supabase
@@ -190,12 +195,25 @@ export default function StudentDashboard() {
 
         if (items) {
           const mappedFees = items.map((item: any) => {
-            const isPaid = paidItemIds.has(item.id);
+            const totalPaid = paidAmountsMap[item.id] || 0;
+            const totalAmount = parseFloat(item.amount || 0);
+            const remaining = Math.max(0, totalAmount - totalPaid);
+            
+            let status: "Paid" | "Partial" | "Unpaid" = "Unpaid";
+            if (totalPaid > 0) {
+              if (remaining === 0) {
+                status = "Paid";
+              } else {
+                status = "Partial";
+              }
+            }
+
             return {
               id: item.id,
               title: item.title,
-              amount: `₱${(item.amount || 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}`,
-              isPaid
+              totalAmount,
+              remaining,
+              status
             };
           });
           setFees(mappedFees);
@@ -352,15 +370,27 @@ export default function StudentDashboard() {
                   <div key={fee.id} className="flex items-center justify-between gap-3 p-4 hover:bg-slate-50/50 transition-colors">
                     <div>
                       <p className="text-sm font-bold text-slate-900 leading-tight">{fee.title}</p>
-                      <p className="text-xs font-black text-slate-950 mt-1">{fee.amount}</p>
+                      {fee.status === 'Partial' ? (
+                        <p className="text-[10px] text-slate-500 mt-1">
+                          Remaining: <span className="font-black text-amber-500">₱{fee.remaining.toLocaleString(undefined, { minimumFractionDigits: 2 })}</span>
+                        </p>
+                      ) : (
+                        <p className="text-xs font-black text-slate-950 mt-1">
+                          ₱{fee.totalAmount.toLocaleString(undefined, { minimumFractionDigits: 2 })}
+                        </p>
+                      )}
                     </div>
                     <div>
-                      {fee.isPaid ? (
+                      {fee.status === 'Paid' ? (
                         <span className="px-2.5 py-1 rounded-full bg-emerald-50 text-emerald-600 font-black text-[9px] uppercase tracking-widest border border-emerald-100/50">
                           Paid
                         </span>
-                      ) : (
+                      ) : fee.status === 'Partial' ? (
                         <span className="px-2.5 py-1 rounded-full bg-amber-50 text-amber-600 font-black text-[9px] uppercase tracking-widest border border-amber-100/50">
+                          Partial
+                        </span>
+                      ) : (
+                        <span className="px-2.5 py-1 rounded-full bg-rose-50 text-rose-600 font-black text-[9px] uppercase tracking-widest border border-rose-100/50">
                           Pending
                         </span>
                       )}

@@ -21,7 +21,6 @@ export default function Footer() {
     {
       title: "Resources",
       links: [
-        { label: "Announcements", href: "#announcements" },
         { label: "Gallery", href: "#gallery" },
         { label: "Contact", href: "#contact" },
         { label: "Login Portal", href: "/login" },

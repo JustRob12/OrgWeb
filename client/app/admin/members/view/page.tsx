@@ -41,6 +41,7 @@ interface MemberWithStatus {
   memberships: {
     status: string;
     payment: number;
+    receipt?: string | null;
     created_at?: string;
   } | null;
 }
@@ -70,6 +71,7 @@ export default function ViewMembersPage() {
   const [editEmail, setEditEmail] = useState("");
   const [editStatus, setEditStatus] = useState("Not Paid");
   const [editPayment, setEditPayment] = useState(0);
+  const [editReceipt, setEditReceipt] = useState("");
   const [isSavingEdit, setIsSavingEdit] = useState(false);
 
   const handleEditClick = (member: MemberWithStatus) => {
@@ -84,6 +86,7 @@ export default function ViewMembersPage() {
     setEditEmail(member.email || "");
     setEditStatus(member.memberships?.status || "Not Paid");
     setEditPayment(member.memberships?.payment || 0);
+    setEditReceipt(member.memberships?.receipt || "");
     setIsEditModalOpen(true);
   };
 
@@ -124,6 +127,7 @@ export default function ViewMembersPage() {
           .update({
             status: editStatus,
             payment: editPayment,
+            receipt: editReceipt.trim() || null,
           })
           .eq("user_id", selectedMemberForEdit.id);
 
@@ -136,6 +140,7 @@ export default function ViewMembersPage() {
             user_id: selectedMemberForEdit.id,
             status: editStatus,
             payment: editPayment,
+            receipt: editReceipt.trim() || null,
           });
 
         if (membershipError) throw membershipError;
@@ -160,6 +165,7 @@ export default function ViewMembersPage() {
                 memberships: {
                   status: editStatus,
                   payment: editPayment,
+                  receipt: editReceipt.trim() || null,
                   created_at: m.memberships?.created_at,
                 },
               }
@@ -183,7 +189,7 @@ export default function ViewMembersPage() {
         .from("users")
         .select(`
           *,
-          memberships:memberships(status, payment, created_at),
+          memberships:memberships(status, payment, receipt, created_at),
           accounts:accounts!inner(role),
           send_credentials:send_credentials(id)
         `)
@@ -420,6 +426,7 @@ export default function ViewMembersPage() {
                 <th className="px-6 py-4 text-xs font-black uppercase tracking-widest text-slate-400">Date Added</th>
                 <th className="px-6 py-4 text-xs font-black uppercase tracking-widest text-slate-400">Status</th>
                 <th className="px-6 py-4 text-xs font-black uppercase tracking-widest text-slate-400">Paid</th>
+                <th className="px-6 py-4 text-xs font-black uppercase tracking-widest text-slate-400">Receipt</th>
                 <th className="px-6 py-4 text-xs font-black uppercase tracking-widest text-slate-400 text-right">Actions</th>
               </tr>
             </thead>
@@ -427,7 +434,7 @@ export default function ViewMembersPage() {
               {loading ? (
                 Array(5).fill(0).map((_, i) => (
                   <tr key={i} className="animate-pulse">
-                    <td colSpan={7} className="px-6 py-10 space-y-4">
+                    <td colSpan={8} className="px-6 py-10 space-y-4">
                       <div className="h-4 bg-slate-100 rounded-full w-3/4"></div>
                       <div className="h-4 bg-slate-100 rounded-full w-1/2"></div>
                     </td>
@@ -435,7 +442,7 @@ export default function ViewMembersPage() {
                 ))
               ) : paginatedMembers.length === 0 ? (
                 <tr>
-                  <td colSpan={7} className="px-6 py-20 text-center text-slate-500 font-bold italic">
+                  <td colSpan={8} className="px-6 py-20 text-center text-slate-500 font-bold italic">
                     No results match your search.
                   </td>
                 </tr>
@@ -512,6 +519,11 @@ export default function ViewMembersPage() {
                     <td className="px-6 py-5">
                       <div className="text-sm font-black text-slate-900 leading-none">
                         ₱{(member.memberships?.payment || 0).toLocaleString()}
+                      </div>
+                    </td>
+                    <td className="px-6 py-5">
+                      <div className="text-sm font-bold text-slate-600 leading-none">
+                        {member.memberships?.receipt || "—"}
                       </div>
                     </td>
                     <td className="px-6 py-5 text-right">
@@ -676,7 +688,7 @@ export default function ViewMembersPage() {
             </div>
           </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-4 border-t border-slate-100">
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 pt-4 border-t border-slate-100">
             <div className="space-y-1">
               <label className="text-xs font-bold text-slate-500 uppercase">Membership Status</label>
               <select
@@ -698,6 +710,16 @@ export default function ViewMembersPage() {
                 required
                 value={editPayment}
                 onChange={(e) => setEditPayment(parseFloat(e.target.value) || 0)}
+                className="w-full h-11 px-3 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:bg-white focus:outline-none focus:ring-4 focus:ring-primary/10 transition-all font-medium"
+              />
+            </div>
+            <div className="space-y-1">
+              <label className="text-xs font-bold text-slate-500 uppercase">Receipt No.</label>
+              <input
+                type="text"
+                placeholder="e.g. 131234"
+                value={editReceipt}
+                onChange={(e) => setEditReceipt(e.target.value)}
                 className="w-full h-11 px-3 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:bg-white focus:outline-none focus:ring-4 focus:ring-primary/10 transition-all font-medium"
               />
             </div>

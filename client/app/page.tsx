@@ -9,7 +9,7 @@ import Hero from "./LandingPage/Hero";
 import About from "./LandingPage/About";
 import Features from "./LandingPage/Features";
 import Events from "./LandingPage/Events";
-import Announcements from "./LandingPage/Announcements";
+// import Announcements from "./LandingPage/Announcements";
 import Gallery from "./LandingPage/Gallery";
 import Members from "./LandingPage/Members";
 import Contact from "./LandingPage/Contact";
@@ -23,7 +23,7 @@ export default function HomePage() {
         <About />
         <Features />
         <Events />
-        <Announcements />
+        {/* <Announcements /> */}
         <Gallery />
         <Members />
         <Contact />

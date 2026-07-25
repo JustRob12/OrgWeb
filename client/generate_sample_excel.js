@@ -10,7 +10,9 @@ const data = [
     "Section": "A",
     "Year": "3",
     "Email": "john.doe@example.com",
-    "Membership Status": "Fully Paid"
+    "Membership Status": "Fully Paid",
+    "Payment": 100,
+    "Receipt": "131234"
   },
   {
     "First Name": "Jane",
@@ -20,7 +22,9 @@ const data = [
     "Section": "B",
     "Year": "2",
     "Email": "jane.smith@example.org",
-    "Membership Status": "Partial"
+    "Membership Status": "Partial",
+    "Payment": 50,
+    "Receipt": "3423"
   },
   {
     "First Name": "Alice",
@@ -30,7 +34,9 @@ const data = [
     "Section": "C",
     "Year": "1",
     "Email": "alice.j@uni.edu",
-    "Membership Status": "Not Paid"
+    "Membership Status": "Not Paid",
+    "Payment": 0,
+    "Receipt": "2342"
   },
   {
     "First Name": "Bob",
@@ -40,7 +46,9 @@ const data = [
     "Section": "A",
     "Year": "4",
     "Email": "bob.brown@company.com",
-    "Membership Status": "Fully Paid"
+    "Membership Status": "Fully Paid",
+    "Payment": 100,
+    "Receipt": "1343200"
   },
   {
     "First Name": "Charlie",
@@ -50,7 +58,9 @@ const data = [
     "Section": "B",
     "Year": "2",
     "Email": "charlie.d@example.com",
-    "Membership Status": "Half Semester Paid"
+    "Membership Status": "Half Semester Paid",
+    "Payment": 75,
+    "Receipt": "95832"
   }
 ];
 

@@ -32,6 +32,7 @@ CREATE TABLE IF NOT EXISTS memberships (
     user_id UUID UNIQUE REFERENCES users(id) ON DELETE CASCADE,
     status TEXT CHECK (status IN ('Partial', 'Fully Paid', 'Not Paid', 'Half Semester Paid')) DEFAULT 'Not Paid',
     payment NUMERIC,
+    receipt TEXT,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
 );
 

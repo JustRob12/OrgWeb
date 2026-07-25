@@ -40,7 +40,6 @@ const menuItems = [
       { name: "Send Credentials", href: "/admin/members/send" },
     ]
   },
-  { name: "Announcements", icon: LuMegaphone, href: "/admin/announcements" },
   { name: "Events", icon: LuCalendar, href: "/admin/events" },
   {
     name: "Attendance",
