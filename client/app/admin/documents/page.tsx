@@ -362,8 +362,8 @@ export default function DocumentsPage() {
               Are you sure you want to permanently delete <span className="font-bold text-slate-800">"{itemToDelete.name}"</span>? This cannot be undone.
             </p>
             <div className="flex gap-3">
-              <Button type="button" onClick={() => setItemToDelete(null)} variant="outline" className="flex-1 h-12 rounded-xl text-slate-600">Cancel</Button>
-              <Button type="button" onClick={confirmDelete} disabled={isDeleting} className="flex-1 h-12 rounded-xl bg-rose-500 hover:bg-rose-600 text-white font-bold shadow-lg shadow-rose-500/20">
+              <Button type="button" onClick={() => setItemToDelete(null)} disabled={isDeleting} variant="outline" className="flex-1 h-12 rounded-xl text-slate-600">Cancel</Button>
+              <Button type="button" onClick={confirmDelete} loading={isDeleting} disabled={isDeleting} className="flex-1 h-12 rounded-xl bg-rose-500 hover:bg-rose-600 text-white font-bold shadow-lg shadow-rose-500/20">
                 {isDeleting ? "Deleting..." : "Delete"}
               </Button>
             </div>

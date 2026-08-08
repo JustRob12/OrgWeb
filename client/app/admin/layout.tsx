@@ -12,8 +12,7 @@ import {
   LuPhilippinePeso,
   LuFiles,
   LuVote,
-  LuActivity,
-  LuSettings,
+  LuUserCog,
   LuMenu,
   LuX,
   LuSearch,
@@ -37,9 +36,10 @@ const menuItems = [
     subItems: [
       { name: "View Members", href: "/admin/members/view" },
       { name: "Add Members", href: "/admin/members/add" },
-      { name: "Send Credentials", href: "/admin/members/send" },
+      { name: "Send Passwords", href: "/admin/members/send" },
     ]
   },
+  { name: "Announcements", icon: LuMegaphone, href: "/admin/announcements" },
   { name: "Events", icon: LuCalendar, href: "/admin/events" },
   {
     name: "Attendance",
@@ -62,20 +62,23 @@ const menuItems = [
   },
   { name: "Documents", icon: LuFiles, href: "/admin/documents" },
   { name: "Voting", icon: LuVote, href: "/admin/voting" },
-  { name: "Reports", icon: LuActivity, href: "/admin/reports" },
-  { name: "Settings", icon: LuSettings, href: "/admin/settings" },
+  { name: "Roles", icon: LuUserCog, href: "/admin/settings" },
 ]
 
 export default function AdminLayout({ children }: { children: React.ReactNode }) {
   const [isSidebarOpen, setIsSidebarOpen] = useState(false)
   const [isLogoutModalOpen, setIsLogoutModalOpen] = useState(false)
+  const [isLoggingOut, setIsLoggingOut] = useState(false)
   const [loading, setLoading] = useState(true)
+  const [userRole, setUserRole] = useState<number | null>(null)
+  const [userInfo, setUserInfo] = useState<any>(null)
+
   const pathname = usePathname()
   const router = useRouter()
   const supabase = createClient()
 
   useEffect(() => {
-    const checkAdmin = async () => {
+    const checkAccess = async () => {
       const storedUser = localStorage.getItem("acetrack_user");
       if (!storedUser) {
         router.replace("/login");
@@ -83,9 +86,30 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
       }
       try {
         const parsed = JSON.parse(storedUser);
-        if (parsed.role !== 0) {
-          router.replace("/login");
+        const role = typeof parsed.role === "number" ? parsed.role : parseInt(parsed.role, 10);
+        setUserRole(role);
+        setUserInfo(parsed);
+
+        // Role 1 is student only -> redirect to student portal
+        if (role === 1) {
+          router.replace("/student");
           return;
+        }
+
+        // Role 2 (Attendance Scanner) can ONLY access Attendance routes
+        if (role === 2) {
+          if (!pathname.startsWith("/admin/attendance")) {
+            router.replace("/admin/attendance");
+            return;
+          }
+        }
+
+        // Role 3 (Treasurer) can ONLY access Finance routes
+        if (role === 3) {
+          if (!pathname.startsWith("/admin/finance")) {
+            router.replace("/admin/finance");
+            return;
+          }
         }
       } catch (e) {
         router.replace("/login");
@@ -93,14 +117,36 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
       }
       setLoading(false);
     };
-    checkAdmin();
-  }, [router]);
+    checkAccess();
+  }, [router, pathname]);
 
   const handleLogout = async () => {
-    await supabase.auth.signOut();
-    localStorage.removeItem("acetrack_user");
-    router.push("/login");
+    setIsLoggingOut(true);
+    try {
+      await supabase.auth.signOut();
+      localStorage.removeItem("acetrack_user");
+      router.push("/login");
+    } finally {
+      setIsLoggingOut(false);
+    }
   }
+
+  const visibleMenuItems = React.useMemo(() => {
+    if (userRole === 2) {
+      return menuItems.filter(item => item.name === "Attendance");
+    }
+    if (userRole === 3) {
+      return menuItems.filter(item => item.name === "Finance");
+    }
+    return menuItems;
+  }, [userRole]);
+
+  const getRoleLabel = (role: number | null) => {
+    if (role === 0) return "System Admin";
+    if (role === 2) return "Attendance Officer";
+    if (role === 3) return "Treasurer";
+    return "Officer";
+  };
 
   if (loading) {
     return (
@@ -127,7 +173,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
       )}>
         <div className="h-full flex flex-col overflow-hidden">
           <div className="p-6 border-b border-slate-100 flex items-center justify-between">
-            <Link href="/admin" className="flex items-center gap-2">
+            <Link href={userRole === 2 ? "/admin/attendance" : userRole === 3 ? "/admin/finance" : "/admin"} className="flex items-center gap-2">
               <div className="size-8 bg-primary rounded-lg flex items-center justify-center text-white font-bold shrink-0">A</div>
               <span className="font-bold text-xl tracking-tight">ACETRACK</span>
             </Link>
@@ -138,7 +184,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
 
           {/* Navigation Items */}
           <nav className="flex-1 overflow-y-auto p-4 space-y-1 custom-scrollbar">
-            {menuItems.map((item) => {
+            {visibleMenuItems.map((item) => {
               const isActive = pathname === item.href || (item.subItems && pathname.startsWith(item.href))
               const hasSubItems = !!item.subItems
 
@@ -201,12 +247,16 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
           {/* User Profile (Sidebar Bottom) */}
           <div className="p-4 border-t border-slate-100 flex items-center justify-between group/user">
             <div className="flex items-center gap-3 px-2 overflow-hidden">
-              <div className="size-10 rounded-full bg-slate-200 overflow-hidden border border-slate-300 shrink-0">
-                <LuUser size={40} className="text-slate-400 p-2" />
+              <div className="size-10 rounded-full bg-slate-200 overflow-hidden border border-slate-300 shrink-0 flex items-center justify-center font-black text-slate-600">
+                {userInfo?.first_name ? userInfo.first_name[0] : "A"}
               </div>
               <div className="flex-1 overflow-hidden">
-                <p className="text-sm font-bold text-slate-700 leading-tight truncate">Admin</p>
-                <p className="text-[10px] uppercase font-black text-primary tracking-widest leading-none mt-0.5">Roberto</p>
+                <p className="text-sm font-bold text-slate-700 leading-tight truncate">
+                  {userInfo?.first_name || "User"} {userInfo?.last_name || ""}
+                </p>
+                <p className="text-[10px] uppercase font-black text-primary tracking-widest leading-none mt-0.5">
+                  {getRoleLabel(userRole)}
+                </p>
               </div>
             </div>
 
@@ -226,9 +276,10 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
         onClose={() => setIsLogoutModalOpen(false)}
         onConfirm={handleLogout}
         title="Sign Out"
-        description="Are you sure you want to log out of the ACETRACK 3.0 Admin Dashboard?"
+        description="Are you sure you want to log out of the ACETRACK 3.0 Dashboard?"
         confirmText="Logout"
         variant="danger"
+        isLoading={isLoggingOut}
       />
 
       {/* Main Content Area */}
@@ -260,11 +311,15 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
             <div className="h-8 w-px bg-slate-200 hidden md:block" />
             <div className="flex items-center gap-3">
               <div className="text-right hidden sm:block">
-                <p className="text-sm font-bold text-slate-700">Roberto Jr M. Prisoris</p>
-                <p className="text-[10px] uppercase font-black text-primary tracking-widest leading-none mt-0.5">Admin</p>
+                <p className="text-sm font-bold text-slate-700">
+                  {userInfo?.first_name ? `${userInfo.first_name} ${userInfo.last_name || ""}` : "User"}
+                </p>
+                <p className="text-[10px] uppercase font-black text-primary tracking-widest leading-none mt-0.5">
+                  {getRoleLabel(userRole)}
+                </p>
               </div>
-              <div className="size-10 rounded-full bg-slate-200 overflow-hidden border border-slate-300 cursor-pointer hover:opacity-80 transition-opacity">
-                <LuUser size={40} className="text-slate-400 p-2" />
+              <div className="size-10 rounded-full bg-slate-100 overflow-hidden border border-slate-300 flex items-center justify-center font-bold text-slate-600">
+                {userInfo?.first_name ? userInfo.first_name[0] : "A"}
               </div>
             </div>
           </div>

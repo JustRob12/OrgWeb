@@ -138,12 +138,12 @@ export default function AdminDashboard() {
   }, [membersData]);
 
   // Dimensions of line chart SVG
-  const svgW = 500;
-  const svgH = 300;
-  const padL = 40;
-  const padR = 20;
-  const padT = 20;
-  const padB = 40;
+  const svgW = 1000;
+  const svgH = 340;
+  const padL = 50;
+  const padR = 30;
+  const padT = 25;
+  const padB = 45;
   const chartW = svgW - padL - padR;
   const chartH = svgH - padT - padB;
 
@@ -186,6 +186,17 @@ export default function AdminDashboard() {
       path += ` C ${cpX1} ${cpY1}, ${cpX2} ${cpY2}, ${points[i].x} ${points[i].y}`;
     }
     return path;
+  };
+
+  // Area Path Generator Helper for smooth gradient fills
+  const getAreaPathD = (key: string) => {
+    if (lineChartData.length === 0) return "";
+    const bezierD = getBezierPathD(key);
+    if (!bezierD) return "";
+    const lastX = padL + chartW;
+    const bottomY = padT + chartH;
+    const firstX = padL;
+    return `${bezierD} L ${lastX} ${bottomY} L ${firstX} ${bottomY} Z`;
   };
 
   const handleLineMouseMove = (e: React.MouseEvent<SVGSVGElement, MouseEvent>) => {
@@ -386,11 +397,11 @@ export default function AdminDashboard() {
       </div>
 
       {/* Charts Grid */}
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-stretch">
+      <div className="grid grid-cols-1 gap-8 items-stretch">
         
-        {/* Left Card: SVG Line Chart (Daily trends) */}
-        <div className="lg:col-span-7 bg-white p-8 rounded-[2.5rem] border border-slate-200/80 shadow-sm flex flex-col justify-between relative">
-          <div className="flex justify-between items-start gap-4 mb-6">
+        {/* Expanded Full-Width Card: SVG Line Chart (Daily trends) */}
+        <div className="col-span-12 bg-white p-8 rounded-[2.5rem] border border-slate-200/80 shadow-sm flex flex-col justify-between relative">
+          <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6">
             <div>
               <h3 className="text-lg font-black text-slate-900 uppercase tracking-tight flex items-center gap-2">
                 <LuTrendingUp className="size-5 text-primary" />
@@ -400,77 +411,75 @@ export default function AdminDashboard() {
             </div>
 
             {/* Timelines Legend */}
-            <div className="hidden sm:flex items-center gap-3 text-[10px] font-black uppercase tracking-wider flex-wrap">
-              <span className="flex items-center gap-1.5"><span className="size-2 rounded-full" style={{ backgroundColor: STATUS_COLORS["Fully Paid"] }} /> Fully</span>
-              <span className="flex items-center gap-1.5"><span className="size-2 rounded-full" style={{ backgroundColor: STATUS_COLORS["Half Semester Paid"] }} /> Half</span>
-              <span className="flex items-center gap-1.5"><span className="size-2 rounded-full" style={{ backgroundColor: STATUS_COLORS["Partial"] }} /> Partial</span>
-              <span className="flex items-center gap-1.5"><span className="size-2 rounded-full" style={{ backgroundColor: STATUS_COLORS["Not Paid"] }} /> Unpaid</span>
+            <div className="flex items-center gap-4 text-[10px] font-black uppercase tracking-wider flex-wrap">
+              <span className="flex items-center gap-1.5"><span className="size-2.5 rounded-full" style={{ backgroundColor: STATUS_COLORS["Fully Paid"] }} /> Fully Paid</span>
+              <span className="flex items-center gap-1.5"><span className="size-2.5 rounded-full" style={{ backgroundColor: STATUS_COLORS["Half Semester Paid"] }} /> Half Semester</span>
+              <span className="flex items-center gap-1.5"><span className="size-2.5 rounded-full" style={{ backgroundColor: STATUS_COLORS["Partial"] }} /> Partial</span>
+              <span className="flex items-center gap-1.5"><span className="size-2.5 rounded-full" style={{ backgroundColor: STATUS_COLORS["Not Paid"] }} /> Unpaid</span>
             </div>
           </div>
 
           {loading ? (
-            <div className="h-64 flex flex-col items-center justify-center gap-3">
+            <div className="h-80 flex flex-col items-center justify-center gap-3">
               <LuLoader className="size-8 text-primary animate-spin" />
               <p className="text-xs font-black text-slate-400 uppercase tracking-widest">Compiling Timelines...</p>
             </div>
           ) : lineChartData.length === 0 ? (
-            <div className="h-64 flex flex-col items-center justify-center text-slate-300 font-bold italic">
+            <div className="h-80 flex flex-col items-center justify-center text-slate-300 font-bold italic">
               No payments recorded yet to display trend.
             </div>
           ) : (
-            <div className="relative w-full h-[280px]">
+            <div className="relative w-full h-[360px]">
               <svg 
-                className="w-full h-full overflow-visible select-none"
+                className="w-full h-full select-none"
                 viewBox={`0 0 ${svgW} ${svgH}`}
+                preserveAspectRatio="none"
                 onMouseMove={handleLineMouseMove}
                 onMouseLeave={() => setHoveredLineIndex(null)}
               >
+                {/* SVG Gradients for Area Fills */}
+                <defs>
+                  <linearGradient id="grad-Fully" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="0%" stopColor={STATUS_COLORS["Fully Paid"]} stopOpacity="0.2" />
+                    <stop offset="100%" stopColor={STATUS_COLORS["Fully Paid"]} stopOpacity="0.0" />
+                  </linearGradient>
+                  <linearGradient id="grad-Half" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="0%" stopColor={STATUS_COLORS["Half Semester Paid"]} stopOpacity="0.18" />
+                    <stop offset="100%" stopColor={STATUS_COLORS["Half Semester Paid"]} stopOpacity="0.0" />
+                  </linearGradient>
+                  <linearGradient id="grad-Partial" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="0%" stopColor={STATUS_COLORS["Partial"]} stopOpacity="0.18" />
+                    <stop offset="100%" stopColor={STATUS_COLORS["Partial"]} stopOpacity="0.0" />
+                  </linearGradient>
+                  <linearGradient id="grad-Unpaid" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="0%" stopColor={STATUS_COLORS["Not Paid"]} stopOpacity="0.15" />
+                    <stop offset="100%" stopColor={STATUS_COLORS["Not Paid"]} stopOpacity="0.0" />
+                  </linearGradient>
+                </defs>
+
                 {/* Horizontal dotted grid lines */}
-                {Array.from({ length: 4 }).map((_, i) => {
-                  const yVal = padT + (i / 3) * chartH;
-                  const value = Math.round(maxLineVal - (i / 3) * maxLineVal);
+                {Array.from({ length: 5 }).map((_, i) => {
+                  const yVal = padT + (i / 4) * chartH;
                   return (
-                    <g key={i} className="opacity-40">
-                      <line 
-                        x1={padL} 
-                        y1={yVal} 
-                        x2={padL + chartW} 
-                        y2={yVal} 
-                        stroke="#e2e8f0" 
-                        strokeWidth="1.5" 
-                        strokeDasharray="4 4" 
-                      />
-                      <text 
-                        x={padL - 10} 
-                        y={yVal + 4} 
-                        textAnchor="end" 
-                        className="text-[9px] font-black fill-slate-400"
-                      >
-                        {value}
-                      </text>
-                    </g>
-                  );
-                })}
-
-                {/* X Axis Labels */}
-                {lineChartData.map((d, i) => {
-                  const x = padL + (i / Math.max(1, lineChartData.length - 1)) * chartW;
-                  // Only display every Nth label to prevent overlapping if data is huge
-                  const skip = Math.ceil(lineChartData.length / 7);
-                  if (i % skip !== 0 && i !== lineChartData.length - 1) return null;
-
-                  return (
-                    <text
+                    <line 
                       key={i}
-                      x={x}
-                      y={padT + chartH + 20}
-                      textAnchor="middle"
-                      className="text-[9px] font-black fill-slate-400 uppercase tracking-wider"
-                    >
-                      {d.date}
-                    </text>
+                      x1={padL} 
+                      y1={yVal} 
+                      x2={padL + chartW} 
+                      y2={yVal} 
+                      stroke="#e2e8f0" 
+                      strokeWidth="1.5" 
+                      strokeDasharray="4 4" 
+                      className="opacity-60"
+                    />
                   );
                 })}
+
+                {/* Gradient Area Fills */}
+                <path d={getAreaPathD("Fully Paid")} fill="url(#grad-Fully)" />
+                <path d={getAreaPathD("Half Semester Paid")} fill="url(#grad-Half)" />
+                <path d={getAreaPathD("Partial")} fill="url(#grad-Partial)" />
+                <path d={getAreaPathD("Not Paid")} fill="url(#grad-Unpaid)" />
 
                 {/* Vertical hover overlay bar */}
                 {hoveredLineIndex !== null && (
@@ -516,11 +525,11 @@ export default function AdminDashboard() {
                           key={statusKey}
                           cx={cx}
                           cy={cy}
-                          r="5"
+                          r="5.5"
                           fill={color}
                           stroke="#ffffff"
                           strokeWidth="2.5"
-                          className="shadow-sm"
+                          className="shadow-md"
                         />
                       );
                     })}
@@ -528,13 +537,52 @@ export default function AdminDashboard() {
                 )}
               </svg>
 
+              {/* Y-Axis HTML Labels (Unstretched Native HTML Typography) */}
+              {Array.from({ length: 5 }).map((_, i) => {
+                const value = Math.round(maxLineVal - (i / 4) * maxLineVal);
+                const yPercent = ((padT + (i / 4) * chartH) / svgH) * 100;
+                return (
+                  <div 
+                    key={i} 
+                    className="absolute text-[10px] font-black text-slate-400 pointer-events-none select-none"
+                    style={{ 
+                      top: `${yPercent}%`, 
+                      left: `${(padL - 12) / svgW * 100}%`,
+                      transform: "translate(-100%, -50%)"
+                    }}
+                  >
+                    {value}
+                  </div>
+                );
+              })}
+
+              {/* X-Axis HTML Labels (Unstretched Native HTML Typography) */}
+              {lineChartData.map((d, i) => {
+                const skip = Math.ceil(lineChartData.length / 10);
+                if (i % skip !== 0 && i !== lineChartData.length - 1) return null;
+                const xPercent = ((padL + (i / Math.max(1, lineChartData.length - 1)) * chartW) / svgW) * 100;
+                return (
+                  <div
+                    key={i}
+                    className="absolute text-[10px] font-black text-slate-400 uppercase tracking-wider pointer-events-none select-none whitespace-nowrap"
+                    style={{
+                      left: `${xPercent}%`,
+                      top: `${(padT + chartH + 16) / svgH * 100}%`,
+                      transform: "translateX(-50%)"
+                    }}
+                  >
+                    {d.date}
+                  </div>
+                );
+              })}
+
               {/* Custom HTML Tooltip */}
               {hoveredLineIndex !== null && lineChartData[hoveredLineIndex] && (
                 <div 
-                  className="absolute bg-white/95 backdrop-blur-md border border-slate-200/70 p-4 rounded-2xl shadow-xl z-20 pointer-events-none transition-all duration-75 space-y-1.5 min-w-[155px] text-xs font-bold text-slate-700"
+                  className="absolute bg-white/95 backdrop-blur-md border border-slate-200/70 p-4 rounded-2xl shadow-xl z-20 pointer-events-none transition-all duration-75 space-y-1.5 min-w-[165px] text-xs font-bold text-slate-700"
                   style={{
                     left: `${(padL + (hoveredLineIndex / Math.max(1, lineChartData.length - 1)) * chartW) / svgW * 100}%`,
-                    top: `${Math.max(10, Math.min(130, lineTooltipPos.y))}px`,
+                    top: `${Math.max(10, Math.min(180, lineTooltipPos.y))}px`,
                     transform: hoveredLineIndex > lineChartData.length / 2 ? "translateX(-110%)" : "translateX(10%)"
                   }}
                 >
@@ -572,7 +620,7 @@ export default function AdminDashboard() {
         </div>
 
         {/* Right Card: SVG Pie Chart (Course distributions) */}
-        <div className="lg:col-span-5 bg-white p-8 rounded-[2.5rem] border border-slate-200/80 shadow-sm flex flex-col justify-between">
+        <div className="col-span-12 bg-white p-8 rounded-[2.5rem] border border-slate-200/80 shadow-sm flex flex-col justify-between">
           <div className="space-y-6">
             
             {/* Header with Switcher Tabs */}

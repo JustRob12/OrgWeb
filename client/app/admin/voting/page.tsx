@@ -22,6 +22,7 @@ import { Button } from "@/app/Components/ui/button";
 import { Input } from "@/app/Components/ui/input";
 import { Textarea } from "@/app/Components/ui/textarea";
 import { Modal } from "@/app/Components/ui/modal";
+import { ConfirmModal } from "@/app/Components/ui/confirm-modal";
 import { createClient } from "@/utils/supabase/client";
 
 interface Option {
@@ -86,6 +87,9 @@ export default function AdminVotingPage() {
     { title: "President", max_selections: 1, options: [{ name: "", details: "", image_url: "" }] }
   ]);
   const [creating, setCreating] = useState(false);
+  const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
+  const [pollToDelete, setPollToDelete] = useState<string | null>(null);
+  const [isDeletingPoll, setIsDeletingPoll] = useState(false);
 
   // Search filter
   const [searchQuery, setSearchQuery] = useState("");
@@ -643,14 +647,20 @@ export default function AdminVotingPage() {
     }
   };
 
-  const handleDeletePoll = async (pollId: string) => {
-    if (!confirm("Are you sure you want to delete this election/poll? This deletes all associated ballot counts and votes permanently.")) return;
+  const handleDeletePoll = (pollId: string) => {
+    setPollToDelete(pollId);
+    setIsDeleteModalOpen(true);
+  };
+
+  const confirmDeletePoll = async () => {
+    if (!pollToDelete) return;
+    setIsDeletingPoll(true);
     try {
       // 1. Fetch questions for the poll
       const { data: dbQuestions } = await supabase
         .from("poll_questions")
         .select("id")
-        .eq("poll_id", pollId);
+        .eq("poll_id", pollToDelete);
       
       const qIds = (dbQuestions || []).map((q) => q.id);
       
@@ -676,12 +686,16 @@ export default function AdminVotingPage() {
       const { error } = await supabase
         .from("polls")
         .delete()
-        .eq("id", pollId);
+        .eq("id", pollToDelete);
 
       if (error) throw error;
       await fetchDashboardData();
     } catch (err) {
       console.error("Error deleting poll:", err);
+    } finally {
+      setIsDeletingPoll(false);
+      setIsDeleteModalOpen(false);
+      setPollToDelete(null);
     }
   };
 
@@ -1142,6 +1156,20 @@ export default function AdminVotingPage() {
           </div>
         </form>
       </Modal>
+
+      <ConfirmModal
+        isOpen={isDeleteModalOpen}
+        onClose={() => {
+          setIsDeleteModalOpen(false);
+          setPollToDelete(null);
+        }}
+        onConfirm={confirmDeletePoll}
+        title="Delete Election / Poll"
+        description="Are you sure you want to delete this election/poll? This deletes all associated ballot counts, votes, and images permanently."
+        variant="danger"
+        confirmText="Delete Poll"
+        isLoading={isDeletingPoll}
+      />
 
     </div>
   );

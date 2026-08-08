@@ -644,13 +644,19 @@ export default function AddMembersPage() {
             </div>
             <div className="space-y-2">
               <Label className="text-xs font-bold uppercase tracking-wider text-slate-500">Course *</Label>
-              <Input
-                placeholder="BSIT"
+              <select
                 value={manualMember.course}
                 onChange={(e) => setManualMember({ ...manualMember, course: e.target.value })}
                 required
-                className="rounded-xl h-11"
-              />
+                className="w-full h-11 px-3 bg-white border border-slate-200 rounded-xl text-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20 transition-all font-medium text-slate-800"
+              >
+                <option value="">Select Course</option>
+                <option value="BSIT">BSIT</option>
+                <option value="BSCE">BSCE</option>
+                <option value="BITM">BITM</option>
+                <option value="BSM">BSM</option>
+                <option value="BSMRS">BSMRS</option>
+              </select>
             </div>
             <div className="space-y-2">
               <Label className="text-xs font-bold uppercase tracking-wider text-slate-500">Year Level</Label>

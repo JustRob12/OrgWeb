@@ -22,10 +22,15 @@ export default function LoginPage() {
     if (storedUser) {
       try {
         const parsed = JSON.parse(storedUser);
-        if (parsed.role === 0) {
+        const role = typeof parsed.role === "number" ? parsed.role : parseInt(parsed.role, 10);
+        if (role === 0) {
           router.replace("/admin");
-        } else if (parsed.role === 1) {
+        } else if (role === 1) {
           router.replace("/student");
+        } else if (role === 2) {
+          router.replace("/admin/attendance");
+        } else if (role === 3) {
+          router.replace("/admin/finance");
         }
       } catch (e) {
         console.error("Session restore error:", e);
@@ -57,19 +62,26 @@ export default function LoginPage() {
       }
 
       const userAccount = account as any;
+      const role = typeof userAccount.role === "number" ? userAccount.role : parseInt(userAccount.role, 10);
 
-      // 2. Role detection: 0 is Admin, 1 is Member/Student
-      if (userAccount.role === 0) {
-        localStorage.setItem("acetrack_user", JSON.stringify(userAccount));
+      localStorage.setItem("acetrack_user", JSON.stringify(userAccount));
+
+      // Role detection: 0: Admin, 1: Student, 2: Attendance Scanner, 3: Treasurer
+      if (role === 0) {
         toast.success("Welcome, Admin!");
         router.push("/admin");
-      } else if (userAccount.role === 1) {
-        localStorage.setItem("acetrack_user", JSON.stringify(userAccount));
+      } else if (role === 1) {
         toast.success("Welcome to the Student Portal!");
         router.push("/student");
+      } else if (role === 2) {
+        toast.success("Welcome, Attendance Scanner!");
+        router.push("/admin/attendance");
+      } else if (role === 3) {
+        toast.success("Welcome, Treasurer!");
+        router.push("/admin/finance");
       } else {
         toast.success("Welcome back!")
-        router.push("/") // Default for other roles
+        router.push("/")
       }
     } catch (err) {
       toast.error("An error occurred during login.")

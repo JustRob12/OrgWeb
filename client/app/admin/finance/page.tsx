@@ -18,6 +18,7 @@ import {
 } from "react-icons/lu";
 import { createClient } from "@/utils/supabase/client";
 import { Button } from "@/app/Components/ui/button";
+import { ConfirmModal } from "@/app/Components/ui/confirm-modal";
 import { toast } from "sonner";
 
 export default function ManageFinancePage() {
@@ -32,6 +33,11 @@ export default function ManageFinancePage() {
   const [amount, setAmount] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [editingItem, setEditingItem] = useState<any>(null);
+
+  // Delete confirmation state
+  const [itemToDelete, setItemToDelete] = useState<any>(null);
+  const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
+  const [isDeletingItem, setIsDeletingItem] = useState(false);
 
   // Pagination State
   const [currentPage, setCurrentPage] = useState(1);
@@ -151,7 +157,7 @@ export default function ManageFinancePage() {
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
-  const handleDeleteItem = async (item: any) => {
+  const handleDeleteItem = (item: any) => {
     const isDefaultMembership = 
       item.title.toLowerCase().trim() === "membership fee" || 
       item.title.toLowerCase().trim() === "membership";
@@ -161,13 +167,18 @@ export default function ManageFinancePage() {
       return;
     }
 
-    if (!confirm("Are you sure you want to delete this finance item? This will also remove all associated payment records.")) return;
+    setItemToDelete(item);
+    setIsDeleteModalOpen(true);
+  };
 
+  const confirmDeleteItem = async () => {
+    if (!itemToDelete) return;
+    setIsDeletingItem(true);
     try {
       const { error } = await supabase
         .from("finance_items")
         .delete()
-        .eq("id", item.id);
+        .eq("id", itemToDelete.id);
 
       if (error) throw error;
 
@@ -175,6 +186,10 @@ export default function ManageFinancePage() {
       fetchFinanceItems();
     } catch (err: any) {
       toast.error("Failed to delete item.");
+    } finally {
+      setIsDeletingItem(false);
+      setIsDeleteModalOpen(false);
+      setItemToDelete(null);
     }
   };
 
@@ -425,6 +440,20 @@ export default function ManageFinancePage() {
           </div>
         </div>
       </div>
+
+      <ConfirmModal
+        isOpen={isDeleteModalOpen}
+        onClose={() => {
+          setIsDeleteModalOpen(false);
+          setItemToDelete(null);
+        }}
+        onConfirm={confirmDeleteItem}
+        title="Delete Fee Item"
+        description={`Are you sure you want to delete "${itemToDelete?.title || 'this item'}"? This will permanently remove the item and all associated payment records.`}
+        variant="danger"
+        confirmText="Delete Item"
+        isLoading={isDeletingItem}
+      />
     </div>
   );
 }

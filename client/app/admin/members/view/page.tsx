@@ -193,7 +193,7 @@ export default function ViewMembersPage() {
           accounts:accounts!inner(role),
           send_credentials:send_credentials(id)
         `)
-        .eq('accounts.role', 1)
+        .neq('accounts.role', 0)
         .order('created_at', { ascending: false });
 
       if (error) throw error;
@@ -658,13 +658,22 @@ export default function ViewMembersPage() {
           <div className="grid grid-cols-3 gap-4">
             <div className="space-y-1">
               <label className="text-xs font-bold text-slate-500 uppercase">Course</label>
-              <input
-                type="text"
+              <select
                 required
                 value={editCourse}
                 onChange={(e) => setEditCourse(e.target.value)}
-                className="w-full h-11 px-3 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:bg-white focus:outline-none focus:ring-4 focus:ring-primary/10 transition-all font-medium"
-              />
+                className="w-full h-11 px-3 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:bg-white focus:outline-none focus:ring-4 focus:ring-primary/10 transition-all font-medium text-slate-800"
+              >
+                <option value="">Select Course</option>
+                <option value="BSIT">BSIT</option>
+                <option value="BSCE">BSCE</option>
+                <option value="BITM">BITM</option>
+                <option value="BSM">BSM</option>
+                <option value="BSMRS">BSMRS</option>
+                {editCourse && !["BSIT", "BSCE", "BITM", "BSM", "BSMRS"].includes(editCourse) && (
+                  <option value={editCourse}>{editCourse}</option>
+                )}
+              </select>
             </div>
             <div className="space-y-1">
               <label className="text-xs font-bold text-slate-500 uppercase">Section</label>

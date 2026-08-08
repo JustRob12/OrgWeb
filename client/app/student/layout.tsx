@@ -18,6 +18,7 @@ import {
 } from "react-icons/lu";
 import { cn } from "@/lib/utils";
 import { Button } from "@/app/Components/ui/button";
+import { ConfirmModal } from "@/app/Components/ui/confirm-modal";
 import { createClient } from "@/utils/supabase/client";
 
 const navItems = [
@@ -32,6 +33,8 @@ const navItems = [
 
 export default function StudentLayout({ children }: { children: React.ReactNode }) {
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+  const [isLogoutModalOpen, setIsLogoutModalOpen] = useState(false);
+  const [isLoggingOut, setIsLoggingOut] = useState(false);
   const [user, setUser] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const pathname = usePathname();
@@ -81,9 +84,14 @@ export default function StudentLayout({ children }: { children: React.ReactNode 
   }, []);
 
   const handleLogout = async () => {
-    await supabase.auth.signOut();
-    localStorage.removeItem("acetrack_user");
-    router.push("/login");
+    setIsLoggingOut(true);
+    try {
+      await supabase.auth.signOut();
+      localStorage.removeItem("acetrack_user");
+      router.push("/login");
+    } finally {
+      setIsLoggingOut(false);
+    }
   };
 
   if (loading) {
@@ -147,7 +155,7 @@ export default function StudentLayout({ children }: { children: React.ReactNode 
           {/* Logout Footer */}
           <div className="pt-6 mt-6 border-t border-slate-100">
             <button
-              onClick={handleLogout}
+              onClick={() => setIsLogoutModalOpen(true)}
               className="flex items-center gap-3 px-4 py-3 w-full rounded-2xl text-sm font-bold text-rose-500 hover:bg-rose-50 transition-all"
             >
               <LuLogOut className="size-5" />
@@ -203,6 +211,17 @@ export default function StudentLayout({ children }: { children: React.ReactNode 
           </div>
         </main>
       </div>
+
+      <ConfirmModal
+        isOpen={isLogoutModalOpen}
+        onClose={() => setIsLogoutModalOpen(false)}
+        onConfirm={handleLogout}
+        title="Sign Out"
+        description="Are you sure you want to log out of the Student Portal?"
+        confirmText="Logout"
+        variant="danger"
+        isLoading={isLoggingOut}
+      />
     </div>
   );
 }

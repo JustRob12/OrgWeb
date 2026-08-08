@@ -77,6 +77,7 @@ export default function EventsPage() {
   const [isSaveConfirmOpen, setIsSaveConfirmOpen] = useState(false);
   const [isCreateConfirmOpen, setIsCreateConfirmOpen] = useState(false);
   const [pendingDelete, setPendingDelete] = useState<{ id: string; imageUrl?: string } | null>(null);
+  const [isDeleting, setIsDeleting] = useState(false);
 
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [imagePreview, setImagePreview] = useState<string | null>(null);
@@ -352,31 +353,36 @@ export default function EventsPage() {
   const executeDelete = async () => {
     if (!pendingDelete) return;
 
-    const { error: supabaseError } = await supabase
-      .from("events")
-      .delete()
-      .eq("id", pendingDelete.id);
+    setIsDeleting(true);
+    try {
+      const { error: supabaseError } = await supabase
+        .from("events")
+        .delete()
+        .eq("id", pendingDelete.id);
 
-    if (supabaseError) {
-      alert("Error deleting event: " + supabaseError.message);
+      if (supabaseError) {
+        alert("Error deleting event: " + supabaseError.message);
+        setIsDeleteConfirmOpen(false);
+        setPendingDelete(null);
+        return;
+      }
+
+      if (pendingDelete.imageUrl) {
+        const result = await deleteEventImage(pendingDelete.imageUrl);
+        if (!result.success) {
+          console.warn("Cloudinary delete failed:", result.error);
+        }
+      }
+
+      if (selectedEvent?.id === pendingDelete.id) {
+        setIsDetailModalOpen(false);
+      }
       setIsDeleteConfirmOpen(false);
       setPendingDelete(null);
-      return;
+      fetchEvents();
+    } finally {
+      setIsDeleting(false);
     }
-
-    if (pendingDelete.imageUrl) {
-      const result = await deleteEventImage(pendingDelete.imageUrl);
-      if (!result.success) {
-        console.warn("Cloudinary delete failed:", result.error);
-      }
-    }
-
-    if (selectedEvent?.id === pendingDelete.id) {
-      setIsDetailModalOpen(false);
-    }
-    setIsDeleteConfirmOpen(false);
-    setPendingDelete(null);
-    fetchEvents();
   };
 
   const formatDate = (dateString: string) => {
@@ -1168,6 +1174,7 @@ export default function EventsPage() {
         description="Are you sure you want to delete this event? This action will also remove the image from Cloudinary and cannot be undone."
         variant="danger"
         confirmText="Delete Event"
+        isLoading={isDeleting}
       />
 
       {/* Save Confirmation (Edit) */}
