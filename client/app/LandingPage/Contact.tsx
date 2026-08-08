@@ -8,7 +8,8 @@ import { Input } from "../Components/ui/input"
 import { Label } from "../Components/ui/label"
 import { Textarea } from "../Components/ui/textarea"
 import { Badge } from "../Components/ui/badge"
-import { cn } from "@/lib/utils"
+import { cn, isValidEmail } from "@/lib/utils"
+import { toast } from "sonner"
 
 export default function Contact() {
   const [formState, setFormState] = useState({
@@ -21,6 +22,12 @@ export default function Contact() {
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()
+
+    if (!isValidEmail(formState.email)) {
+      toast.error("Please enter a complete email address (e.g. name@gmail.com). Incomplete domains like @gma are not allowed.")
+      return
+    }
+
     setSubmitted(true)
     setTimeout(() => setSubmitted(false), 4000)
     setFormState({ name: "", email: "", subject: "", message: "" })

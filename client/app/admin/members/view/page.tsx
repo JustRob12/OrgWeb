@@ -23,6 +23,7 @@ import { Card, CardContent } from "@/app/Components/ui/card";
 import { toast } from "sonner";
 import { createClient } from "@/utils/supabase/client";
 import Link from "next/link";
+import { isValidEmail } from "@/lib/utils";
 import { ConfirmModal } from "@/app/Components/ui/confirm-modal";
 import { Modal } from "@/app/Components/ui/modal";
 
@@ -93,6 +94,11 @@ export default function ViewMembersPage() {
   const handleSaveEdit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!selectedMemberForEdit) return;
+
+    if (!isValidEmail(editEmail)) {
+      toast.error("Please enter a complete email address (e.g. name@gmail.com). Incomplete domains like @gma are not allowed.");
+      return;
+    }
 
     setIsSavingEdit(true);
     try {

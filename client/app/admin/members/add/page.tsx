@@ -12,6 +12,8 @@ import { createClient } from "@/utils/supabase/client";
 import { Modal } from "@/app/Components/ui/modal";
 import { ConfirmModal } from "@/app/Components/ui/confirm-modal";
 
+import { isValidEmail } from "@/lib/utils";
+
 interface RawMemberData {
   student_id: string;
   first_name: string;
@@ -73,7 +75,7 @@ export default function AddMembersPage() {
           const lastName = (row.last_name || row["Last Name"] || "").trim();
           const email = (row.email || row["Email"] || "").trim().toLowerCase();
 
-          if (!studentId || !firstName || !lastName || !email) {
+          if (!studentId || !firstName || !lastName || !email || !isValidEmail(email)) {
             invalidCount++;
             return;
           }
@@ -99,7 +101,7 @@ export default function AddMembersPage() {
         if (invalidCount > 0) {
           setErrorMessage({
             type: "warning",
-            text: `Skipped ${invalidCount} rows in the file due to missing required fields (Student ID, First Name, Last Name, or Email).`
+            text: `Skipped ${invalidCount} rows due to missing fields or incomplete email addresses (e.g. must include complete domain like @gmail.com).`
           });
         }
       } catch (error) {
@@ -125,6 +127,11 @@ export default function AddMembersPage() {
     // Basic validation
     if (!manualMember.student_id || !manualMember.first_name || !manualMember.last_name || !manualMember.email) {
       toast.error("Please fill in all required fields.");
+      return;
+    }
+
+    if (!isValidEmail(manualMember.email)) {
+      toast.error("Please enter a complete email address (e.g. name@gmail.com). Incomplete domains like @gma are not allowed.");
       return;
     }
 
@@ -166,6 +173,11 @@ export default function AddMembersPage() {
 
     if (!manualMember.student_id || !manualMember.first_name || !manualMember.last_name || !manualMember.email) {
       toast.error("Please fill in all required fields.");
+      return;
+    }
+
+    if (!isValidEmail(manualMember.email)) {
+      toast.error("Please enter a complete email address (e.g. name@gmail.com). Incomplete domains like @gma are not allowed.");
       return;
     }
 

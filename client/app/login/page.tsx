@@ -10,6 +10,7 @@ import { Badge } from "../Components/ui/badge"
 import { useRouter } from "next/navigation"
 import { createClient } from "@/utils/supabase/client"
 import { Toaster, toast } from 'sonner'
+import { isValidEmail } from "@/lib/utils"
 
 export default function LoginPage() {
   const [isLoading, setIsLoading] = React.useState(false)
@@ -40,6 +41,12 @@ export default function LoginPage() {
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault()
+    
+    if (email.trim().includes("@") && !isValidEmail(email)) {
+      toast.error("Please enter a complete email address (e.g. name@gmail.com). Incomplete domains like @gma are not allowed.")
+      return
+    }
+
     setIsLoading(true)
 
     try {
