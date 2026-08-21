@@ -13,10 +13,18 @@ import {
   LuCamera,
   LuLock,
   LuInfo,
+  LuSmartphone,
+  LuDownload,
+  LuShare,
+  LuSquarePlus,
+  LuCheck,
+  LuX,
+  LuSparkles,
 } from "react-icons/lu";
 import { createClient } from "@/utils/supabase/client";
 import { toast } from "sonner";
 import { ImageCropperModal } from "@/app/Components/ui/image-cropper-modal";
+import { Button } from "@/app/Components/ui/button";
 
 export default function StudentProfilePage() {
   const [user, setUser] = useState<any>(null);
@@ -27,9 +35,60 @@ export default function StudentProfilePage() {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const supabase = createClient();
 
+  // PWA Installation State
+  const [deferredPrompt, setDeferredPrompt] = useState<any>(null);
+  const [isStandalone, setIsStandalone] = useState(false);
+  const [isIOS, setIsIOS] = useState(false);
+  const [showIOSModal, setShowIOSModal] = useState(false);
+
   useEffect(() => {
     fetchProfile();
+
+    // Check if app is already running in standalone mode (installed PWA)
+    if (typeof window !== "undefined") {
+      const isStandaloneMode =
+        window.matchMedia("(display-mode: standalone)").matches ||
+        (window.navigator as any).standalone === true;
+      setIsStandalone(isStandaloneMode);
+
+      // Detect iOS device
+      const userAgent = window.navigator.userAgent.toLowerCase();
+      const isIosDevice = /iphone|ipad|ipod/.test(userAgent);
+      setIsIOS(isIosDevice);
+
+      // Listen for Android/Chrome beforeinstallprompt
+      const handleBeforeInstallPrompt = (e: Event) => {
+        e.preventDefault();
+        setDeferredPrompt(e);
+      };
+
+      window.addEventListener("beforeinstallprompt", handleBeforeInstallPrompt);
+
+      return () => {
+        window.removeEventListener("beforeinstallprompt", handleBeforeInstallPrompt);
+      };
+    }
   }, []);
+
+  const handleInstallPwa = async () => {
+    if (isStandalone) {
+      toast.success("ACETRACK is already installed on your device!");
+      return;
+    }
+
+    if (deferredPrompt) {
+      deferredPrompt.prompt();
+      const choiceResult = await deferredPrompt.userChoice;
+      if (choiceResult.outcome === "accepted") {
+        toast.success("Thank you for installing ACETRACK!");
+      }
+      setDeferredPrompt(null);
+    } else if (isIOS) {
+      setShowIOSModal(true);
+    } else {
+      setShowIOSModal(true);
+    }
+  };
 
   const fetchProfile = async () => {
     setLoading(true);
@@ -167,7 +226,7 @@ export default function StudentProfilePage() {
   const fullName = `${user?.first_name || ""} ${user?.middle_initial ? user.middle_initial + " " : ""}${user?.last_name || ""}`.trim();
 
   return (
-    <div className="max-w-2xl mx-auto space-y-8 pb-12">
+    <div className="max-w-2xl mx-auto space-y-6 sm:space-y-8 pb-12">
       {/* Hidden File Input */}
       <input type="file" ref={fileInputRef} onChange={handlePhotoSelect} accept="image/*" className="hidden" />
 
@@ -186,7 +245,7 @@ export default function StudentProfilePage() {
       {/* Header Avatar & Name */}
       <div className="text-center space-y-4">
         <div className="relative inline-block group/avatar">
-          <div className="size-32 rounded-full bg-slate-100 border-4 border-white shadow-lg mx-auto overflow-hidden flex items-center justify-center text-slate-300">
+          <div className="size-28 sm:size-32 rounded-full bg-slate-100 border-4 border-white shadow-lg mx-auto overflow-hidden flex items-center justify-center text-slate-300">
             {user?.profile_picture ? (
               <img src={user.profile_picture} alt="Profile" className="size-full object-cover" />
             ) : (
@@ -196,15 +255,15 @@ export default function StudentProfilePage() {
           <button
             onClick={() => fileInputRef.current?.click()}
             disabled={uploading}
-            className="absolute bottom-0 right-0 p-2.5 bg-primary hover:bg-primary/95 text-white rounded-full border-4 border-white shadow-xl hover:scale-110 active:scale-95 transition-all"
+            className="absolute bottom-0 right-0 p-2.5 bg-primary hover:bg-primary/95 text-white rounded-full border-4 border-white shadow-xl hover:scale-110 active:scale-95 transition-all cursor-pointer"
             title="Upload and crop photo"
           >
             {uploading ? <LuLoader className="size-4 animate-spin" /> : <LuCamera className="size-4" />}
           </button>
         </div>
         <div>
-          <h1 className="text-2xl font-black text-slate-900 tracking-tight">{fullName || "Student Member"}</h1>
-          <p className="text-slate-500 font-medium text-sm">
+          <h1 className="text-2xl sm:text-3xl font-black text-slate-900 tracking-tight">{fullName || "Student Member"}</h1>
+          <p className="text-slate-500 font-medium text-xs sm:text-sm mt-1">
             {user?.course ? `${user.course} ` : ""}
             {user?.section ? `• Section ${user.section} ` : ""}
             {user?.year ? `• Year ${user.year}` : ""}
@@ -212,9 +271,48 @@ export default function StudentProfilePage() {
         </div>
       </div>
 
+      {/* PWA Mobile App Card */}
+      <div className="p-5 sm:p-6 rounded-3xl bg-gradient-to-br from-orange-500/10 via-amber-500/5 to-white border border-orange-200/80 shadow-sm relative overflow-hidden">
+        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+          <div className="flex items-center gap-3.5">
+            <div className="size-12 rounded-2xl bg-primary text-white flex items-center justify-center shadow-lg shadow-primary/25 shrink-0">
+              <LuSmartphone className="size-6" />
+            </div>
+            <div>
+              <div className="flex items-center gap-2">
+                <h3 className="text-base font-black text-slate-900 tracking-tight">ACETRACK Mobile App</h3>
+                <span className="px-2 py-0.5 rounded-full bg-primary/10 text-primary text-[10px] font-black uppercase tracking-wider">
+                  PWA
+                </span>
+              </div>
+              <p className="text-xs font-medium text-slate-500 mt-0.5">
+                {isStandalone
+                  ? "App is installed and running in fullscreen standalone mode."
+                  : "Install ACETRACK on your phone for fast QR scanning and instant access."}
+              </p>
+            </div>
+          </div>
+
+          {isStandalone ? (
+            <div className="inline-flex items-center gap-1.5 px-4 py-2 rounded-2xl bg-emerald-50 text-emerald-700 border border-emerald-200 text-xs font-black shrink-0">
+              <LuCheck className="size-4 text-emerald-600" />
+              <span>Installed</span>
+            </div>
+          ) : (
+            <Button
+              onClick={handleInstallPwa}
+              className="w-full sm:w-auto h-11 px-5 rounded-2xl font-black text-xs uppercase tracking-wider bg-primary hover:bg-primary/95 text-white shadow-lg shadow-primary/20 shrink-0 cursor-pointer hover:scale-105 active:scale-95 transition-all"
+            >
+              <LuDownload className="size-4 mr-2" />
+              Add to Mobile App
+            </Button>
+          )}
+        </div>
+      </div>
+
       {/* Verified Information Card (Read-Only) */}
       <div className="bg-white rounded-3xl border border-slate-200 overflow-hidden shadow-sm transition-all">
-        <div className="p-6 border-b border-slate-100 bg-slate-50/50 flex items-center justify-between">
+        <div className="p-5 sm:p-6 border-b border-slate-100 bg-slate-50/50 flex items-center justify-between">
           <div className="flex items-center gap-2">
             <LuShieldCheck className="size-5 text-emerald-500" />
             <h2 className="text-sm font-black text-slate-900 uppercase tracking-widest">
@@ -239,7 +337,7 @@ export default function StudentProfilePage() {
       </div>
 
       {/* Notice Banner */}
-      <div className="bg-blue-50/80 rounded-2xl border border-blue-200/60 p-6 flex items-start gap-4 shadow-sm">
+      <div className="bg-blue-50/80 rounded-2xl border border-blue-200/60 p-5 sm:p-6 flex items-start gap-4 shadow-sm">
         <div className="p-2.5 bg-blue-100/80 rounded-xl text-blue-700 shrink-0">
           <LuInfo className="size-5" />
         </div>
@@ -252,6 +350,80 @@ export default function StudentProfilePage() {
           </p>
         </div>
       </div>
+
+      {/* iOS / Mobile Installation Guide Modal */}
+      {showIOSModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/70 backdrop-blur-sm animate-in fade-in duration-200">
+          <div className="bg-white rounded-3xl shadow-2xl border border-slate-200 max-w-md w-full overflow-hidden p-6 space-y-5 animate-in zoom-in-95 duration-200">
+            <div className="flex items-start justify-between">
+              <div className="flex items-center gap-3">
+                <div className="size-11 rounded-2xl bg-primary/10 text-primary flex items-center justify-center border border-primary/20 shrink-0">
+                  <LuSmartphone className="size-6 text-primary" />
+                </div>
+                <div>
+                  <h3 className="text-lg font-black text-slate-900 tracking-tight">
+                    Add to Mobile Home Screen
+                  </h3>
+                  <p className="text-xs font-bold text-slate-400">Install ACETRACK on iOS & Android</p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setShowIOSModal(false)}
+                className="p-1.5 text-slate-400 hover:text-slate-700 hover:bg-slate-100 rounded-xl transition-all cursor-pointer"
+              >
+                <LuX className="size-5" />
+              </button>
+            </div>
+
+            <div className="space-y-3.5 text-xs text-slate-600">
+              <div className="flex items-start gap-3 p-3 rounded-2xl bg-slate-50 border border-slate-100">
+                <div className="size-6 rounded-full bg-primary/10 text-primary font-black text-xs flex items-center justify-center shrink-0 mt-0.5">
+                  1
+                </div>
+                <div>
+                  <p className="font-bold text-slate-800">Tap the Share Button</p>
+                  <p className="text-slate-500 mt-0.5 flex items-center gap-1.5">
+                    In Safari or Chrome, tap the <LuShare className="size-3.5 text-primary inline" /> Share button in the browser toolbar.
+                  </p>
+                </div>
+              </div>
+
+              <div className="flex items-start gap-3 p-3 rounded-2xl bg-slate-50 border border-slate-100">
+                <div className="size-6 rounded-full bg-primary/10 text-primary font-black text-xs flex items-center justify-center shrink-0 mt-0.5">
+                  2
+                </div>
+                <div>
+                  <p className="font-bold text-slate-800">Select &quot;Add to Home Screen&quot;</p>
+                  <p className="text-slate-500 mt-0.5 flex items-center gap-1.5">
+                    Scroll down in the share menu and tap <LuSquarePlus className="size-3.5 text-primary inline" /> <span className="font-semibold text-slate-700">&quot;Add to Home Screen&quot;</span>.
+                  </p>
+                </div>
+              </div>
+
+              <div className="flex items-start gap-3 p-3 rounded-2xl bg-slate-50 border border-slate-100">
+                <div className="size-6 rounded-full bg-primary/10 text-primary font-black text-xs flex items-center justify-center shrink-0 mt-0.5">
+                  3
+                </div>
+                <div>
+                  <p className="font-bold text-slate-800">Confirm & Enjoy Fullscreen</p>
+                  <p className="text-slate-500 mt-0.5">
+                    Tap <span className="font-semibold text-slate-700">&quot;Add&quot;</span> at top right. ACETRACK will now appear on your home screen like a native mobile app!
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            <Button
+              type="button"
+              onClick={() => setShowIOSModal(false)}
+              className="w-full h-12 rounded-2xl font-black bg-primary hover:bg-primary/95 text-white shadow-lg shadow-primary/20 cursor-pointer"
+            >
+              Got it!
+            </Button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
