@@ -198,60 +198,58 @@ export default function StudentFinancePage() {
    }
 
    return (
-      <div className="space-y-10">
+      <div className="space-y-8">
          {/* Simple Finance Header */}
-         <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-6">
-            <div className="space-y-2">
-               <h1 className="text-4xl font-black text-slate-900 tracking-tight leading-none">My Wallet</h1>
-               <p className="text-slate-500 font-medium tracking-tight">Track your membership dues, event fees, and transactions.</p>
+         <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+            <div className="space-y-1">
+               <h1 className="text-3xl sm:text-4xl font-black text-slate-900 tracking-tight leading-none">Finance</h1>
+               <p className="text-slate-500 font-medium text-sm">Track your membership dues, event fees, and transaction history.</p>
             </div>
          </div>
 
-         {/* Total Outstanding Card (Horizontal banner style, simple) */}
-         <div className="bg-white border border-slate-200 rounded-3xl p-6 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-6 shadow-sm">
+         {/* Total Outstanding Card */}
+         <div className="bg-white border border-slate-200 rounded-3xl p-6 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 shadow-sm">
             <div className="space-y-1">
                <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">Total Outstanding Balance</p>
                <h2 className="text-3xl font-black tracking-tight text-slate-950">
                   ₱{outstandingBalance.toLocaleString(undefined, { minimumFractionDigits: 2 })}
                </h2>
             </div>
-
          </div>
 
-         <div className="grid grid-cols-1 lg:grid-cols-3 gap-10">
+         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
             {/* Transaction History */}
-            <div className="order-2 lg:order-1 lg:col-span-2 space-y-6">
-               <div className="flex items-center justify-between ml-2">
+            <div className="order-2 lg:order-1 lg:col-span-2 space-y-4">
+               <div className="flex items-center justify-between ml-1">
                   <h2 className="text-xl font-black text-slate-900 tracking-tight flex items-center gap-2">
-                     <LuHistory className="size-5 text-slate-300" /> Transaction History
+                     <LuHistory className="size-5 text-slate-400" /> Transaction History
                   </h2>
-                  <Button variant="ghost" className="text-xs font-black text-rose-500 hover:bg-rose-50 rounded-xl">View Full Statement</Button>
                </div>
 
-               <div className="bg-white rounded-[2.5rem] border border-slate-200 overflow-hidden shadow-sm">
+               <div className="bg-white rounded-3xl border border-slate-200 overflow-hidden shadow-sm">
                   {transactions.length === 0 ? (
                      <div className="p-12 text-center text-slate-400 font-medium">
                         No transactions recorded yet.
                      </div>
                   ) : (
-                     <div className="divide-y divide-slate-50">
+                     <div className="divide-y divide-slate-100">
                         {transactions.map((t, i) => (
-                           <div key={i} className="p-6 md:p-8 flex flex-col md:flex-row justify-between items-start md:items-center gap-4 hover:bg-slate-50/50 transition-colors group">
-                              <div className="flex items-center gap-6">
-                                 <div className="size-14 rounded-[1.25rem] bg-slate-50 border border-slate-100 flex items-center justify-center text-slate-300 shadow-inner group-hover:bg-white group-hover:text-rose-500 group-hover:shadow-lg transition-all group-hover:scale-110">
-                                    <LuWallet className="size-6" />
+                           <div key={i} className="p-5 sm:p-6 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 hover:bg-slate-50/50 transition-colors group">
+                              <div className="flex items-center gap-4">
+                                 <div className="size-12 rounded-2xl bg-slate-50 border border-slate-100 flex items-center justify-center text-slate-400 shadow-inner group-hover:bg-primary/10 group-hover:text-primary transition-all shrink-0">
+                                    <LuWallet className="size-5" />
                                  </div>
                                  <div>
-                                    <p className="font-black text-slate-900 tracking-tight text-lg mb-1 leading-none">{t.title}</p>
-                                    <p className="text-xs font-bold text-slate-400 flex items-center gap-1.5 uppercase tracking-widest"><LuCalendar className="size-3" /> {t.date}</p>
+                                    <p className="font-bold text-slate-900 text-base leading-tight mb-1">{t.title}</p>
+                                    <p className="text-xs font-semibold text-slate-400 flex items-center gap-1.5"><LuCalendar className="size-3" /> {t.date}</p>
                                  </div>
                               </div>
-                              <div className="flex items-center justify-between w-full md:w-auto md:justify-end gap-8">
+                              <div className="flex items-center justify-between w-full sm:w-auto sm:justify-end gap-6">
                                  <div className="text-right">
-                                    <p className="text-lg font-black text-slate-900 tracking-tight">{t.amount}</p>
-                                    <span className={`text-[10px] font-black uppercase tracking-widest ${t.status === 'Fully Paid' || t.status === 'Paid' ? 'text-emerald-500' :
-                                       t.status === 'Half Semester Paid' ? 'text-blue-500' :
-                                          t.status === 'Partial' ? 'text-amber-500' : 'text-rose-500'
+                                    <p className="text-base font-black text-slate-900">{t.amount}</p>
+                                    <span className={`text-[10px] font-black uppercase tracking-wider ${t.status === 'Fully Paid' || t.status === 'Paid' ? 'text-emerald-600' :
+                                       t.status === 'Half Semester Paid' ? 'text-blue-600' :
+                                          t.status === 'Partial' ? 'text-amber-600' : 'text-rose-600'
                                        }`}>{t.status}</span>
                                  </div>
                                  <button
@@ -259,9 +257,10 @@ export default function StudentFinancePage() {
                                        setSelectedTx(t);
                                        setIsModalOpen(true);
                                     }}
-                                    className="p-3 rounded-2xl bg-slate-50 text-slate-400 hover:bg-white hover:text-rose-500 hover:shadow-lg transition-all cursor-pointer"
+                                    className="p-2.5 rounded-xl bg-slate-50 text-slate-400 hover:bg-primary hover:text-white transition-all cursor-pointer"
+                                    title="View receipt details"
                                  >
-                                    <LuEye className="size-5" />
+                                    <LuEye className="size-4" />
                                  </button>
                               </div>
                            </div>
@@ -271,62 +270,37 @@ export default function StudentFinancePage() {
                </div>
             </div>
 
-            {/* Fees Information */}
-            <div className="order-1 lg:order-2 space-y-6">
-               <h2 className="text-xl font-black text-slate-900 tracking-tight ml-2">All Fees & Dues</h2>
-               <div className="bg-white rounded-[2.5rem] border border-slate-200 p-8 space-y-8 shadow-sm">
+            {/* Simple All Fees & Dues List */}
+            <div className="order-1 lg:order-2 space-y-4">
+               <h2 className="text-xl font-black text-slate-900 tracking-tight ml-1">All Fees & Dues</h2>
+               <div className="bg-white rounded-3xl border border-slate-200 overflow-hidden shadow-sm divide-y divide-slate-100">
                   {recurringDues.length === 0 ? (
-                     <div className="text-center text-slate-400 font-medium py-8">
+                     <div className="text-center text-slate-400 font-medium py-10">
                         No dues listed.
                      </div>
                   ) : (
-                     <div className="space-y-6">
-                        {recurringDues.map((due, idx) => (
-                           <div key={idx} className="p-6 rounded-3xl bg-slate-50 border border-slate-100 flex items-start gap-4 ring-1 ring-transparent hover:ring-rose-500/20 transition-all cursor-default">
-                              <div className={`p-3 bg-white rounded-2xl shadow-sm ${due.status === 'Paid' ? 'text-emerald-500' :
-                                 due.status === 'Partial' ? 'text-amber-500' : 'text-rose-500'
-                                 }`}>
-                                 {due.status === 'Paid' ? <LuCircleCheck className="size-5" /> :
-                                    due.status === 'Partial' ? <LuClock className="size-5" /> :
-                                       <LuCircleX className="size-5" />}
-                              </div>
-                              <div className="flex-1">
-                                 <p className="text-sm font-black text-slate-900">{due.title}</p>
-                                 <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-1">{due.deadline}</p>
-                                 <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mt-3 pt-3 border-t border-slate-100/50">
-                                    <div>
-                                       <span className="text-[9px] font-black uppercase tracking-widest text-slate-400 block mb-0.5">Total Fee</span>
-                                       <span className="text-xs font-bold text-slate-600">₱{due.totalAmount.toLocaleString(undefined, { minimumFractionDigits: 2 })}</span>
-                                    </div>
-                                    {due.status === 'Partial' && (
-                                       <>
-                                          <div>
-                                             <span className="text-[9px] font-black uppercase tracking-widest text-slate-400 block mb-0.5">Paid</span>
-                                             <span className="text-xs font-bold text-emerald-600">₱{due.paidAmount.toLocaleString(undefined, { minimumFractionDigits: 2 })}</span>
-                                          </div>
-                                          <div>
-                                             <span className="text-[9px] font-black uppercase tracking-widest text-slate-400 block mb-0.5">Remaining</span>
-                                             <span className="text-xs font-bold text-amber-500">₱{due.remaining.toLocaleString(undefined, { minimumFractionDigits: 2 })}</span>
-                                          </div>
-                                       </>
-                                    )}
-                                    {due.status === 'Paid' && (
-                                       <div>
-                                          <span className="text-[9px] font-black uppercase tracking-widest text-slate-400 block mb-0.5">Status</span>
-                                          <span className="text-xs font-bold text-emerald-600">Fully Paid</span>
-                                       </div>
-                                    )}
-                                    {due.status === 'Unpaid' && (
-                                       <div>
-                                          <span className="text-[9px] font-black uppercase tracking-widest text-slate-400 block mb-0.5">Status</span>
-                                          <span className="text-xs font-bold text-rose-500">Unpaid</span>
-                                       </div>
-                                    )}
-                                 </div>
-                              </div>
+                     recurringDues.map((due, idx) => (
+                        <div key={idx} className="p-4 sm:p-5 flex items-center justify-between gap-3 hover:bg-slate-50/60 transition-colors">
+                           <div className="min-w-0 flex-1">
+                              <p className="text-sm font-bold text-slate-900 truncate">{due.title}</p>
+                              <p className="text-[11px] font-medium text-slate-400 mt-0.5">{due.deadline}</p>
                            </div>
-                        ))}
-                     </div>
+                           <div className="text-right shrink-0">
+                              <p className="text-sm font-black text-slate-900">
+                                 ₱{due.totalAmount.toLocaleString(undefined, { minimumFractionDigits: 2 })}
+                              </p>
+                              <span className={`inline-block text-[10px] font-black uppercase tracking-wider px-2 py-0.5 rounded-md mt-0.5 ${
+                                 due.status === 'Paid'
+                                    ? 'bg-emerald-50 text-emerald-700'
+                                    : due.status === 'Partial'
+                                    ? 'bg-amber-50 text-amber-700'
+                                    : 'bg-rose-50 text-rose-700'
+                              }`}>
+                                 {due.status === 'Paid' ? 'Paid' : due.status === 'Partial' ? `Bal: ₱${due.remaining.toLocaleString()}` : 'Unpaid'}
+                              </span>
+                           </div>
+                        </div>
+                     ))
                   )}
                </div>
             </div>

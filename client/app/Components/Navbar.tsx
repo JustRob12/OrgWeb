@@ -84,9 +84,9 @@ export default function Navbar() {
               <div className="h-5 w-px bg-slate-200" />
             </div>
 
-            <Button asChild variant="default" size="sm" className="h-9 sm:h-10 px-4 sm:px-5 rounded-xl font-bold shadow-md shadow-primary/20 hover:scale-105 transition-all cursor-pointer">
+            <Button asChild variant="default" size="sm" className="hidden md:inline-flex h-10 px-5 rounded-xl font-bold shadow-md shadow-primary/20 hover:scale-105 transition-all cursor-pointer">
               <a href="/login">
-                <LuLogIn className="size-4 sm:mr-1.5" />
+                <LuLogIn className="size-4 mr-1.5" />
                 <span>Login</span>
               </a>
             </Button>
