@@ -181,10 +181,7 @@ export default function LoginPage() {
                     </div>
                   </div>
                   <div className="space-y-2">
-                    <div className="flex items-center justify-between">
-                      <Label htmlFor="password" className="text-xs font-medium uppercase tracking-widest text-muted-foreground">Password</Label>
-                      <a href="#" className="text-xs font-medium text-primary hover:underline">Forgot password?</a>
-                    </div>
+                    <Label htmlFor="password" className="text-xs font-medium uppercase tracking-widest text-muted-foreground">Password</Label>
                     <div className="relative group">
                       <LuLock className="absolute left-4 top-1/2 -translate-y-1/2 size-4 text-muted-foreground transition-colors group-focus-within:text-primary" />
                       <Input

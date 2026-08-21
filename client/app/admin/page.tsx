@@ -6,9 +6,14 @@ import {
   LuCalendar, 
   LuPhilippinePeso, 
   LuLoader, 
-  LuTrendingUp, 
-  LuChartPie,
-  LuChevronDown
+  LuChartBar,
+  LuGraduationCap,
+  LuTrendingUp,
+  LuLayers,
+  LuCircleCheck,
+  LuClock,
+  LuCircleAlert,
+  LuCircleX
 } from "react-icons/lu";
 import { createClient } from "@/utils/supabase/client";
 
@@ -19,24 +24,108 @@ const getMembership = (member: any) => {
   return member.memberships;
 };
 
-// Course Color Palette
-const COURSE_COLORS = [
-  "#3b82f6", // blue
-  "#8b5cf6", // violet
-  "#f97316", // orange
-  "#06b6d4", // cyan
-  "#14b8a6", // teal
-  "#d946ef", // fuchsia
-  "#6366f1", // indigo
-  "#10b981", // emerald
-  "#f43f5e", // rose
+// Course Color Presets
+interface CourseTheme {
+  primary: string;
+  gradient: string;
+  bgLight: string;
+  border: string;
+  text: string;
+  shadow: string;
+}
+
+const PRESET_COURSE_THEMES: Record<string, CourseTheme> = {
+  BSIT: {
+    primary: "#3b82f6",
+    gradient: "from-blue-500 via-blue-600 to-indigo-600",
+    bgLight: "bg-blue-50/80",
+    border: "border-blue-200",
+    text: "text-blue-600",
+    shadow: "shadow-blue-500/20"
+  },
+  BSCE: {
+    primary: "#06b6d4",
+    gradient: "from-cyan-500 via-cyan-600 to-teal-600",
+    bgLight: "bg-cyan-50/80",
+    border: "border-cyan-200",
+    text: "text-cyan-600",
+    shadow: "shadow-cyan-500/20"
+  },
+  BITM: {
+    primary: "#8b5cf6",
+    gradient: "from-violet-500 via-purple-600 to-fuchsia-600",
+    bgLight: "bg-purple-50/80",
+    border: "border-purple-200",
+    text: "text-purple-600",
+    shadow: "shadow-purple-500/20"
+  },
+  BSM: {
+    primary: "#f97316",
+    gradient: "from-orange-500 via-amber-600 to-yellow-600",
+    bgLight: "bg-orange-50/80",
+    border: "border-orange-200",
+    text: "text-orange-600",
+    shadow: "shadow-orange-500/20"
+  },
+  BSMRS: {
+    primary: "#ec4899",
+    gradient: "from-pink-500 via-rose-600 to-red-600",
+    bgLight: "bg-pink-50/80",
+    border: "border-pink-200",
+    text: "text-pink-600",
+    shadow: "shadow-pink-500/20"
+  },
+  BSCS: {
+    primary: "#10b981",
+    gradient: "from-emerald-500 via-emerald-600 to-teal-600",
+    bgLight: "bg-emerald-50/80",
+    border: "border-emerald-200",
+    text: "text-emerald-600",
+    shadow: "shadow-emerald-500/20"
+  },
+  BSEMC: {
+    primary: "#6366f1",
+    gradient: "from-indigo-500 via-indigo-600 to-blue-600",
+    bgLight: "bg-indigo-50/80",
+    border: "border-indigo-200",
+    text: "text-indigo-600",
+    shadow: "shadow-indigo-500/20"
+  },
+  ACT: {
+    primary: "#eab308",
+    gradient: "from-amber-400 via-amber-500 to-yellow-600",
+    bgLight: "bg-amber-50/80",
+    border: "border-amber-200",
+    text: "text-amber-600",
+    shadow: "shadow-amber-500/20"
+  }
+};
+
+const FALLBACK_PALETTE: CourseTheme[] = [
+  { primary: "#3b82f6", gradient: "from-blue-500 to-indigo-600", bgLight: "bg-blue-50/80", border: "border-blue-200", text: "text-blue-600", shadow: "shadow-blue-500/20" },
+  { primary: "#8b5cf6", gradient: "from-violet-500 to-purple-600", bgLight: "bg-purple-50/80", border: "border-purple-200", text: "text-purple-600", shadow: "shadow-purple-500/20" },
+  { primary: "#06b6d4", gradient: "from-cyan-500 to-teal-600", bgLight: "bg-cyan-50/80", border: "border-cyan-200", text: "text-cyan-600", shadow: "shadow-cyan-500/20" },
+  { primary: "#f97316", gradient: "from-orange-500 to-amber-600", bgLight: "bg-orange-50/80", border: "border-orange-200", text: "text-orange-600", shadow: "shadow-orange-500/20" },
+  { primary: "#10b981", gradient: "from-emerald-500 to-teal-600", bgLight: "bg-emerald-50/80", border: "border-emerald-200", text: "text-emerald-600", shadow: "shadow-emerald-500/20" },
+  { primary: "#ec4899", gradient: "from-pink-500 to-rose-600", bgLight: "bg-pink-50/80", border: "border-pink-200", text: "text-pink-600", shadow: "shadow-pink-500/20" },
+  { primary: "#6366f1", gradient: "from-indigo-500 to-blue-600", bgLight: "bg-indigo-50/80", border: "border-indigo-200", text: "text-indigo-600", shadow: "shadow-indigo-500/20" },
+  { primary: "#14b8a6", gradient: "from-teal-500 to-emerald-600", bgLight: "bg-teal-50/80", border: "border-teal-200", text: "text-teal-600", shadow: "shadow-teal-500/20" },
+  { primary: "#f43f5e", gradient: "from-rose-500 to-pink-600", bgLight: "bg-rose-50/80", border: "border-rose-200", text: "text-rose-600", shadow: "shadow-rose-500/20" }
 ];
 
-const STATUS_COLORS: Record<string, string> = {
-  "Fully Paid": "#10b981", // emerald
-  "Half Semester Paid": "#3b82f6", // blue
-  "Partial": "#f59e0b", // amber
-  "Not Paid": "#f43f5e" // rose
+const getCourseTheme = (courseName: string, index: number): CourseTheme => {
+  const clean = (courseName || "").toUpperCase().trim();
+  if (PRESET_COURSE_THEMES[clean]) {
+    return PRESET_COURSE_THEMES[clean];
+  }
+  return FALLBACK_PALETTE[index % FALLBACK_PALETTE.length];
+};
+
+const STATUS_CONFIG: Record<string, { label: string; color: string; bg: string; icon: any }> = {
+  "Fully Paid": { label: "Fully Paid", color: "bg-emerald-500", bg: "bg-emerald-50 text-emerald-700 border-emerald-200", icon: LuCircleCheck },
+  "Half Semester Paid": { label: "Half Semester", color: "bg-blue-500", bg: "bg-blue-50 text-blue-700 border-blue-200", icon: LuClock },
+  "Partial": { label: "Partial", color: "bg-amber-500", bg: "bg-amber-50 text-amber-700 border-amber-200", icon: LuCircleAlert },
+  "Not Paid": { label: "Unpaid", color: "bg-rose-500", bg: "bg-rose-50 text-rose-700 border-rose-200", icon: LuCircleX }
 };
 
 export default function AdminDashboard() {
@@ -45,14 +134,9 @@ export default function AdminDashboard() {
   const [totalFunds, setTotalFunds] = useState<number | null>(null);
   const [loading, setLoading] = useState(true);
 
-  // Chart States
-  const [activeWaveStatus, setActiveWaveStatus] = useState<string>("All");
-  const [hoveredLineIndex, setHoveredLineIndex] = useState<number | null>(null);
-  const [lineTooltipPos, setLineTooltipPos] = useState({ x: 0, y: 0 });
-  const [pieMode, setPieMode] = useState<"course" | "status">("course"); // "course": courses per status, "status": statuses per course
-  const [selectedStatusFilter, setSelectedStatusFilter] = useState<string>("Fully Paid");
-  const [selectedCourseFilter, setSelectedCourseFilter] = useState<string>("All");
-  const [hoveredSliceIndex, setHoveredSliceIndex] = useState<number | null>(null);
+  // Bar Graph View Metric: "members" | "funds" | "status"
+  const [chartMetric, setChartMetric] = useState<"members" | "funds" | "status">("members");
+  const [hoveredCourseIndex, setHoveredCourseIndex] = useState<number | null>(null);
 
   const supabase = createClient();
 
@@ -95,268 +179,71 @@ export default function AdminDashboard() {
   }, []);
 
   // -------------------------------------------------------------
-  // Line Chart Processing (X = Days, Y = Counts of Statuses)
+  // Course Data Processing for Bar Graph & Cards
   // -------------------------------------------------------------
-  const lineChartData = useMemo(() => {
-    const groupedByRawDate: Record<string, Record<string, number>> = {};
+  const courseStats = useMemo(() => {
+    if (membersData.length === 0) return [];
+
+    const grouped: Record<string, {
+      course: string;
+      students: number;
+      funds: number;
+      fullyPaid: number;
+      halfPaid: number;
+      partial: number;
+      unpaid: number;
+    }> = {};
 
     membersData.forEach(member => {
-      const ms = getMembership(member);
-      if (ms && ms.created_at) {
-        // Get date part "YYYY-MM-DD"
-        const rawDate = ms.created_at.split("T")[0];
-        if (!groupedByRawDate[rawDate]) {
-          groupedByRawDate[rawDate] = {
-            "Fully Paid": 0,
-            "Half Semester Paid": 0,
-            "Partial": 0,
-            "Not Paid": 0
-          };
-        }
-        const status = ms.status || "Not Paid";
-        if (status in groupedByRawDate[rawDate]) {
-          groupedByRawDate[rawDate][status]++;
-        }
-      }
-    });
-
-    // Sort chronologically
-    const sortedRawDates = Object.keys(groupedByRawDate).sort();
-
-    return sortedRawDates.map(rawDate => {
-      const dateObj = new Date(rawDate);
-      const formattedDate = dateObj.toLocaleDateString("en-US", { 
-        month: "short", 
-        day: "numeric",
-        timeZone: "UTC" 
-      });
-      return {
-        date: formattedDate,
-        rawDate,
-        ...groupedByRawDate[rawDate]
-      } as { date: string; rawDate: string; [key: string]: any };
-    });
-  }, [membersData]);
-
-  // Dimensions of line chart SVG
-  const svgW = 1000;
-  const svgH = 340;
-  const padL = 50;
-  const padR = 30;
-  const padT = 25;
-  const padB = 45;
-  const chartW = svgW - padL - padR;
-  const chartH = svgH - padT - padB;
-
-  // Max value for line chart scaling
-  const maxLineVal = useMemo(() => {
-    if (lineChartData.length === 0) return 5;
-    const maxVal = Math.max(
-      ...lineChartData.map(d => 
-        Math.max(
-          d["Fully Paid"] || 0, 
-          d["Half Semester Paid"] || 0, 
-          d["Partial"] || 0, 
-          d["Not Paid"] || 0
-        )
-      )
-    );
-    return Math.max(5, maxVal); // Default minimum scale of 5
-  }, [lineChartData]);
-
-  // SVG Smooth Horizontal Wave Curve Path Generator Helper
-  const getBezierPathD = (key: string) => {
-    if (lineChartData.length === 0) return "";
-    if (lineChartData.length === 1) {
-      const y = padT + chartH - ((lineChartData[0][key] || 0) / maxLineVal) * chartH;
-      const x0 = padL;
-      const x1 = padL + chartW;
-      const dx = chartW * 0.45;
-      return `M ${x0} ${y} C ${x0 + dx} ${y}, ${x1 - dx} ${y}, ${x1} ${y}`;
-    }
-
-    const count = lineChartData.length;
-    const points = lineChartData.map((d: any, i) => ({
-      x: padL + (i / Math.max(1, count - 1)) * chartW,
-      y: padT + chartH - ((d[key] || 0) / maxLineVal) * chartH
-    }));
-
-    let path = `M ${points[0].x} ${points[0].y}`;
-
-    for (let i = 0; i < points.length - 1; i++) {
-      const p1 = points[i];
-      const p2 = points[i + 1];
-      const dx = (p2.x - p1.x) * 0.45; // Smooth horizontal wave tangent
-
-      const cp1x = p1.x + dx;
-      const cp1y = p1.y;
-      const cp2x = p2.x - dx;
-      const cp2y = p2.y;
-
-      path += ` C ${cp1x} ${cp1y}, ${cp2x} ${cp2y}, ${p2.x} ${p2.y}`;
-    }
-    return path;
-  };
-
-  // Wave Area Path Generator for smooth gradient fills
-  const getAreaPathD = (key: string) => {
-    if (lineChartData.length === 0) return "";
-    const bezierD = getBezierPathD(key);
-    if (!bezierD) return "";
-    const lastX = padL + chartW;
-    const bottomY = padT + chartH;
-    const firstX = padL;
-    return `${bezierD} L ${lastX} ${bottomY} L ${firstX} ${bottomY} Z`;
-  };
-
-  const handleLineMouseMove = (e: React.MouseEvent<SVGSVGElement, MouseEvent>) => {
-    if (lineChartData.length === 0) return;
-    const rect = e.currentTarget.getBoundingClientRect();
-    const clientX = e.clientX - rect.left;
-    const clientY = e.clientY - rect.top;
-
-    // Map mouse X to the closest data index
-    let closestIndex = 0;
-    let minDistance = Infinity;
-
-    for (let i = 0; i < lineChartData.length; i++) {
-      const pointX = padL + (i / Math.max(1, lineChartData.length - 1)) * chartW;
-      const dist = Math.abs(clientX - pointX);
-      if (dist < minDistance) {
-        minDistance = dist;
-        closestIndex = i;
-      }
-    }
-
-    setHoveredLineIndex(closestIndex);
-    const targetX = padL + (closestIndex / Math.max(1, lineChartData.length - 1)) * chartW;
-    setLineTooltipPos({ x: targetX, y: clientY });
-  };
-
-  // -------------------------------------------------------------
-  // Pie Chart Processing (Filter Status by Course / Course by Status)
-  // -------------------------------------------------------------
-  const uniqueCourses = useMemo(() => {
-    const courses = membersData.map(m => m.course).filter(Boolean);
-    return Array.from(new Set(courses)).sort();
-  }, [membersData]);
-
-  const pieChartData = useMemo(() => {
-    if (membersData.length === 0) return { data: [], total: 0 };
-
-    if (pieMode === "course") {
-      // breakdown of courses for the selected status
-      const counts: Record<string, number> = {};
-      let sum = 0;
-
-      membersData.forEach(member => {
-        const ms = getMembership(member);
-        const status = ms?.status || "Not Paid";
-        if (status === selectedStatusFilter) {
-          const course = member.course || "Unknown";
-          counts[course] = (counts[course] || 0) + 1;
-          sum++;
-        }
-      });
-
-      const list = Object.entries(counts).map(([label, value]) => ({
-        label,
-        value,
-        percentage: sum > 0 ? (value / sum) * 100 : 0
-      })).sort((a, b) => b.value - a.value);
-
-      return { data: list, total: sum };
-    } else {
-      // breakdown of statuses for the selected course
-      const counts: Record<string, number> = {
-        "Fully Paid": 0,
-        "Half Semester Paid": 0,
-        "Partial": 0,
-        "Not Paid": 0
-      };
-      let sum = 0;
-
-      membersData.forEach(member => {
-        if (selectedCourseFilter === "All" || member.course === selectedCourseFilter) {
-          const ms = getMembership(member);
-          const status = ms?.status || "Not Paid";
-          if (status in counts) {
-            counts[status]++;
-            sum++;
-          }
-        }
-      });
-
-      const list = Object.entries(counts)
-        .map(([label, value]) => ({
-          label,
-          value,
-          percentage: sum > 0 ? (value / sum) * 100 : 0
-        }))
-        .filter(item => item.value > 0);
-
-      return { data: list, total: sum };
-    }
-  }, [membersData, pieMode, selectedStatusFilter, selectedCourseFilter]);
-
-  // Compute SVG arc coordinates for pie chart slices
-  const pieSlices = useMemo(() => {
-    const { data, total } = pieChartData;
-    if (total === 0) return [];
-
-    let accumulatedPercent = 0;
-    const cx = 100;
-    const cy = 100;
-    const r = 80;
-
-    return data.map((item, idx) => {
-      const percent = item.value / total;
-      const startPercent = accumulatedPercent;
-      accumulatedPercent += percent;
-
-      // Color mapping
-      let color = COURSE_COLORS[idx % COURSE_COLORS.length];
-      if (pieMode === "status") {
-        color = STATUS_COLORS[item.label] || "#cbd5e1";
-      }
-
-      // If there is only one item that represents 100%
-      if (percent === 1) {
-        return {
-          path: `M ${cx} ${cy - r} A ${r} ${r} 0 1 0 ${cx} ${cy + r} A ${r} ${r} 0 1 0 ${cx} ${cy - r} Z`,
-          label: item.label,
-          value: item.value,
-          percentage: 100,
-          color
+      const course = (member.course || "Other").trim().toUpperCase();
+      if (!grouped[course]) {
+        grouped[course] = {
+          course,
+          students: 0,
+          funds: 0,
+          fullyPaid: 0,
+          halfPaid: 0,
+          partial: 0,
+          unpaid: 0
         };
       }
 
-      const startAngle = 2 * Math.PI * startPercent - Math.PI / 2;
-      const endAngle = 2 * Math.PI * accumulatedPercent - Math.PI / 2;
+      grouped[course].students += 1;
 
-      const sX = cx + Math.cos(startAngle) * r;
-      const sY = cy + Math.sin(startAngle) * r;
-      const eX = cx + Math.cos(endAngle) * r;
-      const eY = cy + Math.sin(endAngle) * r;
-
-      const largeArc = percent > 0.5 ? 1 : 0;
-
-      const pathData = `
-        M ${cx} ${cy}
-        L ${sX} ${sY}
-        A ${r} ${r} 0 ${largeArc} 1 ${eX} ${eY}
-        Z
-      `;
-
-      return {
-        path: pathData,
-        label: item.label,
-        value: item.value,
-        percentage: percent * 100,
-        color
-      };
+      const ms = getMembership(member);
+      if (ms) {
+        grouped[course].funds += Number(ms.payment) || 0;
+        const status = ms.status || "Not Paid";
+        if (status === "Fully Paid") grouped[course].fullyPaid += 1;
+        else if (status === "Half Semester Paid") grouped[course].halfPaid += 1;
+        else if (status === "Partial") grouped[course].partial += 1;
+        else grouped[course].unpaid += 1;
+      } else {
+        grouped[course].unpaid += 1;
+      }
     });
-  }, [pieChartData, pieMode]);
+
+    const totalStudents = membersData.length || 1;
+
+    return Object.values(grouped)
+      .sort((a, b) => b.students - a.students)
+      .map((item, idx) => ({
+        ...item,
+        percentage: (item.students / totalStudents) * 100,
+        theme: getCourseTheme(item.course, idx)
+      }));
+  }, [membersData]);
+
+  // Max value calculation for bar chart scaling
+  const maxBarValue = useMemo(() => {
+    if (courseStats.length === 0) return 10;
+    if (chartMetric === "funds") {
+      const maxFunds = Math.max(...courseStats.map(c => c.funds));
+      return maxFunds > 0 ? maxFunds * 1.15 : 1000;
+    }
+    const maxStudents = Math.max(...courseStats.map(c => c.students));
+    return maxStudents > 0 ? Math.ceil(maxStudents * 1.2) : 10;
+  }, [courseStats, chartMetric]);
 
   // General dashboard stats
   const stats = [
@@ -385,7 +272,7 @@ export default function AdminDashboard() {
       {/* Dashboard Top Header */}
       <div>
         <h1 className="text-4xl font-black text-slate-900 tracking-tight leading-none mb-2">Dashboard Overview</h1>
-        <p className="text-slate-500 font-medium tracking-tight">Welcome back. Here's a live audit of your organization's financials.</p>
+        <p className="text-slate-500 font-medium tracking-tight">Welcome back. Here's a live audit of your organization's financials and course demographics.</p>
       </div>
 
       {/* Stats row */}
@@ -406,430 +293,326 @@ export default function AdminDashboard() {
         ))}
       </div>
 
-      {/* Charts Grid */}
-      <div className="grid grid-cols-1 gap-8 items-stretch">
-        
-        {/* Expanded Full-Width Card: SVG Horizontal Wave Chart (Daily trends) */}
-        <div className="col-span-12 bg-white p-8 rounded-[2.5rem] border border-slate-200/80 shadow-sm flex flex-col justify-between relative">
-          <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-4 mb-6">
-            <div>
-              <div className="inline-flex items-center gap-2 px-2.5 py-1 bg-primary/10 text-primary rounded-full mb-1.5">
-                <LuTrendingUp className="size-3.5" />
-                <span className="text-[10px] font-black uppercase tracking-widest">Financial Analytics</span>
-              </div>
-              <h3 className="text-xl font-black text-slate-900 uppercase tracking-tight">
-                Payment Timelines & Waves
-              </h3>
-              <p className="text-xs text-slate-400 font-bold mt-0.5">Smooth horizontal wave audit of membership statuses over time.</p>
+      {/* Main Bar Graph Card */}
+      <div className="bg-white p-8 rounded-[2.5rem] border border-slate-200/80 shadow-sm flex flex-col justify-between relative overflow-hidden">
+        {/* Header & Metric View Switcher */}
+        <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-4 mb-8">
+          <div>
+            <div className="inline-flex items-center gap-2 px-2.5 py-1 bg-primary/10 text-primary rounded-full mb-1.5">
+              <LuChartBar className="size-3.5" />
+              <span className="text-[10px] font-black uppercase tracking-widest">Course Analytics</span>
             </div>
-
-            {/* Interactive Status Wave Tabs */}
-            <div className="flex items-center bg-slate-100/80 p-1.5 rounded-2xl gap-1 flex-wrap border border-slate-200/50">
-              {[
-                { id: "All", label: "All Waves" },
-                { id: "Fully Paid", label: "Fully Paid", dot: STATUS_COLORS["Fully Paid"] },
-                { id: "Half Semester Paid", label: "Half Semester", dot: STATUS_COLORS["Half Semester Paid"] },
-                { id: "Partial", label: "Partial", dot: STATUS_COLORS["Partial"] },
-                { id: "Not Paid", label: "Unpaid", dot: STATUS_COLORS["Not Paid"] },
-              ].map(tab => {
-                const isActive = activeWaveStatus === tab.id;
-                return (
-                  <button
-                    key={tab.id}
-                    onClick={() => setActiveWaveStatus(tab.id)}
-                    className={`px-3 py-1.5 rounded-xl text-[10px] font-black uppercase tracking-wider transition-all flex items-center gap-1.5 cursor-pointer ${
-                      isActive 
-                        ? "bg-white text-slate-900 shadow-sm shadow-slate-200 ring-1 ring-slate-200/60" 
-                        : "text-slate-500 hover:text-slate-900 hover:bg-white/50"
-                    }`}
-                  >
-                    {tab.dot && <span className="size-2 rounded-full shrink-0" style={{ backgroundColor: tab.dot }} />}
-                    {tab.label}
-                  </button>
-                );
-              })}
-            </div>
+            <h3 className="text-xl font-black text-slate-900 uppercase tracking-tight">
+              Course Distribution Bar Graph
+            </h3>
+            <p className="text-xs text-slate-400 font-bold mt-0.5">
+              Compare member enrollment, financial collection, and payment statuses by course.
+            </p>
           </div>
 
-          {loading ? (
-            <div className="h-80 flex flex-col items-center justify-center gap-3">
-              <LuLoader className="size-8 text-primary animate-spin" />
-              <p className="text-xs font-black text-slate-400 uppercase tracking-widest">Compiling Timelines...</p>
-            </div>
-          ) : lineChartData.length === 0 ? (
-            <div className="h-80 flex flex-col items-center justify-center text-slate-300 font-bold italic">
-              No payments recorded yet to display trend.
-            </div>
-          ) : (
-            <div className="relative w-full h-[360px]">
-              <svg 
-                className="w-full h-full select-none"
-                viewBox={`0 0 ${svgW} ${svgH}`}
-                preserveAspectRatio="none"
-                onMouseMove={handleLineMouseMove}
-                onMouseLeave={() => setHoveredLineIndex(null)}
-              >
-                {/* SVG Gradients & Filters for Horizontal Wave Area Fills */}
-                <defs>
-                  <linearGradient id="grad-Fully" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="0%" stopColor={STATUS_COLORS["Fully Paid"]} stopOpacity="0.32" />
-                    <stop offset="60%" stopColor={STATUS_COLORS["Fully Paid"]} stopOpacity="0.08" />
-                    <stop offset="100%" stopColor={STATUS_COLORS["Fully Paid"]} stopOpacity="0.0" />
-                  </linearGradient>
-                  <linearGradient id="grad-Half" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="0%" stopColor={STATUS_COLORS["Half Semester Paid"]} stopOpacity="0.30" />
-                    <stop offset="60%" stopColor={STATUS_COLORS["Half Semester Paid"]} stopOpacity="0.08" />
-                    <stop offset="100%" stopColor={STATUS_COLORS["Half Semester Paid"]} stopOpacity="0.0" />
-                  </linearGradient>
-                  <linearGradient id="grad-Partial" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="0%" stopColor={STATUS_COLORS["Partial"]} stopOpacity="0.30" />
-                    <stop offset="60%" stopColor={STATUS_COLORS["Partial"]} stopOpacity="0.08" />
-                    <stop offset="100%" stopColor={STATUS_COLORS["Partial"]} stopOpacity="0.0" />
-                  </linearGradient>
-                  <linearGradient id="grad-Unpaid" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="0%" stopColor={STATUS_COLORS["Not Paid"]} stopOpacity="0.28" />
-                    <stop offset="60%" stopColor={STATUS_COLORS["Not Paid"]} stopOpacity="0.08" />
-                    <stop offset="100%" stopColor={STATUS_COLORS["Not Paid"]} stopOpacity="0.0" />
-                  </linearGradient>
-                  <filter id="wave-glow" x="-20%" y="-20%" width="140%" height="140%">
-                    <feDropShadow dx="0" dy="4" stdDeviation="4" floodOpacity="0.15" />
-                  </filter>
-                </defs>
-
-                {/* Horizontal dotted grid lines */}
-                {Array.from({ length: 5 }).map((_, i) => {
-                  const yVal = padT + (i / 4) * chartH;
-                  return (
-                    <line 
-                      key={i}
-                      x1={padL} 
-                      y1={yVal} 
-                      x2={padL + chartW} 
-                      y2={yVal} 
-                      stroke="#e2e8f0" 
-                      strokeWidth="1.5" 
-                      strokeDasharray="4 4" 
-                      className="opacity-60"
-                    />
-                  );
-                })}
-
-                {/* Gradient Wave Area Fills */}
-                {(activeWaveStatus === "All" || activeWaveStatus === "Fully Paid") && (
-                  <path d={getAreaPathD("Fully Paid")} fill="url(#grad-Fully)" className="transition-opacity duration-300" />
-                )}
-                {(activeWaveStatus === "All" || activeWaveStatus === "Half Semester Paid") && (
-                  <path d={getAreaPathD("Half Semester Paid")} fill="url(#grad-Half)" className="transition-opacity duration-300" />
-                )}
-                {(activeWaveStatus === "All" || activeWaveStatus === "Partial") && (
-                  <path d={getAreaPathD("Partial")} fill="url(#grad-Partial)" className="transition-opacity duration-300" />
-                )}
-                {(activeWaveStatus === "All" || activeWaveStatus === "Not Paid") && (
-                  <path d={getAreaPathD("Not Paid")} fill="url(#grad-Unpaid)" className="transition-opacity duration-300" />
-                )}
-
-                {/* Vertical hover overlay bar */}
-                {hoveredLineIndex !== null && (
-                  <line
-                    x1={padL + (hoveredLineIndex / Math.max(1, lineChartData.length - 1)) * chartW}
-                    y1={padT}
-                    x2={padL + (hoveredLineIndex / Math.max(1, lineChartData.length - 1)) * chartW}
-                    y2={padT + chartH}
-                    stroke="#6366f1"
-                    strokeWidth="1.5"
-                    strokeDasharray="2 2"
-                    className="opacity-70 animate-in fade-in duration-200"
-                  />
-                )}
-
-                {/* Horizontal Wave Curve Lines */}
-                {Object.keys(STATUS_COLORS).map(statusKey => {
-                  const color = STATUS_COLORS[statusKey];
-                  const dPath = getBezierPathD(statusKey);
-                  const isSelected = activeWaveStatus === "All" || activeWaveStatus === statusKey;
-                  return (
-                    <path
-                      key={statusKey}
-                      d={dPath}
-                      fill="none"
-                      stroke={color}
-                      strokeWidth={isSelected ? (activeWaveStatus === statusKey ? "4.5" : "3.5") : "2"}
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      opacity={isSelected ? 1 : 0.2}
-                      filter="url(#wave-glow)"
-                      className="transition-all duration-300"
-                    />
-                  );
-                })}
-
-                {/* Highlight circles and animated pulse on hover */}
-                {hoveredLineIndex !== null && lineChartData[hoveredLineIndex] && (
-                  <g className="animate-in zoom-in-95 duration-150">
-                    {Object.keys(STATUS_COLORS).map(statusKey => {
-                      const color = STATUS_COLORS[statusKey];
-                      const val = lineChartData[hoveredLineIndex][statusKey] || 0;
-                      const isSelected = activeWaveStatus === "All" || activeWaveStatus === statusKey;
-                      if (!isSelected && activeWaveStatus !== "All") return null;
-
-                      const cx = padL + (hoveredLineIndex / Math.max(1, lineChartData.length - 1)) * chartW;
-                      const cy = padT + chartH - (val / maxLineVal) * chartH;
-                      return (
-                        <g key={statusKey}>
-                          <circle
-                            cx={cx}
-                            cy={cy}
-                            r="9"
-                            fill={color}
-                            opacity="0.25"
-                            className="animate-ping"
-                          />
-                          <circle
-                            cx={cx}
-                            cy={cy}
-                            r="5.5"
-                            fill={color}
-                            stroke="#ffffff"
-                            strokeWidth="2.5"
-                            className="shadow-lg"
-                          />
-                        </g>
-                      );
-                    })}
-                  </g>
-                )}
-              </svg>
-
-              {/* Y-Axis HTML Labels (Unstretched Native HTML Typography) */}
-              {Array.from({ length: 5 }).map((_, i) => {
-                const value = Math.round(maxLineVal - (i / 4) * maxLineVal);
-                const yPercent = ((padT + (i / 4) * chartH) / svgH) * 100;
-                return (
-                  <div 
-                    key={i} 
-                    className="absolute text-[10px] font-black text-slate-400 pointer-events-none select-none"
-                    style={{ 
-                      top: `${yPercent}%`, 
-                      left: `${(padL - 12) / svgW * 100}%`,
-                      transform: "translate(-100%, -50%)"
-                    }}
-                  >
-                    {value}
-                  </div>
-                );
-              })}
-
-              {/* X-Axis HTML Labels (Unstretched Native HTML Typography) */}
-              {lineChartData.map((d, i) => {
-                const skip = Math.ceil(lineChartData.length / 10);
-                if (i % skip !== 0 && i !== lineChartData.length - 1) return null;
-                const xPercent = ((padL + (i / Math.max(1, lineChartData.length - 1)) * chartW) / svgW) * 100;
-                return (
-                  <div
-                    key={i}
-                    className="absolute text-[10px] font-black text-slate-400 uppercase tracking-wider pointer-events-none select-none whitespace-nowrap"
-                    style={{
-                      left: `${xPercent}%`,
-                      top: `${(padT + chartH + 16) / svgH * 100}%`,
-                      transform: "translateX(-50%)"
-                    }}
-                  >
-                    {d.date}
-                  </div>
-                );
-              })}
-
-              {/* Custom HTML Tooltip */}
-              {hoveredLineIndex !== null && lineChartData[hoveredLineIndex] && (
-                <div 
-                  className="absolute bg-white/95 backdrop-blur-md border border-slate-200/80 p-4 rounded-2xl shadow-2xl z-20 pointer-events-none transition-all duration-75 space-y-1.5 min-w-[175px] text-xs font-bold text-slate-700"
-                  style={{
-                    left: `${(padL + (hoveredLineIndex / Math.max(1, lineChartData.length - 1)) * chartW) / svgW * 100}%`,
-                    top: `${Math.max(10, Math.min(180, lineTooltipPos.y))}px`,
-                    transform: hoveredLineIndex > lineChartData.length / 2 ? "translateX(-110%)" : "translateX(10%)"
-                  }}
-                >
-                  <p className="font-black text-slate-900 border-b border-slate-100 pb-1.5 uppercase tracking-wider text-[9px] flex items-center justify-between">
-                    <span>Timeline Wave</span>
-                    <span className="text-primary">{lineChartData[hoveredLineIndex].date}</span>
-                  </p>
-                  <div className="flex items-center justify-between gap-4">
-                    <span className="text-emerald-600 flex items-center gap-1.5">
-                      <span className="size-1.5 rounded-full bg-emerald-500" /> Fully Paid
-                    </span>
-                    <span className="font-black text-slate-950">{lineChartData[hoveredLineIndex]["Fully Paid"]}</span>
-                  </div>
-                  <div className="flex items-center justify-between gap-4">
-                    <span className="text-blue-600 flex items-center gap-1.5">
-                      <span className="size-1.5 rounded-full bg-blue-500" /> Half Paid
-                    </span>
-                    <span className="font-black text-slate-950">{lineChartData[hoveredLineIndex]["Half Semester Paid"]}</span>
-                  </div>
-                  <div className="flex items-center justify-between gap-4">
-                    <span className="text-amber-600 flex items-center gap-1.5">
-                      <span className="size-1.5 rounded-full bg-amber-500" /> Partial
-                    </span>
-                    <span className="font-black text-slate-950">{lineChartData[hoveredLineIndex]["Partial"]}</span>
-                  </div>
-                  <div className="flex items-center justify-between gap-4">
-                    <span className="text-rose-600 flex items-center gap-1.5">
-                      <span className="size-1.5 rounded-full bg-rose-500" /> Unpaid
-                    </span>
-                    <span className="font-black text-slate-950">{lineChartData[hoveredLineIndex]["Not Paid"]}</span>
-                  </div>
-                </div>
-              )}
-            </div>
-          )}
+          {/* Metric Switcher Tabs */}
+          <div className="flex items-center bg-slate-100/80 p-1.5 rounded-2xl gap-1 flex-wrap border border-slate-200/50">
+            <button
+              onClick={() => { setChartMetric("members"); setHoveredCourseIndex(null); }}
+              className={`px-3.5 py-2 rounded-xl text-[10px] font-black uppercase tracking-wider transition-all flex items-center gap-1.5 cursor-pointer ${
+                chartMetric === "members"
+                  ? "bg-white text-slate-900 shadow-sm shadow-slate-200 ring-1 ring-slate-200/60"
+                  : "text-slate-500 hover:text-slate-900 hover:bg-white/50"
+              }`}
+            >
+              <LuUsers className="size-3.5 text-blue-500" />
+              Student Count
+            </button>
+            <button
+              onClick={() => { setChartMetric("funds"); setHoveredCourseIndex(null); }}
+              className={`px-3.5 py-2 rounded-xl text-[10px] font-black uppercase tracking-wider transition-all flex items-center gap-1.5 cursor-pointer ${
+                chartMetric === "funds"
+                  ? "bg-white text-slate-900 shadow-sm shadow-slate-200 ring-1 ring-slate-200/60"
+                  : "text-slate-500 hover:text-slate-900 hover:bg-white/50"
+              }`}
+            >
+              <LuPhilippinePeso className="size-3.5 text-amber-500" />
+              Funds Collected
+            </button>
+            <button
+              onClick={() => { setChartMetric("status"); setHoveredCourseIndex(null); }}
+              className={`px-3.5 py-2 rounded-xl text-[10px] font-black uppercase tracking-wider transition-all flex items-center gap-1.5 cursor-pointer ${
+                chartMetric === "status"
+                  ? "bg-white text-slate-900 shadow-sm shadow-slate-200 ring-1 ring-slate-200/60"
+                  : "text-slate-500 hover:text-slate-900 hover:bg-white/50"
+              }`}
+            >
+              <LuLayers className="size-3.5 text-emerald-500" />
+              Payment Statuses
+            </button>
+          </div>
         </div>
 
-        {/* Right Card: SVG Pie Chart (Course distributions) */}
-        <div className="col-span-12 bg-white p-8 rounded-[2.5rem] border border-slate-200/80 shadow-sm flex flex-col justify-between">
-          <div className="space-y-6">
-            
-            {/* Header with Switcher Tabs */}
-            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-              <div>
-                <h3 className="text-lg font-black text-slate-900 uppercase tracking-tight flex items-center gap-2">
-                  <LuChartPie className="size-5 text-primary" />
-                  Demographics
-                </h3>
-                <p className="text-xs text-slate-400 font-bold mt-1">Audit status distributions across courses.</p>
-              </div>
-
-              {/* Mode Toggle Button */}
-              <div className="flex bg-slate-100 p-1 rounded-xl w-full sm:w-auto shrink-0 select-none">
-                <button
-                  onClick={() => { setPieMode("course"); setHoveredSliceIndex(null); }}
-                  className={`flex-1 sm:flex-initial px-3.5 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-wider transition-all whitespace-nowrap ${
-                    pieMode === "course"
-                      ? "bg-white text-primary shadow-sm"
-                      : "text-slate-500 hover:text-slate-700"
-                  }`}
-                >
-                  By Status
-                </button>
-                <button
-                  onClick={() => { setPieMode("status"); setHoveredSliceIndex(null); }}
-                  className={`flex-1 sm:flex-initial px-3.5 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-wider transition-all whitespace-nowrap ${
-                    pieMode === "status"
-                      ? "bg-white text-primary shadow-sm"
-                      : "text-slate-500 hover:text-slate-700"
-                  }`}
-                >
-                  By Course
-                </button>
-              </div>
-            </div>
-
-            {/* Filter Dropdown */}
-            <div className="flex items-center gap-3">
-              <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest shrink-0">Filter:</label>
-              <div className="relative flex-1 max-w-[200px] group">
-                <select
-                  value={pieMode === "course" ? selectedStatusFilter : selectedCourseFilter}
-                  onChange={(e) => {
-                    if (pieMode === "course") {
-                      setSelectedStatusFilter(e.target.value);
-                    } else {
-                      setSelectedCourseFilter(e.target.value);
-                    }
-                    setHoveredSliceIndex(null);
-                  }}
-                  className="w-full h-10 pl-4 pr-10 bg-slate-50 border border-slate-200 rounded-xl text-xs font-black text-slate-700 outline-none focus:bg-white focus:ring-4 focus:ring-primary/5 transition-all appearance-none cursor-pointer"
-                >
-                  {pieMode === "course" ? (
-                    Object.keys(STATUS_COLORS).map(st => (
-                      <option key={st} value={st}>{st}</option>
-                    ))
-                  ) : (
-                    <>
-                      <option value="All">All Courses</option>
-                      {uniqueCourses.map(course => (
-                        <option key={course} value={course}>{course}</option>
-                      ))}
-                    </>
-                  )}
-                </select>
-                <LuChevronDown className="absolute right-3.5 top-1/2 -translate-y-1/2 size-4 text-slate-400 pointer-events-none group-focus-within:rotate-180 transition-transform" />
-              </div>
-            </div>
+        {/* Content Loading & Empty States */}
+        {loading ? (
+          <div className="h-80 flex flex-col items-center justify-center gap-3">
+            <LuLoader className="size-8 text-primary animate-spin" />
+            <p className="text-xs font-black text-slate-400 uppercase tracking-widest">Generating Bar Graph...</p>
           </div>
-
-          {loading ? (
-            <div className="h-60 flex flex-col items-center justify-center gap-3">
-              <LuLoader className="size-8 text-primary animate-spin" />
-              <p className="text-xs font-black text-slate-400 uppercase tracking-widest">Generating Demographics...</p>
-            </div>
-          ) : pieChartData.total === 0 ? (
-            <div className="h-60 flex flex-col items-center justify-center text-slate-300 font-bold italic">
-              No matching records found for filter.
-            </div>
-          ) : (
-            <div className="flex flex-col sm:flex-row items-center justify-between gap-6 mt-4">
-              
-              {/* Pie SVG Container */}
-              <div className="relative size-44 flex-shrink-0">
-                <svg
-                  className="size-full overflow-visible"
-                  viewBox="0 0 200 200"
-                >
-                  {pieSlices.map((slice, index) => (
-                    <path
-                      key={slice.label}
-                      d={slice.path}
-                      fill={slice.color}
-                      className="transition-all duration-300 cursor-pointer origin-[100px_100px]"
-                      style={{
-                        transform: hoveredSliceIndex === index ? "scale(1.06)" : "scale(1)",
-                        opacity: hoveredSliceIndex !== null && hoveredSliceIndex !== index ? 0.6 : 1
-                      }}
-                      onMouseEnter={() => setHoveredSliceIndex(index)}
-                      onMouseLeave={() => setHoveredSliceIndex(null)}
-                    />
-                  ))}
-                  
-                  {/* Center punch for Donut chart aesthetic */}
-                  <circle cx="100" cy="100" r="45" fill="#ffffff" />
-                  
-                  {/* Center Text displaying sum */}
-                  <g className="pointer-events-none select-none text-center">
-                    <text x="100" y="97" textAnchor="middle" className="text-[9px] font-black fill-slate-400 uppercase tracking-widest leading-none">Total</text>
-                    <text x="100" y="114" textAnchor="middle" className="text-lg font-black fill-slate-800 leading-none tracking-tighter">{pieChartData.total}</text>
-                  </g>
-                </svg>
-              </div>
-
-              {/* Legends Section */}
-              <div className="flex-1 w-full space-y-2 max-h-[180px] overflow-y-auto pr-1.5 custom-scrollbar">
-                {pieSlices.map((slice, index) => (
-                  <div
-                    key={slice.label}
-                    className={`flex items-center justify-between p-2 rounded-xl border transition-all cursor-pointer ${
-                      hoveredSliceIndex === index 
-                        ? "bg-slate-50 border-slate-200" 
-                        : "border-transparent hover:bg-slate-50/50"
-                    }`}
-                    onMouseEnter={() => setHoveredSliceIndex(index)}
-                    onMouseLeave={() => setHoveredSliceIndex(null)}
-                  >
-                    <div className="flex items-center gap-2.5 min-w-0">
-                      <span className="size-3 rounded-md shrink-0 transition-transform" style={{ backgroundColor: slice.color, transform: hoveredSliceIndex === index ? "scale(1.1)" : "scale(1)" }} />
-                      <p className="text-xs font-black text-slate-800 truncate leading-none">{slice.label}</p>
-                    </div>
-                    <div className="text-right shrink-0">
-                      <p className="text-xs font-black text-slate-900 leading-none">{slice.value}</p>
-                      <p className="text-[9px] font-black text-slate-400 leading-none mt-1">{slice.percentage.toFixed(1)}%</p>
-                    </div>
-                  </div>
+        ) : courseStats.length === 0 ? (
+          <div className="h-80 flex flex-col items-center justify-center text-slate-300 font-bold italic">
+            No registered students available to display course distribution.
+          </div>
+        ) : (
+          <div>
+            {/* Bar Graph Visual Area */}
+            <div className="relative pt-6 pb-2">
+              {/* Background Grid Lines */}
+              <div className="absolute inset-0 top-6 bottom-10 flex flex-col justify-between pointer-events-none opacity-40">
+                {Array.from({ length: 5 }).map((_, i) => (
+                  <div key={i} className="w-full border-b border-dashed border-slate-200" />
                 ))}
               </div>
 
+              {/* Bar Columns Container */}
+              <div className="relative h-72 flex items-end justify-around gap-3 sm:gap-6 px-4 z-10">
+                {courseStats.map((item, idx) => {
+                  const isHovered = hoveredCourseIndex === idx;
+                  const barValue = chartMetric === "funds" ? item.funds : item.students;
+                  const heightPercent = Math.min(100, Math.max(8, (barValue / maxBarValue) * 100));
+
+                  return (
+                    <div 
+                      key={item.course}
+                      className="flex-1 flex flex-col items-center h-full justify-end group cursor-pointer"
+                      onMouseEnter={() => setHoveredCourseIndex(idx)}
+                      onMouseLeave={() => setHoveredCourseIndex(null)}
+                    >
+                      {/* Floating Info Tooltip */}
+                      {isHovered && (
+                        <div className="absolute top-0 z-30 bg-slate-900/95 text-white p-3 rounded-2xl shadow-xl backdrop-blur-md text-xs pointer-events-none animate-in fade-in zoom-in-95 duration-150 border border-slate-700 min-w-[200px]">
+                          <div className="flex items-center justify-between border-b border-slate-700 pb-1.5 mb-2">
+                            <span className="font-black text-sm uppercase tracking-wider text-white flex items-center gap-1.5">
+                              <span className="size-2.5 rounded-full" style={{ backgroundColor: item.theme.primary }} />
+                              {item.course}
+                            </span>
+                            <span className="text-[10px] text-slate-400 font-bold">{item.percentage.toFixed(1)}% of total</span>
+                          </div>
+                          <div className="space-y-1 font-medium">
+                            <div className="flex justify-between">
+                              <span className="text-slate-400">Students:</span>
+                              <span className="font-bold text-white">{item.students}</span>
+                            </div>
+                            <div className="flex justify-between">
+                              <span className="text-slate-400">Collected:</span>
+                              <span className="font-bold text-amber-400">₱{item.funds.toLocaleString()}</span>
+                            </div>
+                            <div className="pt-1.5 border-t border-slate-800 grid grid-cols-2 gap-1 text-[10px]">
+                              <span className="text-emerald-400">Fully Paid: {item.fullyPaid}</span>
+                              <span className="text-blue-400">Half Paid: {item.halfPaid}</span>
+                              <span className="text-amber-400">Partial: {item.partial}</span>
+                              <span className="text-rose-400">Unpaid: {item.unpaid}</span>
+                            </div>
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Top Value Label Pill */}
+                      <div className={`mb-2 px-2 py-0.5 rounded-full text-[10px] font-black transition-all ${
+                        isHovered 
+                          ? "bg-slate-900 text-white scale-110 shadow-md" 
+                          : "text-slate-600 bg-slate-100"
+                      }`}>
+                        {chartMetric === "funds" ? `₱${item.funds.toLocaleString()}` : item.students}
+                      </div>
+
+                      {/* Bar Column Visual */}
+                      <div className="w-full max-w-[64px] relative flex flex-col justify-end" style={{ height: `${heightPercent}%` }}>
+                        {chartMetric === "status" && item.students > 0 ? (
+                          /* Multi-Segment Status Stacked Bar */
+                          <div className={`w-full h-full rounded-2xl overflow-hidden flex flex-col-reverse shadow-md transition-transform duration-300 ${
+                            isHovered ? "scale-105 ring-2 ring-slate-900 shadow-xl" : ""
+                          }`}>
+                            {item.unpaid > 0 && (
+                              <div 
+                                style={{ height: `${(item.unpaid / item.students) * 100}%` }} 
+                                className="bg-rose-500 transition-all hover:opacity-90"
+                                title={`Unpaid: ${item.unpaid}`}
+                              />
+                            )}
+                            {item.partial > 0 && (
+                              <div 
+                                style={{ height: `${(item.partial / item.students) * 100}%` }} 
+                                className="bg-amber-500 transition-all hover:opacity-90"
+                                title={`Partial: ${item.partial}`}
+                              />
+                            )}
+                            {item.halfPaid > 0 && (
+                              <div 
+                                style={{ height: `${(item.halfPaid / item.students) * 100}%` }} 
+                                className="bg-blue-500 transition-all hover:opacity-90"
+                                title={`Half Paid: ${item.halfPaid}`}
+                              />
+                            )}
+                            {item.fullyPaid > 0 && (
+                              <div 
+                                style={{ height: `${(item.fullyPaid / item.students) * 100}%` }} 
+                                className="bg-emerald-500 transition-all hover:opacity-90"
+                                title={`Fully Paid: ${item.fullyPaid}`}
+                              />
+                            )}
+                          </div>
+                        ) : (
+                          /* Solid Gradient Course Bar */
+                          <div 
+                            className={`w-full h-full rounded-2xl bg-gradient-to-t ${item.theme.gradient} transition-all duration-300 relative overflow-hidden shadow-lg ${item.theme.shadow} ${
+                              isHovered ? "scale-105 brightness-110 shadow-2xl" : "hover:brightness-105"
+                            }`}
+                          >
+                            {/* Inner Glass Highlight Effect */}
+                            <div className="absolute inset-x-0 top-0 h-1/3 bg-white/25 rounded-t-2xl pointer-events-none" />
+                          </div>
+                        )}
+                      </div>
+
+                      {/* X-Axis Course Label */}
+                      <div className="mt-3 flex flex-col items-center gap-1">
+                        <span className={`text-xs font-black tracking-tight px-2 py-0.5 rounded-lg transition-colors ${
+                          isHovered 
+                            ? "bg-slate-900 text-white" 
+                            : "text-slate-700 bg-slate-100"
+                        }`}>
+                          {item.course}
+                        </span>
+                        <span className="text-[9px] font-bold text-slate-400">
+                          {item.percentage.toFixed(0)}%
+                        </span>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
             </div>
-          )}
+
+            {/* Status Legend if status view is active */}
+            {chartMetric === "status" && (
+              <div className="mt-6 pt-4 border-t border-slate-100 flex items-center justify-center gap-6 flex-wrap text-xs font-bold text-slate-600">
+                <div className="flex items-center gap-2">
+                  <span className="size-3 rounded-full bg-emerald-500" />
+                  <span>Fully Paid</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <span className="size-3 rounded-full bg-blue-500" />
+                  <span>Half Semester</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <span className="size-3 rounded-full bg-amber-500" />
+                  <span>Partial</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <span className="size-3 rounded-full bg-rose-500" />
+                  <span>Unpaid</span>
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+      </div>
+
+      {/* Colorful Course Breakdown Cards */}
+      <div className="space-y-4">
+        <div className="flex items-center justify-between">
+          <div>
+            <h3 className="text-xl font-black text-slate-900 uppercase tracking-tight flex items-center gap-2">
+              <LuGraduationCap className="size-5 text-primary" />
+              Course Demographics & Details
+            </h3>
+            <p className="text-xs text-slate-400 font-bold mt-0.5">
+              Detailed program cards highlighting student participation and payment distribution.
+            </p>
+          </div>
+          <span className="text-xs font-black text-slate-400 uppercase tracking-wider bg-slate-100 px-3 py-1.5 rounded-xl">
+            {courseStats.length} Programs Registered
+          </span>
         </div>
 
+        {/* Responsive Grid of Course Cards */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-5">
+          {courseStats.map((item, idx) => (
+            <div 
+              key={item.course}
+              onMouseEnter={() => setHoveredCourseIndex(idx)}
+              onMouseLeave={() => setHoveredCourseIndex(null)}
+              className={`p-5 rounded-3xl border transition-all duration-300 bg-white hover:shadow-lg relative overflow-hidden group ${
+                hoveredCourseIndex === idx ? "border-slate-400 shadow-md scale-[1.02]" : "border-slate-200/80 shadow-sm"
+              }`}
+            >
+              <div className="flex items-start justify-between gap-3 mb-4">
+                <div className="flex items-center gap-2.5">
+                  <div className={`size-10 rounded-2xl flex items-center justify-center font-black text-white shadow-md bg-gradient-to-br ${item.theme.gradient}`}>
+                    <LuGraduationCap className="size-5" />
+                  </div>
+                  <div>
+                    <h4 className="text-base font-black text-slate-900 tracking-tight leading-none">
+                      {item.course}
+                    </h4>
+                    <p className="text-[10px] font-bold text-slate-400 mt-1">
+                      {item.percentage.toFixed(1)}% of student body
+                    </p>
+                  </div>
+                </div>
+
+                <span className={`px-2.5 py-1 rounded-xl text-[10px] font-black uppercase tracking-wider ${item.theme.bgLight} ${item.theme.text} border ${item.theme.border}`}>
+                  {item.students} {item.students === 1 ? "Student" : "Students"}
+                </span>
+              </div>
+
+              {/* Course Financial Metric */}
+              <div className="bg-slate-50/80 p-3 rounded-2xl border border-slate-100 mb-4 flex items-center justify-between">
+                <span className="text-[10px] font-black uppercase tracking-wider text-slate-400">Total Funds</span>
+                <span className="text-sm font-black text-slate-900">₱{item.funds.toLocaleString()}</span>
+              </div>
+
+              {/* Status Proportion Multi-Segment Progress Bar */}
+              <div>
+                <div className="flex justify-between text-[10px] font-black text-slate-400 uppercase tracking-wider mb-1.5">
+                  <span>Payment Audit</span>
+                  <span className="text-emerald-600 font-bold">
+                    {item.students > 0 ? `${((item.fullyPaid / item.students) * 100).toFixed(0)}% Paid` : "0%"}
+                  </span>
+                </div>
+
+                <div className="h-2 w-full bg-slate-100 rounded-full overflow-hidden flex">
+                  {item.students > 0 ? (
+                    <>
+                      <div style={{ width: `${(item.fullyPaid / item.students) * 100}%` }} className="bg-emerald-500 h-full" title={`Fully Paid: ${item.fullyPaid}`} />
+                      <div style={{ width: `${(item.halfPaid / item.students) * 100}%` }} className="bg-blue-500 h-full" title={`Half Paid: ${item.halfPaid}`} />
+                      <div style={{ width: `${(item.partial / item.students) * 100}%` }} className="bg-amber-500 h-full" title={`Partial: ${item.partial}`} />
+                      <div style={{ width: `${(item.unpaid / item.students) * 100}%` }} className="bg-rose-500 h-full" title={`Unpaid: ${item.unpaid}`} />
+                    </>
+                  ) : (
+                    <div className="w-full bg-slate-200 h-full" />
+                  )}
+                </div>
+
+                {/* Quick breakdown tags */}
+                <div className="flex items-center justify-between text-[9px] font-bold text-slate-500 mt-2 px-0.5">
+                  <span className="flex items-center gap-1">
+                    <span className="size-1.5 rounded-full bg-emerald-500" /> {item.fullyPaid}
+                  </span>
+                  <span className="flex items-center gap-1">
+                    <span className="size-1.5 rounded-full bg-blue-500" /> {item.halfPaid}
+                  </span>
+                  <span className="flex items-center gap-1">
+                    <span className="size-1.5 rounded-full bg-amber-500" /> {item.partial}
+                  </span>
+                  <span className="flex items-center gap-1">
+                    <span className="size-1.5 rounded-full bg-rose-500" /> {item.unpaid}
+                  </span>
+                </div>
+              </div>
+
+            </div>
+          ))}
+        </div>
       </div>
+
     </div>
   );
 }
+
