@@ -37,7 +37,7 @@ export default function Navbar() {
         className={cn(
           "fixed top-0 left-0 right-0 z-50 transition-all duration-300 border-b",
           scrolled || menuOpen
-            ? "bg-white/90 dark:bg-slate-900/90 backdrop-blur-xl py-3 shadow-xs border-slate-200/80 dark:border-slate-800"
+            ? "bg-white/95 dark:bg-slate-900/95 backdrop-blur-xl py-3 shadow-sm border-slate-200/80 dark:border-slate-800"
             : "bg-transparent py-4 sm:py-5 border-transparent"
         )}
       >
@@ -63,7 +63,7 @@ export default function Navbar() {
               ))}
             </ul>
             <div className="h-5 w-px bg-slate-200" />
-            <Button asChild variant="default" size="sm" className="h-10 px-5 rounded-xl font-bold shadow-md shadow-primary/20 hover:scale-105 transition-all">
+            <Button asChild variant="default" size="sm" className="h-10 px-5 rounded-xl font-bold shadow-md shadow-primary/20 hover:scale-105 transition-all cursor-pointer">
               <a href="/login">
                 <LuLogIn className="size-4 mr-1.5" />
                 Login
@@ -71,21 +71,25 @@ export default function Navbar() {
             </Button>
           </div>
 
-          {/* Mobile Toggle Button */}
-          <Button
-            variant="ghost"
-            size="icon"
-            className="md:hidden size-10 rounded-xl text-slate-700 hover:bg-slate-100 transition-colors"
-            onClick={() => setMenuOpen(!menuOpen)}
-            aria-label="Toggle navigation menu"
+          {/* Mobile Burger / Close Button */}
+          <button
+            type="button"
+            onClick={() => setMenuOpen((prev) => !prev)}
+            aria-label={menuOpen ? "Close menu" : "Open navigation menu"}
+            aria-expanded={menuOpen}
+            className="md:hidden flex items-center justify-center size-11 rounded-2xl bg-slate-100 hover:bg-slate-200/80 active:scale-95 text-slate-900 transition-all touch-manipulation cursor-pointer border border-slate-200/60"
           >
-            {menuOpen ? <LuX className="size-6 text-slate-900" /> : <LuMenu className="size-6 text-slate-900" />}
-          </Button>
+            {menuOpen ? (
+              <LuX className="size-6 text-slate-900" />
+            ) : (
+              <LuMenu className="size-6 text-slate-900" />
+            )}
+          </button>
         </div>
 
-        {/* Mobile Dropdown Menu */}
+        {/* Mobile Dropdown Menu Drawer */}
         {menuOpen && (
-          <div className="border-t border-slate-100 bg-white/95 dark:bg-slate-900/95 backdrop-blur-xl px-4 py-6 md:hidden animate-in fade-in slide-in-from-top-3 duration-200 shadow-xl">
+          <div className="border-t border-slate-100 bg-white/95 dark:bg-slate-900/95 backdrop-blur-xl px-5 py-6 md:hidden animate-in fade-in slide-in-from-top-2 duration-200 shadow-2xl">
             <div className="flex flex-col gap-2 max-w-sm mx-auto">
               {navLinks.map((link) => {
                 const Icon = link.icon
@@ -94,7 +98,7 @@ export default function Navbar() {
                     key={link.href}
                     href={link.href}
                     onClick={() => setMenuOpen(false)}
-                    className="flex items-center gap-3 rounded-2xl px-4 py-3 text-base font-bold text-slate-700 hover:bg-primary/10 hover:text-primary active:scale-[0.98] transition-all"
+                    className="flex items-center gap-3 rounded-2xl px-4 py-3.5 text-base font-bold text-slate-700 hover:bg-primary/10 hover:text-primary active:scale-[0.98] transition-all bg-slate-50/70 border border-slate-100/80"
                   >
                     <Icon className="size-5 text-primary" />
                     {link.label}
@@ -102,7 +106,7 @@ export default function Navbar() {
                 )
               })}
               <div className="my-2 h-px bg-slate-100" />
-              <Button asChild className="w-full h-12 justify-center font-bold text-base shadow-lg shadow-primary/20 rounded-2xl">
+              <Button asChild className="w-full h-12 justify-center font-black text-base shadow-lg shadow-primary/20 rounded-2xl bg-primary hover:bg-primary/95 text-white cursor-pointer">
                 <a href="/login" onClick={() => setMenuOpen(false)}>
                   <LuLogIn className="mr-2 size-5" />
                   Login to Portal
@@ -113,10 +117,10 @@ export default function Navbar() {
         )}
       </nav>
 
-      {/* Mobile Menu Backdrop */}
+      {/* Mobile Menu Backdrop Overlay */}
       {menuOpen && (
         <div
-          className="fixed inset-0 bg-slate-950/20 backdrop-blur-xs z-40 md:hidden"
+          className="fixed inset-0 bg-slate-950/30 backdrop-blur-xs z-40 md:hidden animate-in fade-in duration-200"
           onClick={() => setMenuOpen(false)}
         />
       )}

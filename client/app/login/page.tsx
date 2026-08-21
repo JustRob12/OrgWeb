@@ -1,7 +1,18 @@
 "use client"
 
 import React from "react"
-import { LuGraduationCap, LuMail, LuLock, LuArrowRight, LuStar, LuChevronLeft } from "react-icons/lu"
+import {
+  LuGraduationCap,
+  LuMail,
+  LuLock,
+  LuArrowRight,
+  LuStar,
+  LuChevronLeft,
+  LuShieldCheck,
+  LuTriangleAlert,
+  LuCheck,
+  LuX,
+} from "react-icons/lu"
 import { Button } from "../Components/ui/button"
 import { Input } from "../Components/ui/input"
 import { Label } from "../Components/ui/label"
@@ -16,6 +27,12 @@ export default function LoginPage() {
   const [isLoading, setIsLoading] = React.useState(false)
   const [email, setEmail] = React.useState("")
   const [password, setPassword] = React.useState("")
+  
+  // Student Agreement Modal State
+  const [showAgreementModal, setShowAgreementModal] = React.useState(false)
+  const [pendingStudentUser, setPendingStudentUser] = React.useState<any | null>(null)
+  const [hasAgreed, setHasAgreed] = React.useState(false)
+
   const router = useRouter()
 
   React.useEffect(() => {
@@ -71,15 +88,21 @@ export default function LoginPage() {
       const userAccount = account as any;
       const role = typeof userAccount.role === "number" ? userAccount.role : parseInt(userAccount.role, 10);
 
+      // If Student (role === 1), show Data Privacy & Non-Disclosure Agreement modal first
+      if (role === 1) {
+        setPendingStudentUser(userAccount);
+        setHasAgreed(false);
+        setShowAgreementModal(true);
+        setIsLoading(false);
+        return;
+      }
+
       localStorage.setItem("acetrack_user", JSON.stringify(userAccount));
 
-      // Role detection: 0: Admin, 1: Student, 2: Attendance Scanner, 3: Treasurer
+      // Role detection for other staff/admins: 0: Admin, 2: Attendance Scanner, 3: Treasurer
       if (role === 0) {
         toast.success("Welcome, Admin!");
         router.push("/admin");
-      } else if (role === 1) {
-        toast.success("Welcome to the Student Portal!");
-        router.push("/student");
       } else if (role === 2) {
         toast.success("Welcome, Attendance Scanner!");
         router.push("/admin/attendance");
@@ -95,6 +118,21 @@ export default function LoginPage() {
       setIsLoading(false)
     }
   }
+
+  const handleAcceptAgreement = () => {
+    if (!hasAgreed || !pendingStudentUser) return;
+    localStorage.setItem("acetrack_user", JSON.stringify(pendingStudentUser));
+    toast.success("Welcome to the Student Portal!");
+    setShowAgreementModal(false);
+    router.push("/student");
+  };
+
+  const handleDeclineAgreement = () => {
+    setShowAgreementModal(false);
+    setPendingStudentUser(null);
+    setHasAgreed(false);
+    toast.info("You must accept the data privacy agreement to log in.");
+  };
 
   return (
     <div className="min-h-screen w-full flex items-stretch bg-background overflow-hidden relative font-sans">
@@ -226,6 +264,134 @@ export default function LoginPage() {
           </div>
         </div>
       </div>
+
+      {/* Student Data Privacy & Non-Disclosure Agreement Modal */}
+      {showAgreementModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-3.5 sm:p-6 bg-slate-950/70 backdrop-blur-md animate-in fade-in duration-200">
+          <div className="bg-white rounded-3xl sm:rounded-[2.5rem] shadow-2xl border border-slate-200 max-w-lg w-full overflow-hidden flex flex-col max-h-[90vh] animate-in zoom-in-95 duration-200">
+            {/* Header */}
+            <div className="p-5 sm:p-6 border-b border-slate-100 flex items-start justify-between bg-gradient-to-r from-orange-50/70 to-amber-50/40 shrink-0">
+              <div className="flex items-center gap-3.5">
+                <div className="size-11 sm:size-12 rounded-2xl bg-primary/10 text-primary flex items-center justify-center border border-primary/20 shrink-0 shadow-xs">
+                  <LuShieldCheck className="size-6 text-primary" />
+                </div>
+                <div>
+                  <h3 className="text-lg sm:text-xl font-black text-slate-900 tracking-tight leading-tight">
+                    Data Privacy & Confidentiality
+                  </h3>
+                  <p className="text-[11px] sm:text-xs font-bold text-slate-400 mt-0.5">
+                    Official ACES Policy • RA 10173 Compliance
+                  </p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={handleDeclineAgreement}
+                className="p-1.5 text-slate-400 hover:text-slate-700 hover:bg-slate-100 rounded-xl transition-all cursor-pointer"
+                title="Close"
+              >
+                <LuX className="size-5" />
+              </button>
+            </div>
+
+            {/* Scrollable Body */}
+            <div className="p-5 sm:p-6 overflow-y-auto custom-scrollbar space-y-4 text-xs sm:text-sm text-slate-600 leading-relaxed">
+              <div className="p-3.5 rounded-2xl bg-amber-500/10 border border-amber-500/20 text-amber-900 flex items-start gap-2.5">
+                <LuTriangleAlert className="size-4 text-amber-600 shrink-0 mt-0.5" />
+                <p className="text-xs font-semibold leading-snug">
+                  Please review and accept this student data agreement before entering your portal.
+                </p>
+              </div>
+
+              <div className="space-y-3.5 pt-1">
+                <div className="flex items-start gap-3">
+                  <div className="size-5 rounded-full bg-orange-100 text-primary flex items-center justify-center font-black text-[10px] shrink-0 mt-0.5">
+                    1
+                  </div>
+                  <div>
+                    <h5 className="font-bold text-slate-900 text-xs sm:text-sm">Confidentiality & Non-Disclosure</h5>
+                    <p className="text-[11px] sm:text-xs text-slate-500 mt-0.5">
+                      You agree that all member directories, attendance logs, voting ballots, and internal organization materials accessible via ACETRACK are strictly confidential.
+                    </p>
+                  </div>
+                </div>
+
+                <div className="flex items-start gap-3">
+                  <div className="size-5 rounded-full bg-orange-100 text-primary flex items-center justify-center font-black text-[10px] shrink-0 mt-0.5">
+                    2
+                  </div>
+                  <div>
+                    <h5 className="font-bold text-slate-900 text-xs sm:text-sm">Personal Data Protection (No Sharing)</h5>
+                    <p className="text-[11px] sm:text-xs text-slate-500 mt-0.5">
+                      You must not screenshot, scrape, share, or disclose any personal details (names, student IDs, contact numbers, or emails) of fellow students or officers with external parties.
+                    </p>
+                  </div>
+                </div>
+
+                <div className="flex items-start gap-3">
+                  <div className="size-5 rounded-full bg-orange-100 text-primary flex items-center justify-center font-black text-[10px] shrink-0 mt-0.5">
+                    3
+                  </div>
+                  <div>
+                    <h5 className="font-bold text-slate-900 text-xs sm:text-sm">Digital ID & QR Code Security</h5>
+                    <p className="text-[11px] sm:text-xs text-slate-500 mt-0.5">
+                      Your Digital ID and generated QR code are strictly personal. Sharing or presenting another student&apos;s QR code for proxy attendance is considered a violation.
+                    </p>
+                  </div>
+                </div>
+
+                <div className="flex items-start gap-3">
+                  <div className="size-5 rounded-full bg-orange-100 text-primary flex items-center justify-center font-black text-[10px] shrink-0 mt-0.5">
+                    4
+                  </div>
+                  <div>
+                    <h5 className="font-bold text-slate-900 text-xs sm:text-sm">Account Integrity & Accountability</h5>
+                    <p className="text-[11px] sm:text-xs text-slate-500 mt-0.5">
+                      You are solely responsible for activities occurring under your credentials. Any deliberate breach may result in suspension of portal access and disciplinary review.
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              {/* Agreement Checkbox */}
+              <div className="pt-3 border-t border-slate-100">
+                <label className="flex items-start gap-3 p-3.5 rounded-2xl bg-slate-50 hover:bg-slate-100/80 border border-slate-200/80 cursor-pointer transition-colors select-none">
+                  <input
+                    type="checkbox"
+                    checked={hasAgreed}
+                    onChange={(e) => setHasAgreed(e.target.checked)}
+                    className="size-4 sm:size-5 rounded-lg text-primary accent-primary mt-0.5 cursor-pointer shrink-0"
+                  />
+                  <span className="text-xs sm:text-xs font-bold text-slate-800 leading-snug">
+                    I have read, understood, and agree to abide by the Data Privacy and Non-Disclosure Policy.
+                  </span>
+                </label>
+              </div>
+            </div>
+
+            {/* Footer Actions */}
+            <div className="p-4 sm:p-6 bg-slate-50 border-t border-slate-100 flex flex-col-reverse sm:flex-row items-center gap-2.5 sm:gap-3 shrink-0">
+              <Button
+                type="button"
+                variant="outline"
+                onClick={handleDeclineAgreement}
+                className="w-full sm:flex-1 h-12 rounded-xl text-xs sm:text-sm font-bold text-slate-600 border-slate-200 cursor-pointer hover:bg-slate-100"
+              >
+                Cancel
+              </Button>
+              <Button
+                type="button"
+                disabled={!hasAgreed}
+                onClick={handleAcceptAgreement}
+                className="w-full sm:flex-1 h-12 rounded-xl text-xs sm:text-sm font-black bg-primary hover:bg-primary/95 text-white shadow-lg shadow-primary/20 transition-all cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                <LuCheck className="size-4 mr-1.5" />
+                Agree & Log In
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }
