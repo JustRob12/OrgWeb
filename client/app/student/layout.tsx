@@ -205,7 +205,7 @@ export default function StudentLayout({ children }: { children: React.ReactNode 
         </header>
 
         {/* Content */}
-        <main className="flex-1 p-6 md:p-8">
+        <main className="flex-1 p-4 sm:p-6 md:p-8">
           <div className="max-w-6xl mx-auto animate-in fade-in slide-in-from-bottom-5 duration-700">
             {children}
           </div>

@@ -151,19 +151,19 @@ export function ImageCropperModal({
   if (!isOpen || !imageSrc) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-6 bg-slate-950/70 backdrop-blur-md animate-in fade-in duration-200">
-      <div className="bg-white rounded-[2.5rem] shadow-2xl border border-slate-200 max-w-lg w-full overflow-hidden flex flex-col animate-in zoom-in-95 duration-200">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-6 bg-slate-950/70 backdrop-blur-md animate-in fade-in duration-200">
+      <div className="bg-white rounded-3xl sm:rounded-[2.5rem] shadow-2xl border border-slate-200 max-w-lg w-full overflow-hidden flex flex-col animate-in zoom-in-95 duration-200 max-h-[90vh]">
         {/* Header */}
-        <div className="p-6 border-b border-slate-100 flex items-center justify-between">
+        <div className="p-4 sm:p-6 border-b border-slate-100 flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <div className="p-2.5 rounded-2xl bg-primary/10 text-primary">
-              <LuImage className="size-5" />
+            <div className="p-2 sm:p-2.5 rounded-2xl bg-primary/10 text-primary">
+              <LuImage className="size-4 sm:size-5" />
             </div>
             <div>
-              <h3 className="text-lg font-black text-slate-900 tracking-tight leading-tight">
+              <h3 className="text-base sm:text-lg font-black text-slate-900 tracking-tight leading-tight">
                 Crop Profile Picture
               </h3>
-              <p className="text-xs font-bold text-slate-400">
+              <p className="text-[11px] sm:text-xs font-bold text-slate-400">
                 Drag to reposition and zoom to fit your ID card.
               </p>
             </div>
@@ -192,7 +192,7 @@ export function ImageCropperModal({
             if (e.touches[0]) handlePointerMove(e.touches[0].clientX, e.touches[0].clientY);
           }}
           onTouchEnd={handlePointerUp}
-          className="relative h-80 sm:h-96 bg-slate-900 overflow-hidden flex items-center justify-center cursor-grab active:cursor-grabbing select-none"
+          className="relative h-64 sm:h-96 bg-slate-900 overflow-hidden flex items-center justify-center cursor-grab active:cursor-grabbing select-none touch-none"
         >
           {/* Target Image with Transformations */}
           {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -215,27 +215,27 @@ export function ImageCropperModal({
 
           {/* Mask Overlay with Circular Crop Guide */}
           <div className="absolute inset-0 pointer-events-none flex items-center justify-center">
-            <div className="relative size-[260px] rounded-full border-4 border-primary/90 shadow-[0_0_0_9999px_rgba(15,23,42,0.7)] flex items-center justify-center">
+            <div className="relative size-[220px] xs:size-[250px] sm:size-[260px] rounded-full border-4 border-primary/90 shadow-[0_0_0_9999px_rgba(15,23,42,0.7)] flex items-center justify-center">
               {/* Corner Guide Crosshairs */}
-              <div className="absolute inset-0 rounded-full border border-white/30 pointer-events-none" />
-              <div className="size-4 border-t-2 border-l-2 border-white/60 absolute top-4 left-4" />
-              <div className="size-4 border-t-2 border-r-2 border-white/60 absolute top-4 right-4" />
-              <div className="size-4 border-b-2 border-l-2 border-white/60 absolute bottom-4 left-4" />
-              <div className="size-4 border-b-2 border-r-2 border-white/60 absolute bottom-4 right-4" />
+              <div className="absolute inset-0 rounded-full border border-white/30 pointer-none" />
+              <div className="size-3.5 sm:size-4 border-t-2 border-l-2 border-white/60 absolute top-3 sm:top-4 left-3 sm:left-4" />
+              <div className="size-3.5 sm:size-4 border-t-2 border-r-2 border-white/60 absolute top-3 sm:top-4 right-3 sm:right-4" />
+              <div className="size-3.5 sm:size-4 border-b-2 border-l-2 border-white/60 absolute bottom-3 sm:bottom-4 left-3 sm:left-4" />
+              <div className="size-3.5 sm:size-4 border-b-2 border-r-2 border-white/60 absolute bottom-3 sm:bottom-4 right-3 sm:right-4" />
             </div>
           </div>
 
-          <div className="absolute bottom-3 left-4 px-3 py-1 bg-black/60 backdrop-blur-md rounded-full text-[10px] font-black text-white/80 flex items-center gap-1.5 pointer-events-none">
+          <div className="absolute bottom-2.5 left-3 sm:bottom-3 sm:left-4 px-2.5 sm:px-3 py-1 bg-black/60 backdrop-blur-md rounded-full text-[9px] sm:text-[10px] font-black text-white/80 flex items-center gap-1.5 pointer-events-none">
             <LuMove className="size-3 text-primary" /> Drag to align • Scroll to zoom
           </div>
         </div>
 
         {/* Controls Bar */}
-        <div className="p-6 bg-slate-50 border-t border-slate-100 space-y-4">
+        <div className="p-4 sm:p-6 bg-slate-50 border-t border-slate-100 space-y-3 sm:space-y-4">
           {/* Zoom Slider & Rotate Button */}
-          <div className="flex items-center gap-4">
+          <div className="flex items-center gap-3 sm:gap-4">
             <div className="flex items-center gap-2 flex-1">
-              <LuZoomOut className="size-4 text-slate-400 shrink-0" />
+              <LuZoomOut className="size-3.5 sm:size-4 text-slate-400 shrink-0" />
               <input
                 type="range"
                 min="0.8"
@@ -245,8 +245,8 @@ export function ImageCropperModal({
                 onChange={(e) => setZoom(parseFloat(e.target.value))}
                 className="w-full h-2 bg-slate-200 rounded-lg appearance-none cursor-pointer accent-primary"
               />
-              <LuZoomIn className="size-4 text-slate-400 shrink-0" />
-              <span className="text-xs font-bold text-slate-500 w-10 text-right">
+              <LuZoomIn className="size-3.5 sm:size-4 text-slate-400 shrink-0" />
+              <span className="text-[11px] sm:text-xs font-bold text-slate-500 w-9 sm:w-10 text-right">
                 {Math.round(zoom * 100)}%
               </span>
             </div>
@@ -254,22 +254,22 @@ export function ImageCropperModal({
             <button
               type="button"
               onClick={handleRotate}
-              className="p-2.5 bg-white hover:bg-slate-100 border border-slate-200 rounded-xl text-slate-700 font-bold text-xs flex items-center gap-1.5 transition-all shadow-xs"
+              className="p-2 sm:p-2.5 bg-white hover:bg-slate-100 border border-slate-200 rounded-xl text-slate-700 font-bold text-xs flex items-center gap-1.5 transition-all shadow-xs shrink-0 cursor-pointer"
               title="Rotate 90°"
             >
-              <LuRotateCw className="size-4 text-primary" />
+              <LuRotateCw className="size-3.5 sm:size-4 text-primary" />
               <span>Rotate</span>
             </button>
           </div>
 
           {/* Action Buttons */}
-          <div className="flex gap-3 pt-1">
+          <div className="flex gap-2.5 sm:gap-3 pt-1">
             <Button
               type="button"
               variant="outline"
               onClick={onClose}
               disabled={isUploading}
-              className="flex-1 h-12 rounded-xl text-sm font-bold text-slate-600 border-slate-200"
+              className="flex-1 h-11 sm:h-12 rounded-xl text-xs sm:text-sm font-bold text-slate-600 border-slate-200 cursor-pointer"
             >
               Cancel
             </Button>
@@ -277,7 +277,7 @@ export function ImageCropperModal({
               type="button"
               onClick={handleCrop}
               disabled={isUploading}
-              className="flex-1 h-12 rounded-xl text-sm font-black bg-primary hover:bg-primary/95 text-white shadow-lg shadow-primary/20 transition-all cursor-pointer"
+              className="flex-1 h-11 sm:h-12 rounded-xl text-xs sm:text-sm font-black bg-primary hover:bg-primary/95 text-white shadow-lg shadow-primary/20 transition-all cursor-pointer"
             >
               {isUploading ? (
                 <>
@@ -285,7 +285,7 @@ export function ImageCropperModal({
                 </>
               ) : (
                 <>
-                  <LuCheck className="size-4 mr-2" /> Crop & Save Photo
+                  <LuCheck className="size-4 mr-2" /> Crop & Save
                 </>
               )}
             </Button>

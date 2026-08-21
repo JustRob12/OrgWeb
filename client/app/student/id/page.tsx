@@ -228,23 +228,23 @@ export default function StudentIDPage() {
   }
 
   return (
-    <div className="space-y-8 max-w-5xl mx-auto">
-      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+    <div className="space-y-6 sm:space-y-8 max-w-5xl mx-auto">
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div>
-          <h1 className="text-3xl font-black text-slate-900 tracking-tight leading-none mb-2">
+          <h1 className="text-2xl sm:text-3xl font-black text-slate-900 tracking-tight leading-tight mb-1 sm:mb-2">
             My Digital ID
           </h1>
-          <p className="text-slate-500 font-medium tracking-tight">
+          <p className="text-sm sm:text-base text-slate-500 font-medium tracking-tight">
             Your official scannable organization credentials.
           </p>
         </div>
         {user?.profile_picture && (
-          <div className="flex gap-2">
+          <div className="flex flex-col sm:flex-row w-full sm:w-auto gap-2 sm:gap-2.5">
             <Button
               variant="outline"
               onClick={downloadIDCard}
               disabled={downloading}
-              className="h-11 rounded-xl font-bold bg-white text-slate-600 border-slate-200"
+              className="w-full sm:w-auto h-11 rounded-xl font-bold bg-white text-slate-600 border-slate-200 shadow-sm cursor-pointer justify-center"
             >
               <LuDownload className="size-4 mr-2" /> Save as Image
             </Button>
@@ -252,7 +252,7 @@ export default function StudentIDPage() {
               variant="outline"
               onClick={() => fileInputRef.current?.click()}
               disabled={uploading}
-              className="h-11 rounded-xl font-bold bg-white text-slate-600 border-slate-200"
+              className="w-full sm:w-auto h-11 rounded-xl font-bold bg-white text-slate-600 border-slate-200 shadow-sm cursor-pointer justify-center"
             >
               <LuCrop className="size-4 mr-2 text-primary" /> Change & Crop Photo
             </Button>
@@ -283,21 +283,21 @@ export default function StudentIDPage() {
 
       {!user?.profile_picture ? (
         /* Step 1: Upload & Crop Profile Gateway */
-        <div className="bg-white rounded-[3rem] p-12 md:p-20 border-2 border-dashed border-slate-200 flex flex-col items-center text-center space-y-8 shadow-sm">
+        <div className="bg-white rounded-3xl sm:rounded-[3rem] p-6 sm:p-12 md:p-20 border-2 border-dashed border-slate-200 flex flex-col items-center text-center space-y-6 sm:space-y-8 shadow-sm">
           <div className="relative group">
-            <div className="size-40 rounded-[3rem] bg-slate-50 border-4 border-white shadow-2xl flex items-center justify-center text-slate-200 overflow-hidden ring-1 ring-slate-100">
-              <LuIdCard className="size-20" />
+            <div className="size-32 sm:size-40 rounded-3xl sm:rounded-[3rem] bg-slate-50 border-4 border-white shadow-2xl flex items-center justify-center text-slate-200 overflow-hidden ring-1 ring-slate-100">
+              <LuIdCard className="size-16 sm:size-20" />
             </div>
-            <div className="absolute -bottom-2 -right-2 p-4 bg-primary text-white rounded-2xl shadow-xl animate-bounce">
-              <LuCamera className="size-6" />
+            <div className="absolute -bottom-2 -right-2 p-3 sm:p-4 bg-primary text-white rounded-2xl shadow-xl animate-bounce">
+              <LuCamera className="size-5 sm:size-6" />
             </div>
           </div>
 
-          <div className="max-w-md space-y-4">
-            <h2 className="text-3xl font-black text-slate-900 tracking-tight transition-all">
+          <div className="max-w-md space-y-3 sm:space-y-4">
+            <h2 className="text-2xl sm:text-3xl font-black text-slate-900 tracking-tight transition-all">
               Upload Your Profile Photo
             </h2>
-            <p className="text-slate-500 font-medium leading-relaxed">
+            <p className="text-sm sm:text-base text-slate-500 font-medium leading-relaxed">
               Upload and crop your photo to generate your secure Digital ID and scannable QR Code for attendance.
             </p>
           </div>
@@ -305,7 +305,7 @@ export default function StudentIDPage() {
           <Button
             onClick={() => fileInputRef.current?.click()}
             disabled={uploading}
-            className="h-14 px-10 rounded-2xl font-black bg-primary hover:bg-primary/95 text-white shadow-xl shadow-primary/20 hover:scale-105 transition-all text-lg"
+            className="w-full sm:w-auto h-12 sm:h-14 px-8 sm:px-10 rounded-2xl font-black bg-primary hover:bg-primary/95 text-white shadow-xl shadow-primary/20 hover:scale-105 transition-all text-base sm:text-lg cursor-pointer"
           >
             {uploading ? (
               <LuLoader className="size-5 animate-spin mr-2" />
@@ -320,78 +320,79 @@ export default function StudentIDPage() {
           </p>
         </div>
       ) : (
-        /* Step 2: Display Physical ID Layout (3.5w x 5.5h) */
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-12 items-start">
-          {/* Card Section: 5 High x 3.5 Wide Ratio */}
-          <div className="lg:col-span-5 flex justify-center">
+        /* Step 2: Display Physical ID Layout */
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 lg:gap-12 items-start">
+          {/* Card Section */}
+          <div className="lg:col-span-5 flex justify-center w-full">
             <div
               ref={cardRef}
-              className="relative w-full max-w-[320px] aspect-[3.5/5.5] rounded-[3rem] overflow-hidden shadow-2xl shadow-orange-950/10 border border-white/40 glass-container"
+              className="relative w-full max-w-[300px] xs:max-w-[320px] sm:max-w-[340px] aspect-[3.5/5.5] rounded-[2.5rem] sm:rounded-[3rem] overflow-hidden shadow-2xl shadow-orange-950/10 border border-white/40 glass-container flex flex-col justify-between"
             >
               {/* Background Shades of Orange & Glass */}
               <div className="absolute inset-0 bg-gradient-to-br from-orange-500/20 via-white/40 to-amber-500/10 backdrop-blur-3xl z-0" />
               <div className="absolute top-[-10%] left-[-10%] size-64 bg-orange-400/20 rounded-full blur-[80px]" />
               <div className="absolute bottom-[-10%] right-[-10%] size-48 bg-amber-400/20 rounded-full blur-[60px]" />
 
-              <div className="relative z-10 flex flex-col h-full p-8 items-center">
-                {/* 1. Profile Picture */}
-                <div className="size-28 rounded-2xl overflow-hidden bg-white/50 border-2 border-white shadow-lg mb-4 flex-shrink-0 flex items-center justify-center text-orange-200">
-                  {user.profile_picture ? (
-                    <img
-                      src={user.profile_picture}
-                      alt="ID Photo"
-                      className="size-full object-cover"
-                      onError={(e) => {
-                        (e.target as HTMLImageElement).src = "";
-                        (e.target as HTMLImageElement).style.display = "none";
-                      }}
-                    />
-                  ) : (
-                    <LuIdCard className="size-14" />
-                  )}
-                </div>
+              <div className="relative z-10 flex flex-col h-full p-5 sm:p-7 items-center justify-between">
+                {/* Top: Profile Picture + Info */}
+                <div className="flex flex-col items-center w-full">
+                  {/* 1. Profile Picture */}
+                  <div className="size-24 sm:size-28 rounded-2xl overflow-hidden bg-white/50 border-2 border-white shadow-lg mb-3 shrink-0 flex items-center justify-center text-orange-200">
+                    {user.profile_picture ? (
+                      <img
+                        src={user.profile_picture}
+                        alt="ID Photo"
+                        className="size-full object-cover"
+                        onError={(e) => {
+                          (e.target as HTMLImageElement).src = "";
+                          (e.target as HTMLImageElement).style.display = "none";
+                        }}
+                      />
+                    ) : (
+                      <LuIdCard className="size-12 sm:size-14" />
+                    )}
+                  </div>
 
-                {/* 2. Name */}
-                <div className="text-center space-y-0.5 mb-1">
-                  <h2 className="text-xl font-black text-slate-900 tracking-tight leading-tight">
-                    {user.first_name} {user.last_name}
-                  </h2>
-                  <div className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-orange-500/10 border border-orange-500/20 text-orange-600 text-[9px] font-black uppercase tracking-widest">
-                    <LuShieldCheck className="size-2.5" /> Official Member
+                  {/* 2. Name */}
+                  <div className="text-center space-y-0.5 mb-1 px-2 w-full">
+                    <h2 className="text-lg sm:text-xl font-black text-slate-900 tracking-tight leading-tight line-clamp-1">
+                      {user.first_name} {user.last_name}
+                    </h2>
+                    <div className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-orange-500/10 border border-orange-500/20 text-orange-600 text-[8px] sm:text-[9px] font-black uppercase tracking-widest">
+                      <LuShieldCheck className="size-2.5" /> Official Member
+                    </div>
+                  </div>
+
+                  {/* 3. Student ID */}
+                  <div className="text-center">
+                    <p className="text-[8px] font-black text-slate-400 uppercase tracking-[0.25em] mb-0.5">
+                      Student ID
+                    </p>
+                    <p className="text-xs sm:text-sm font-black text-slate-700 tracking-[0.1em]">
+                      {user.student_id || "NOT-SET"}
+                    </p>
                   </div>
                 </div>
 
-                {/* 3. Student ID */}
-                <div className="text-center mb-4">
-                  <p className="text-[8px] font-black text-slate-400 uppercase tracking-[0.3em] mb-0.5">
-                    Student ID
-                  </p>
-                  <p className="text-sm font-black text-slate-700 tracking-[0.1em]">
-                    {user.student_id || "NOT-SET"}
-                  </p>
-                </div>
-
-                {/* Separator */}
-                <div className="w-full h-px bg-slate-200/50" />
-
-                {/* 4. QR Code */}
-                <div className="flex-1 flex flex-col items-center justify-center w-full">
-                  <div className="bg-white rounded-3xl shadow-xl border border-white relative group p-2">
+                {/* Middle: QR Code with Separator */}
+                <div className="flex flex-col items-center justify-center w-full my-1 sm:my-2">
+                  <div className="w-full h-px bg-slate-200/50 mb-3 sm:mb-4" />
+                  <div className="bg-white rounded-2xl sm:rounded-3xl shadow-xl border border-white relative group p-2">
                     <img
                       src={qrImageUrl}
                       alt="Scannable QR"
-                      className="size-36 transition-transform group-hover:scale-105 duration-500"
+                      className="size-28 sm:size-34 transition-transform group-hover:scale-105 duration-500 object-contain"
                     />
                     <div className="absolute -inset-2 bg-gradient-to-tr from-orange-500/10 to-amber-500/10 rounded-2xl -z-10 blur-sm opacity-0 group-hover:opacity-100 transition-opacity" />
                   </div>
-                  <p className="text-[9px] font-black text-slate-400 uppercase tracking-[0.4em] mt-2">
+                  <p className="text-[8px] sm:text-[9px] font-black text-slate-400 uppercase tracking-[0.3em] mt-2">
                     Scan for Verification
                   </p>
                 </div>
 
-                {/* School/Org Name at Bottom */}
-                <div className="pt-1 border-t border-slate-200/50 w-full text-center">
-                  <p className="text-[11px] font-black text-slate-900 tracking-widest uppercase opacity-40">
+                {/* Bottom: School/Org Name */}
+                <div className="pt-2 border-t border-slate-200/50 w-full text-center">
+                  <p className="text-[10px] sm:text-[11px] font-black text-slate-900 tracking-widest uppercase opacity-40">
                     ACES • ACETRACK 3.0
                   </p>
                 </div>
@@ -400,25 +401,25 @@ export default function StudentIDPage() {
           </div>
 
           {/* Details & Usage Section */}
-          <div className="lg:col-span-7 space-y-6">
-            <div className="bg-emerald-50 rounded-[2.5rem] border border-emerald-100 p-10 flex items-start gap-6 shadow-sm">
-              <div className="p-4 bg-white rounded-3xl shadow-xl shadow-emerald-900/5 text-emerald-600">
+          <div className="lg:col-span-7 space-y-4 sm:space-y-6 w-full">
+            <div className="bg-emerald-50 rounded-3xl sm:rounded-[2.5rem] border border-emerald-100 p-6 sm:p-8 lg:p-10 flex flex-col sm:flex-row items-start gap-4 sm:gap-6 shadow-sm">
+              <div className="p-3.5 sm:p-4 bg-white rounded-2xl sm:rounded-3xl shadow-xl shadow-emerald-900/5 text-emerald-600 shrink-0">
                 <LuShieldCheck className="size-6" />
               </div>
               <div className="space-y-2 text-left">
-                <h3 className="text-lg font-black text-emerald-800 tracking-tight leading-none">
+                <h3 className="text-base sm:text-lg font-black text-emerald-800 tracking-tight leading-none">
                   Official Usage Guide
                 </h3>
-                <div className="space-y-3 pt-2">
+                <div className="space-y-2.5 pt-1 sm:pt-2">
                   <div className="flex items-center gap-3">
-                    <div className="size-2 rounded-full bg-emerald-400" />
-                    <p className="text-sm font-bold text-emerald-700">
+                    <div className="size-2 rounded-full bg-emerald-400 shrink-0" />
+                    <p className="text-xs sm:text-sm font-bold text-emerald-700">
                       Use this for attendance monitoring
                     </p>
                   </div>
                   <div className="flex items-center gap-3">
-                    <div className="size-2 rounded-full bg-emerald-400" />
-                    <p className="text-sm font-bold text-emerald-700">
+                    <div className="size-2 rounded-full bg-emerald-400 shrink-0" />
+                    <p className="text-xs sm:text-sm font-bold text-emerald-700">
                       Show this when paying other organization fees
                     </p>
                   </div>
@@ -426,13 +427,15 @@ export default function StudentIDPage() {
               </div>
             </div>
 
-            <div className="bg-orange-50 rounded-[2.5rem] border border-orange-100 p-10 flex items-start gap-6">
-              <div className="p-4 bg-white rounded-3xl shadow-xl shadow-orange-900/5 text-orange-600">
+            <div className="bg-orange-50 rounded-3xl sm:rounded-[2.5rem] border border-orange-100 p-6 sm:p-8 lg:p-10 flex flex-col sm:flex-row items-start gap-4 sm:gap-6 shadow-sm">
+              <div className="p-3.5 sm:p-4 bg-white rounded-2xl sm:rounded-3xl shadow-xl shadow-orange-900/5 text-orange-600 shrink-0">
                 <LuInfo className="size-6" />
               </div>
-              <div className="space-y-2">
-                <h3 className="text-lg font-black text-orange-900 tracking-tight">Security Protocol</h3>
-                <p className="text-sm font-medium text-orange-700 leading-relaxed">
+              <div className="space-y-2 text-left">
+                <h3 className="text-base sm:text-lg font-black text-orange-900 tracking-tight leading-none">
+                  Security Protocol
+                </h3>
+                <p className="text-xs sm:text-sm font-medium text-orange-700 leading-relaxed pt-1">
                   Your Digital ID is encrypted and linked directly to your student account. The QR code contains verification metadata to prevent duplication.
                 </p>
               </div>
