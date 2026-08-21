@@ -42,49 +42,55 @@ export default function Navbar() {
         )}
       >
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex items-center justify-between">
-          <a href="#" className="flex items-center group py-1 select-none">
-            <span className="text-xl sm:text-2xl font-black tracking-tight text-primary transition-colors group-hover:opacity-90">
-              ACETRACK 3.0
-            </span>
-          </a>
+          {/* Logo & Adjacent Mobile Burger */}
+          <div className="flex items-center gap-2.5">
+            <a href="#" className="flex items-center group py-1 select-none">
+              <span className="text-xl sm:text-2xl font-black tracking-tight text-primary transition-colors group-hover:opacity-90">
+                ACETRACK 3.0
+              </span>
+            </a>
 
-          {/* Desktop Links */}
-          <div className="hidden items-center gap-6 md:flex">
-            <ul className="flex items-center gap-1 list-none m-0 p-0">
-              {navLinks.map((link) => (
-                <li key={link.href}>
-                  <a
-                    href={link.href}
-                    className="rounded-xl px-4 py-2 text-sm font-bold text-slate-600 hover:text-primary hover:bg-slate-50 transition-all"
-                  >
-                    {link.label}
-                  </a>
-                </li>
-              ))}
-            </ul>
-            <div className="h-5 w-px bg-slate-200" />
-            <Button asChild variant="default" size="sm" className="h-10 px-5 rounded-xl font-bold shadow-md shadow-primary/20 hover:scale-105 transition-all cursor-pointer">
+            {/* Mobile Burger / Close Button (placed directly after ACETRACK 3.0) */}
+            <button
+              type="button"
+              onClick={() => setMenuOpen((prev) => !prev)}
+              aria-label={menuOpen ? "Close menu" : "Open navigation menu"}
+              aria-expanded={menuOpen}
+              className="md:hidden flex items-center justify-center size-9.5 sm:size-10 rounded-2xl bg-slate-100 hover:bg-slate-200/80 active:scale-95 text-slate-900 transition-all touch-manipulation cursor-pointer border border-slate-200/60 ml-1"
+            >
+              {menuOpen ? (
+                <LuX className="size-5 text-slate-900" />
+              ) : (
+                <LuMenu className="size-5 text-slate-900" />
+              )}
+            </button>
+          </div>
+
+          {/* Desktop Links & Action */}
+          <div className="flex items-center gap-3">
+            <div className="hidden items-center gap-6 md:flex">
+              <ul className="flex items-center gap-1 list-none m-0 p-0">
+                {navLinks.map((link) => (
+                  <li key={link.href}>
+                    <a
+                      href={link.href}
+                      className="rounded-xl px-4 py-2 text-sm font-bold text-slate-600 hover:text-primary hover:bg-slate-50 transition-all"
+                    >
+                      {link.label}
+                    </a>
+                  </li>
+                ))}
+              </ul>
+              <div className="h-5 w-px bg-slate-200" />
+            </div>
+
+            <Button asChild variant="default" size="sm" className="h-9 sm:h-10 px-4 sm:px-5 rounded-xl font-bold shadow-md shadow-primary/20 hover:scale-105 transition-all cursor-pointer">
               <a href="/login">
-                <LuLogIn className="size-4 mr-1.5" />
-                Login
+                <LuLogIn className="size-4 sm:mr-1.5" />
+                <span>Login</span>
               </a>
             </Button>
           </div>
-
-          {/* Mobile Burger / Close Button */}
-          <button
-            type="button"
-            onClick={() => setMenuOpen((prev) => !prev)}
-            aria-label={menuOpen ? "Close menu" : "Open navigation menu"}
-            aria-expanded={menuOpen}
-            className="md:hidden flex items-center justify-center size-11 rounded-2xl bg-slate-100 hover:bg-slate-200/80 active:scale-95 text-slate-900 transition-all touch-manipulation cursor-pointer border border-slate-200/60"
-          >
-            {menuOpen ? (
-              <LuX className="size-6 text-slate-900" />
-            ) : (
-              <LuMenu className="size-6 text-slate-900" />
-            )}
-          </button>
         </div>
 
         {/* Mobile Dropdown Menu Drawer */}
