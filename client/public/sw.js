@@ -1,5 +1,5 @@
 // Service Worker for ACETRACK 3.0 PWA
-const CACHE_NAME = "acetrack-cache-v1";
+const CACHE_NAME = "acetrack-cache-v2";
 
 const STATIC_ASSETS = [
   "/",
