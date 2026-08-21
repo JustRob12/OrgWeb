@@ -6,6 +6,7 @@ import { usePathname } from "next/navigation"
 import {
   LuLayoutDashboard,
   LuUsers,
+  LuAward,
   LuMegaphone,
   LuCalendar,
   LuClipboardCheck,
@@ -39,6 +40,7 @@ const menuItems = [
       { name: "Student Credentials", href: "/admin/members/send" },
     ]
   },
+  { name: "Officers", icon: LuAward, href: "/admin/officers" },
   { name: "Announcements", icon: LuMegaphone, href: "/admin/announcements" },
   { name: "Events", icon: LuCalendar, href: "/admin/events" },
   {

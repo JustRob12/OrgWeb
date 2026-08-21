@@ -246,6 +246,22 @@ CREATE POLICY "Public documents access" ON documents FOR ALL USING (true) WITH C
 GRANT SELECT, INSERT, UPDATE, DELETE ON document_folders TO anon, authenticated, service_role;
 GRANT SELECT, INSERT, UPDATE, DELETE ON documents TO anon, authenticated, service_role;
 
+-- 15.1 Create Officers Table
+CREATE TABLE IF NOT EXISTS officers (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    name TEXT NOT NULL,
+    position TEXT NOT NULL,
+    order_index INTEGER NOT NULL DEFAULT 0,
+    image_url TEXT,
+    department TEXT,
+    term TEXT DEFAULT 'A.Y. 2025–2026',
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+);
+
+ALTER TABLE officers ENABLE ROW LEVEL SECURITY;
+CREATE POLICY "Public officers access" ON officers FOR ALL USING (true) WITH CHECK (true);
+GRANT SELECT, INSERT, UPDATE, DELETE ON officers TO anon, authenticated, service_role;
+
 -- 16. Create the Polls Table
 CREATE TABLE IF NOT EXISTS polls (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
