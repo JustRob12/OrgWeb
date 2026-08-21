@@ -125,7 +125,7 @@ export default function Hero() {
 
   return (
     <section
-      className="relative min-h-[92vh] flex flex-col justify-between pt-28 pb-16 px-4 sm:px-6 lg:px-8 bg-white text-slate-900 border-b border-slate-200/80"
+      className="relative min-h-[92vh] flex flex-col justify-between pt-8 sm:pt-16 md:pt-28 pb-16 px-4 sm:px-6 lg:px-8 bg-white text-slate-900 border-b border-slate-200/80"
       id="home"
     >
       {/* Subtle Background Radial Highlights */}
