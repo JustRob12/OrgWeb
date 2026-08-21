@@ -105,13 +105,13 @@ export default function StudentFinancePage() {
                   paidAmountsMap[t.finance_id] = (paidAmountsMap[t.finance_id] || 0) + parseFloat(t.amount || 0);
                }
             });
-            
+
             let outstandingSum = 0;
             const mappedDues = (items || []).map((item) => {
                const totalPaid = paidAmountsMap[item.id] || 0;
                const totalAmount = parseFloat(item.amount || 0);
                const remaining = Math.max(0, totalAmount - totalPaid);
-               
+
                outstandingSum += remaining;
 
                let status: "Paid" | "Partial" | "Unpaid" = "Unpaid";
@@ -161,8 +161,8 @@ export default function StudentFinancePage() {
          {/* Simple Finance Header */}
          <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-6">
             <div className="space-y-2">
-                <h1 className="text-4xl font-black text-slate-900 tracking-tight leading-none">My Wallet</h1>
-                <p className="text-slate-500 font-medium tracking-tight">Track your membership dues, event fees, and transactions.</p>
+               <h1 className="text-4xl font-black text-slate-900 tracking-tight leading-none">My Wallet</h1>
+               <p className="text-slate-500 font-medium tracking-tight">Track your membership dues, event fees, and transactions.</p>
             </div>
          </div>
 
@@ -174,9 +174,7 @@ export default function StudentFinancePage() {
                   ₱{outstandingBalance.toLocaleString(undefined, { minimumFractionDigits: 2 })}
                </h2>
             </div>
-            <Button className="h-12 px-8 rounded-2xl font-black bg-rose-500 hover:bg-rose-600 text-white shadow-xl shadow-rose-200 transition-all w-full sm:w-auto">
-               Pay Balance <LuArrowUpRight className="size-4 ml-2" />
-            </Button>
+
          </div>
 
          <div className="grid grid-cols-1 lg:grid-cols-3 gap-10">
@@ -188,7 +186,7 @@ export default function StudentFinancePage() {
                   </h2>
                   <Button variant="ghost" className="text-xs font-black text-rose-500 hover:bg-rose-50 rounded-xl">View Full Statement</Button>
                </div>
- 
+
                <div className="bg-white rounded-[2.5rem] border border-slate-200 overflow-hidden shadow-sm">
                   {transactions.length === 0 ? (
                      <div className="p-12 text-center text-slate-400 font-medium">
@@ -210,13 +208,12 @@ export default function StudentFinancePage() {
                               <div className="flex items-center justify-between w-full md:w-auto md:justify-end gap-8">
                                  <div className="text-right">
                                     <p className="text-lg font-black text-slate-900 tracking-tight">{t.amount}</p>
-                                    <span className={`text-[10px] font-black uppercase tracking-widest ${
-                                        t.status === 'Fully Paid' || t.status === 'Paid' ? 'text-emerald-500' :
-                                        t.status === 'Half Semester Paid' ? 'text-blue-500' :
-                                        t.status === 'Partial' ? 'text-amber-500' : 'text-rose-500'
-                                     }`}>{t.status}</span>
+                                    <span className={`text-[10px] font-black uppercase tracking-widest ${t.status === 'Fully Paid' || t.status === 'Paid' ? 'text-emerald-500' :
+                                       t.status === 'Half Semester Paid' ? 'text-blue-500' :
+                                          t.status === 'Partial' ? 'text-amber-500' : 'text-rose-500'
+                                       }`}>{t.status}</span>
                                  </div>
-                                 <button 
+                                 <button
                                     onClick={() => {
                                        setSelectedTx(t);
                                        setIsModalOpen(true);
@@ -232,7 +229,7 @@ export default function StudentFinancePage() {
                   )}
                </div>
             </div>
- 
+
             {/* Fees Information */}
             <div className="order-1 lg:order-2 space-y-6">
                <h2 className="text-xl font-black text-slate-900 tracking-tight ml-2">All Fees & Dues</h2>
@@ -242,54 +239,53 @@ export default function StudentFinancePage() {
                         No dues listed.
                      </div>
                   ) : (
-                      <div className="space-y-6">
-                         {recurringDues.map((due, idx) => (
-                            <div key={idx} className="p-6 rounded-3xl bg-slate-50 border border-slate-100 flex items-start gap-4 ring-1 ring-transparent hover:ring-rose-500/20 transition-all cursor-default">
-                               <div className={`p-3 bg-white rounded-2xl shadow-sm ${
-                                  due.status === 'Paid' ? 'text-emerald-500' :
-                                  due.status === 'Partial' ? 'text-amber-500' : 'text-rose-500'
-                               }`}>
-                                  {due.status === 'Paid' ? <LuCircleCheck className="size-5" /> :
-                                   due.status === 'Partial' ? <LuClock className="size-5" /> :
-                                   <LuCircleX className="size-5" />}
-                               </div>
-                               <div className="flex-1">
-                                  <p className="text-sm font-black text-slate-900">{due.title}</p>
-                                  <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-1">{due.deadline}</p>
-                                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mt-3 pt-3 border-t border-slate-100/50">
-                                     <div>
-                                        <span className="text-[9px] font-black uppercase tracking-widest text-slate-400 block mb-0.5">Total Fee</span>
-                                        <span className="text-xs font-bold text-slate-600">₱{due.totalAmount.toLocaleString(undefined, { minimumFractionDigits: 2 })}</span>
-                                     </div>
-                                     {due.status === 'Partial' && (
-                                        <>
-                                           <div>
-                                              <span className="text-[9px] font-black uppercase tracking-widest text-slate-400 block mb-0.5">Paid</span>
-                                              <span className="text-xs font-bold text-emerald-600">₱{due.paidAmount.toLocaleString(undefined, { minimumFractionDigits: 2 })}</span>
-                                           </div>
-                                           <div>
-                                              <span className="text-[9px] font-black uppercase tracking-widest text-slate-400 block mb-0.5">Remaining</span>
-                                              <span className="text-xs font-bold text-amber-500">₱{due.remaining.toLocaleString(undefined, { minimumFractionDigits: 2 })}</span>
-                                           </div>
-                                        </>
-                                     )}
-                                     {due.status === 'Paid' && (
-                                        <div>
-                                           <span className="text-[9px] font-black uppercase tracking-widest text-slate-400 block mb-0.5">Status</span>
-                                           <span className="text-xs font-bold text-emerald-600">Fully Paid</span>
-                                        </div>
-                                     )}
-                                     {due.status === 'Unpaid' && (
-                                        <div>
-                                           <span className="text-[9px] font-black uppercase tracking-widest text-slate-400 block mb-0.5">Status</span>
-                                           <span className="text-xs font-bold text-rose-500">Unpaid</span>
-                                        </div>
-                                     )}
-                                  </div>
-                               </div>
-                            </div>
-                         ))}
-                      </div>
+                     <div className="space-y-6">
+                        {recurringDues.map((due, idx) => (
+                           <div key={idx} className="p-6 rounded-3xl bg-slate-50 border border-slate-100 flex items-start gap-4 ring-1 ring-transparent hover:ring-rose-500/20 transition-all cursor-default">
+                              <div className={`p-3 bg-white rounded-2xl shadow-sm ${due.status === 'Paid' ? 'text-emerald-500' :
+                                 due.status === 'Partial' ? 'text-amber-500' : 'text-rose-500'
+                                 }`}>
+                                 {due.status === 'Paid' ? <LuCircleCheck className="size-5" /> :
+                                    due.status === 'Partial' ? <LuClock className="size-5" /> :
+                                       <LuCircleX className="size-5" />}
+                              </div>
+                              <div className="flex-1">
+                                 <p className="text-sm font-black text-slate-900">{due.title}</p>
+                                 <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-1">{due.deadline}</p>
+                                 <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mt-3 pt-3 border-t border-slate-100/50">
+                                    <div>
+                                       <span className="text-[9px] font-black uppercase tracking-widest text-slate-400 block mb-0.5">Total Fee</span>
+                                       <span className="text-xs font-bold text-slate-600">₱{due.totalAmount.toLocaleString(undefined, { minimumFractionDigits: 2 })}</span>
+                                    </div>
+                                    {due.status === 'Partial' && (
+                                       <>
+                                          <div>
+                                             <span className="text-[9px] font-black uppercase tracking-widest text-slate-400 block mb-0.5">Paid</span>
+                                             <span className="text-xs font-bold text-emerald-600">₱{due.paidAmount.toLocaleString(undefined, { minimumFractionDigits: 2 })}</span>
+                                          </div>
+                                          <div>
+                                             <span className="text-[9px] font-black uppercase tracking-widest text-slate-400 block mb-0.5">Remaining</span>
+                                             <span className="text-xs font-bold text-amber-500">₱{due.remaining.toLocaleString(undefined, { minimumFractionDigits: 2 })}</span>
+                                          </div>
+                                       </>
+                                    )}
+                                    {due.status === 'Paid' && (
+                                       <div>
+                                          <span className="text-[9px] font-black uppercase tracking-widest text-slate-400 block mb-0.5">Status</span>
+                                          <span className="text-xs font-bold text-emerald-600">Fully Paid</span>
+                                       </div>
+                                    )}
+                                    {due.status === 'Unpaid' && (
+                                       <div>
+                                          <span className="text-[9px] font-black uppercase tracking-widest text-slate-400 block mb-0.5">Status</span>
+                                          <span className="text-xs font-bold text-rose-500">Unpaid</span>
+                                       </div>
+                                    )}
+                                 </div>
+                              </div>
+                           </div>
+                        ))}
+                     </div>
                   )}
                </div>
             </div>
@@ -324,12 +320,11 @@ export default function StudentFinancePage() {
                      </div>
                      <div className="flex justify-between items-center py-1">
                         <span className="text-xs font-bold text-slate-400 uppercase tracking-wider">Status</span>
-                        <span className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-bold border ${
-                           selectedTx.status === 'Fully Paid' || selectedTx.status === 'Paid' ? 'bg-emerald-50 text-emerald-600 border-emerald-100' :
+                        <span className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-bold border ${selectedTx.status === 'Fully Paid' || selectedTx.status === 'Paid' ? 'bg-emerald-50 text-emerald-600 border-emerald-100' :
                            selectedTx.status === 'Half Semester Paid' ? 'bg-blue-50 text-blue-600 border-blue-100' :
-                           selectedTx.status === 'Partial' ? 'bg-amber-50 text-amber-600 border-amber-100' :
-                           'bg-rose-50 text-rose-600 border-rose-100'
-                        }`}>
+                              selectedTx.status === 'Partial' ? 'bg-amber-50 text-amber-600 border-amber-100' :
+                                 'bg-rose-50 text-rose-600 border-rose-100'
+                           }`}>
                            {selectedTx.status}
                         </span>
                      </div>
