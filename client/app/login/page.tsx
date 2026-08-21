@@ -166,12 +166,12 @@ export default function LoginPage() {
               <form onSubmit={handleLogin} className="space-y-6">
                 <div className="space-y-4">
                   <div className="space-y-2">
-                    <Label htmlFor="email" className="text-xs font-medium uppercase tracking-widest text-muted-foreground">Email or Username</Label>
+                    <Label htmlFor="email" className="text-xs font-medium uppercase tracking-widest text-muted-foreground">Email, Username, or Student ID</Label>
                     <div className="relative group">
                       <LuMail className="absolute left-4 top-1/2 -translate-y-1/2 size-4 text-muted-foreground transition-colors group-focus-within:text-primary" />
                       <Input
                         id="email"
-                        placeholder="admin"
+                        placeholder="e.g. 2024-0001 or email@domain.com"
                         type="text"
                         required
                         value={email}

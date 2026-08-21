@@ -196,8 +196,7 @@ export default function ViewMembersPage() {
         .select(`
           *,
           memberships:memberships(status, payment, receipt, created_at),
-          accounts:accounts!inner(role),
-          send_credentials:send_credentials(id)
+          accounts:accounts!inner(role)
         `)
         .neq('accounts.role', 0)
         .order('created_at', { ascending: false });

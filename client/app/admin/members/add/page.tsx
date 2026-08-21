@@ -223,13 +223,6 @@ export default function AddMembersPage() {
     if (file) processFile(file);
   };
 
-  const generatePassword = (firstName: string, lastName: string) => {
-    const first2 = firstName.substring(0, 2).toLowerCase();
-    const last2 = lastName.substring(lastName.length - 2).toLowerCase();
-    const random5 = Math.random().toString(36).substring(2, 7);
-    return `${first2}${last2}${random5}2026`;
-  };
-
   const saveMembers = async () => {
     if (members.length === 0) return;
 
@@ -283,13 +276,14 @@ export default function AddMembersPage() {
 
           if (userError) throw userError;
 
-          // 2. Create Account (Passwords are automatically hashed by DB Trigger)
+          // 2. Create Account (Default password is their Student ID, hashed by DB Trigger)
+          const defaultPassword = member.student_id ? member.student_id.trim() : '0000-0000';
           const { error: accountError } = await supabase
             .from("accounts")
             .upsert({
               user_id: userData.id,
               username: member.email,
-              password: 'pending_initial_setup', // Temporary placeholder, will be reset on Send
+              password: defaultPassword, // Default password is their Student ID (e.g. 0000-0000)
               role: 1, // Student
             }, { onConflict: 'username' });
 

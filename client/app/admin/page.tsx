@@ -46,6 +46,7 @@ export default function AdminDashboard() {
   const [loading, setLoading] = useState(true);
 
   // Chart States
+  const [activeWaveStatus, setActiveWaveStatus] = useState<string>("All");
   const [hoveredLineIndex, setHoveredLineIndex] = useState<number | null>(null);
   const [lineTooltipPos, setLineTooltipPos] = useState({ x: 0, y: 0 });
   const [pieMode, setPieMode] = useState<"course" | "status">("course"); // "course": courses per status, "status": statuses per course
@@ -163,32 +164,41 @@ export default function AdminDashboard() {
     return Math.max(5, maxVal); // Default minimum scale of 5
   }, [lineChartData]);
 
-  // SVG Bezier Curves Generator Helper
+  // SVG Smooth Horizontal Wave Curve Path Generator Helper
   const getBezierPathD = (key: string) => {
     if (lineChartData.length === 0) return "";
     if (lineChartData.length === 1) {
-      const x = padL + chartW / 2;
       const y = padT + chartH - ((lineChartData[0][key] || 0) / maxLineVal) * chartH;
-      return `M ${x} ${y} L ${x} ${y}`;
+      const x0 = padL;
+      const x1 = padL + chartW;
+      const dx = chartW * 0.45;
+      return `M ${x0} ${y} C ${x0 + dx} ${y}, ${x1 - dx} ${y}, ${x1} ${y}`;
     }
 
+    const count = lineChartData.length;
     const points = lineChartData.map((d: any, i) => ({
-      x: padL + (i / (lineChartData.length - 1)) * chartW,
+      x: padL + (i / Math.max(1, count - 1)) * chartW,
       y: padT + chartH - ((d[key] || 0) / maxLineVal) * chartH
     }));
 
     let path = `M ${points[0].x} ${points[0].y}`;
-    for (let i = 1; i < points.length; i++) {
-      const cpX1 = points[i - 1].x + (points[i].x - points[i - 1].x) / 3;
-      const cpY1 = points[i - 1].y;
-      const cpX2 = points[i - 1].x + (2 * (points[i].x - points[i - 1].x)) / 3;
-      const cpY2 = points[i].y;
-      path += ` C ${cpX1} ${cpY1}, ${cpX2} ${cpY2}, ${points[i].x} ${points[i].y}`;
+
+    for (let i = 0; i < points.length - 1; i++) {
+      const p1 = points[i];
+      const p2 = points[i + 1];
+      const dx = (p2.x - p1.x) * 0.45; // Smooth horizontal wave tangent
+
+      const cp1x = p1.x + dx;
+      const cp1y = p1.y;
+      const cp2x = p2.x - dx;
+      const cp2y = p2.y;
+
+      path += ` C ${cp1x} ${cp1y}, ${cp2x} ${cp2y}, ${p2.x} ${p2.y}`;
     }
     return path;
   };
 
-  // Area Path Generator Helper for smooth gradient fills
+  // Wave Area Path Generator for smooth gradient fills
   const getAreaPathD = (key: string) => {
     if (lineChartData.length === 0) return "";
     const bezierD = getBezierPathD(key);
@@ -399,23 +409,45 @@ export default function AdminDashboard() {
       {/* Charts Grid */}
       <div className="grid grid-cols-1 gap-8 items-stretch">
         
-        {/* Expanded Full-Width Card: SVG Line Chart (Daily trends) */}
+        {/* Expanded Full-Width Card: SVG Horizontal Wave Chart (Daily trends) */}
         <div className="col-span-12 bg-white p-8 rounded-[2.5rem] border border-slate-200/80 shadow-sm flex flex-col justify-between relative">
-          <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6">
+          <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-4 mb-6">
             <div>
-              <h3 className="text-lg font-black text-slate-900 uppercase tracking-tight flex items-center gap-2">
-                <LuTrendingUp className="size-5 text-primary" />
-                Payment Timelines
+              <div className="inline-flex items-center gap-2 px-2.5 py-1 bg-primary/10 text-primary rounded-full mb-1.5">
+                <LuTrendingUp className="size-3.5" />
+                <span className="text-[10px] font-black uppercase tracking-widest">Financial Analytics</span>
+              </div>
+              <h3 className="text-xl font-black text-slate-900 uppercase tracking-tight">
+                Payment Timelines & Waves
               </h3>
-              <p className="text-xs text-slate-400 font-bold mt-1">Daily trend of memberships grouped by status.</p>
+              <p className="text-xs text-slate-400 font-bold mt-0.5">Smooth horizontal wave audit of membership statuses over time.</p>
             </div>
 
-            {/* Timelines Legend */}
-            <div className="flex items-center gap-4 text-[10px] font-black uppercase tracking-wider flex-wrap">
-              <span className="flex items-center gap-1.5"><span className="size-2.5 rounded-full" style={{ backgroundColor: STATUS_COLORS["Fully Paid"] }} /> Fully Paid</span>
-              <span className="flex items-center gap-1.5"><span className="size-2.5 rounded-full" style={{ backgroundColor: STATUS_COLORS["Half Semester Paid"] }} /> Half Semester</span>
-              <span className="flex items-center gap-1.5"><span className="size-2.5 rounded-full" style={{ backgroundColor: STATUS_COLORS["Partial"] }} /> Partial</span>
-              <span className="flex items-center gap-1.5"><span className="size-2.5 rounded-full" style={{ backgroundColor: STATUS_COLORS["Not Paid"] }} /> Unpaid</span>
+            {/* Interactive Status Wave Tabs */}
+            <div className="flex items-center bg-slate-100/80 p-1.5 rounded-2xl gap-1 flex-wrap border border-slate-200/50">
+              {[
+                { id: "All", label: "All Waves" },
+                { id: "Fully Paid", label: "Fully Paid", dot: STATUS_COLORS["Fully Paid"] },
+                { id: "Half Semester Paid", label: "Half Semester", dot: STATUS_COLORS["Half Semester Paid"] },
+                { id: "Partial", label: "Partial", dot: STATUS_COLORS["Partial"] },
+                { id: "Not Paid", label: "Unpaid", dot: STATUS_COLORS["Not Paid"] },
+              ].map(tab => {
+                const isActive = activeWaveStatus === tab.id;
+                return (
+                  <button
+                    key={tab.id}
+                    onClick={() => setActiveWaveStatus(tab.id)}
+                    className={`px-3 py-1.5 rounded-xl text-[10px] font-black uppercase tracking-wider transition-all flex items-center gap-1.5 cursor-pointer ${
+                      isActive 
+                        ? "bg-white text-slate-900 shadow-sm shadow-slate-200 ring-1 ring-slate-200/60" 
+                        : "text-slate-500 hover:text-slate-900 hover:bg-white/50"
+                    }`}
+                  >
+                    {tab.dot && <span className="size-2 rounded-full shrink-0" style={{ backgroundColor: tab.dot }} />}
+                    {tab.label}
+                  </button>
+                );
+              })}
             </div>
           </div>
 
@@ -437,24 +469,31 @@ export default function AdminDashboard() {
                 onMouseMove={handleLineMouseMove}
                 onMouseLeave={() => setHoveredLineIndex(null)}
               >
-                {/* SVG Gradients for Area Fills */}
+                {/* SVG Gradients & Filters for Horizontal Wave Area Fills */}
                 <defs>
                   <linearGradient id="grad-Fully" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="0%" stopColor={STATUS_COLORS["Fully Paid"]} stopOpacity="0.2" />
+                    <stop offset="0%" stopColor={STATUS_COLORS["Fully Paid"]} stopOpacity="0.32" />
+                    <stop offset="60%" stopColor={STATUS_COLORS["Fully Paid"]} stopOpacity="0.08" />
                     <stop offset="100%" stopColor={STATUS_COLORS["Fully Paid"]} stopOpacity="0.0" />
                   </linearGradient>
                   <linearGradient id="grad-Half" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="0%" stopColor={STATUS_COLORS["Half Semester Paid"]} stopOpacity="0.18" />
+                    <stop offset="0%" stopColor={STATUS_COLORS["Half Semester Paid"]} stopOpacity="0.30" />
+                    <stop offset="60%" stopColor={STATUS_COLORS["Half Semester Paid"]} stopOpacity="0.08" />
                     <stop offset="100%" stopColor={STATUS_COLORS["Half Semester Paid"]} stopOpacity="0.0" />
                   </linearGradient>
                   <linearGradient id="grad-Partial" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="0%" stopColor={STATUS_COLORS["Partial"]} stopOpacity="0.18" />
+                    <stop offset="0%" stopColor={STATUS_COLORS["Partial"]} stopOpacity="0.30" />
+                    <stop offset="60%" stopColor={STATUS_COLORS["Partial"]} stopOpacity="0.08" />
                     <stop offset="100%" stopColor={STATUS_COLORS["Partial"]} stopOpacity="0.0" />
                   </linearGradient>
                   <linearGradient id="grad-Unpaid" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="0%" stopColor={STATUS_COLORS["Not Paid"]} stopOpacity="0.15" />
+                    <stop offset="0%" stopColor={STATUS_COLORS["Not Paid"]} stopOpacity="0.28" />
+                    <stop offset="60%" stopColor={STATUS_COLORS["Not Paid"]} stopOpacity="0.08" />
                     <stop offset="100%" stopColor={STATUS_COLORS["Not Paid"]} stopOpacity="0.0" />
                   </linearGradient>
+                  <filter id="wave-glow" x="-20%" y="-20%" width="140%" height="140%">
+                    <feDropShadow dx="0" dy="4" stdDeviation="4" floodOpacity="0.15" />
+                  </filter>
                 </defs>
 
                 {/* Horizontal dotted grid lines */}
@@ -475,11 +514,19 @@ export default function AdminDashboard() {
                   );
                 })}
 
-                {/* Gradient Area Fills */}
-                <path d={getAreaPathD("Fully Paid")} fill="url(#grad-Fully)" />
-                <path d={getAreaPathD("Half Semester Paid")} fill="url(#grad-Half)" />
-                <path d={getAreaPathD("Partial")} fill="url(#grad-Partial)" />
-                <path d={getAreaPathD("Not Paid")} fill="url(#grad-Unpaid)" />
+                {/* Gradient Wave Area Fills */}
+                {(activeWaveStatus === "All" || activeWaveStatus === "Fully Paid") && (
+                  <path d={getAreaPathD("Fully Paid")} fill="url(#grad-Fully)" className="transition-opacity duration-300" />
+                )}
+                {(activeWaveStatus === "All" || activeWaveStatus === "Half Semester Paid") && (
+                  <path d={getAreaPathD("Half Semester Paid")} fill="url(#grad-Half)" className="transition-opacity duration-300" />
+                )}
+                {(activeWaveStatus === "All" || activeWaveStatus === "Partial") && (
+                  <path d={getAreaPathD("Partial")} fill="url(#grad-Partial)" className="transition-opacity duration-300" />
+                )}
+                {(activeWaveStatus === "All" || activeWaveStatus === "Not Paid") && (
+                  <path d={getAreaPathD("Not Paid")} fill="url(#grad-Unpaid)" className="transition-opacity duration-300" />
+                )}
 
                 {/* Vertical hover overlay bar */}
                 {hoveredLineIndex !== null && (
@@ -495,42 +542,58 @@ export default function AdminDashboard() {
                   />
                 )}
 
-                {/* Trend Lines */}
+                {/* Horizontal Wave Curve Lines */}
                 {Object.keys(STATUS_COLORS).map(statusKey => {
                   const color = STATUS_COLORS[statusKey];
                   const dPath = getBezierPathD(statusKey);
+                  const isSelected = activeWaveStatus === "All" || activeWaveStatus === statusKey;
                   return (
                     <path
                       key={statusKey}
                       d={dPath}
                       fill="none"
                       stroke={color}
-                      strokeWidth="3.5"
+                      strokeWidth={isSelected ? (activeWaveStatus === statusKey ? "4.5" : "3.5") : "2"}
                       strokeLinecap="round"
-                      className="transition-all duration-500 drop-shadow-[0_4px_6px_rgba(0,0,0,0.05)]"
+                      strokeLinejoin="round"
+                      opacity={isSelected ? 1 : 0.2}
+                      filter="url(#wave-glow)"
+                      className="transition-all duration-300"
                     />
                   );
                 })}
 
-                {/* Highlight circles on hover */}
+                {/* Highlight circles and animated pulse on hover */}
                 {hoveredLineIndex !== null && lineChartData[hoveredLineIndex] && (
                   <g className="animate-in zoom-in-95 duration-150">
                     {Object.keys(STATUS_COLORS).map(statusKey => {
                       const color = STATUS_COLORS[statusKey];
                       const val = lineChartData[hoveredLineIndex][statusKey] || 0;
+                      const isSelected = activeWaveStatus === "All" || activeWaveStatus === statusKey;
+                      if (!isSelected && activeWaveStatus !== "All") return null;
+
                       const cx = padL + (hoveredLineIndex / Math.max(1, lineChartData.length - 1)) * chartW;
                       const cy = padT + chartH - (val / maxLineVal) * chartH;
                       return (
-                        <circle
-                          key={statusKey}
-                          cx={cx}
-                          cy={cy}
-                          r="5.5"
-                          fill={color}
-                          stroke="#ffffff"
-                          strokeWidth="2.5"
-                          className="shadow-md"
-                        />
+                        <g key={statusKey}>
+                          <circle
+                            cx={cx}
+                            cy={cy}
+                            r="9"
+                            fill={color}
+                            opacity="0.25"
+                            className="animate-ping"
+                          />
+                          <circle
+                            cx={cx}
+                            cy={cy}
+                            r="5.5"
+                            fill={color}
+                            stroke="#ffffff"
+                            strokeWidth="2.5"
+                            className="shadow-lg"
+                          />
+                        </g>
                       );
                     })}
                   </g>
@@ -579,15 +642,16 @@ export default function AdminDashboard() {
               {/* Custom HTML Tooltip */}
               {hoveredLineIndex !== null && lineChartData[hoveredLineIndex] && (
                 <div 
-                  className="absolute bg-white/95 backdrop-blur-md border border-slate-200/70 p-4 rounded-2xl shadow-xl z-20 pointer-events-none transition-all duration-75 space-y-1.5 min-w-[165px] text-xs font-bold text-slate-700"
+                  className="absolute bg-white/95 backdrop-blur-md border border-slate-200/80 p-4 rounded-2xl shadow-2xl z-20 pointer-events-none transition-all duration-75 space-y-1.5 min-w-[175px] text-xs font-bold text-slate-700"
                   style={{
                     left: `${(padL + (hoveredLineIndex / Math.max(1, lineChartData.length - 1)) * chartW) / svgW * 100}%`,
                     top: `${Math.max(10, Math.min(180, lineTooltipPos.y))}px`,
                     transform: hoveredLineIndex > lineChartData.length / 2 ? "translateX(-110%)" : "translateX(10%)"
                   }}
                 >
-                  <p className="font-black text-slate-900 border-b border-slate-100 pb-1.5 uppercase tracking-wider text-[9px]">
-                    Timeline • {lineChartData[hoveredLineIndex].date}
+                  <p className="font-black text-slate-900 border-b border-slate-100 pb-1.5 uppercase tracking-wider text-[9px] flex items-center justify-between">
+                    <span>Timeline Wave</span>
+                    <span className="text-primary">{lineChartData[hoveredLineIndex].date}</span>
                   </p>
                   <div className="flex items-center justify-between gap-4">
                     <span className="text-emerald-600 flex items-center gap-1.5">

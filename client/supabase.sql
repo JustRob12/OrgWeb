@@ -85,18 +85,18 @@ BEGIN
         a.user_id, a.username, a.role, u.first_name, u.last_name, u.email
     FROM accounts a
     JOIN users u ON a.user_id = u.id
-    WHERE (a.username = u_name OR u.email = u_name)
+    WHERE (a.username = u_name OR u.email = u_name OR u.student_id = u_name)
       AND a.password = crypt(u_pass, a.password);
 END;
 $$ LANGUAGE plpgsql STABLE;
 
--- 8. Create the Send Credentials Tracking Table
-CREATE TABLE IF NOT EXISTS send_credentials (
-    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    user_id UUID UNIQUE REFERENCES users(id) ON DELETE CASCADE,
-    sent_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
-    status TEXT DEFAULT 'Sent'
-);
+-- 8. (Optional / Legacy) Send Credentials Tracking Table
+-- CREATE TABLE IF NOT EXISTS send_credentials (
+--     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+--     user_id UUID UNIQUE REFERENCES users(id) ON DELETE CASCADE,
+--     sent_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+--     status TEXT DEFAULT 'Sent'
+-- );
 
 -- 9. Create the Events Table
 CREATE TABLE IF NOT EXISTS events (

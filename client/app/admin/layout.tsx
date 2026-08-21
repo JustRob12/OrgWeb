@@ -36,7 +36,7 @@ const menuItems = [
     subItems: [
       { name: "View Members", href: "/admin/members/view" },
       { name: "Add Members", href: "/admin/members/add" },
-      { name: "Send Passwords", href: "/admin/members/send" },
+      { name: "Student Credentials", href: "/admin/members/send" },
     ]
   },
   { name: "Announcements", icon: LuMegaphone, href: "/admin/announcements" },
@@ -246,7 +246,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
 
           {/* User Profile (Sidebar Bottom) */}
           <div className="p-4 border-t border-slate-100 flex items-center justify-between group/user">
-            <div className="flex items-center gap-3 px-2 overflow-hidden">
+            <div className="flex items-center gap-3 px-2 overflow-hidden flex-1">
               <div className="size-10 rounded-full bg-slate-200 overflow-hidden border border-slate-300 shrink-0 flex items-center justify-center font-black text-slate-600">
                 {userInfo?.first_name ? userInfo.first_name[0] : "A"}
               </div>

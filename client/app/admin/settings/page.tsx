@@ -152,7 +152,17 @@ export default function SettingsPage() {
   };
 
   const filteredUsers = useMemo(() => {
+    const isSearching = searchQuery.trim() !== "";
+    const isExplicitStudentFilter = roleFilter === "1";
+
     return users.filter((user) => {
+      const userRole = user.accounts?.role ?? 1;
+
+      // Hide students (role 1) by default unless searching or explicitly filtering for Role 1
+      if (userRole === 1 && !isSearching && !isExplicitStudentFilter) {
+        return false;
+      }
+
       const fullName = `${user.first_name} ${user.middle_initial ? user.middle_initial + " " : ""}${user.last_name}`.toLowerCase();
       const matchesSearch =
         fullName.includes(searchQuery.toLowerCase()) ||
@@ -160,7 +170,6 @@ export default function SettingsPage() {
         (user.student_id || "").toLowerCase().includes(searchQuery.toLowerCase()) ||
         (user.course || "").toLowerCase().includes(searchQuery.toLowerCase());
 
-      const userRole = user.accounts?.role ?? 1;
       const matchesRole = roleFilter === "All" || userRole.toString() === roleFilter;
 
       return matchesSearch && matchesRole;
@@ -274,7 +283,11 @@ export default function SettingsPage() {
                   <td colSpan={3} className="px-8 py-20 text-center">
                     <LuInfo className="size-8 text-slate-300 mx-auto mb-3" />
                     <h4 className="text-lg font-black text-slate-900">No Members Found</h4>
-                    <p className="text-xs font-medium text-slate-500 mt-1">Try adjusting your search query or role filter.</p>
+                    <p className="text-xs font-medium text-slate-500 mt-1">
+                      {searchQuery.trim() === "" 
+                        ? "Students are hidden by default. Search by name, email, or student ID to find a student." 
+                        : "Try adjusting your search query or role filter."}
+                    </p>
                   </td>
                 </tr>
               ) : (

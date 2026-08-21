@@ -6,13 +6,8 @@ import Navbar from "./Components/Navbar";
 import Footer from "./Components/Footer";
 
 import Hero from "./LandingPage/Hero";
-import About from "./LandingPage/About";
-import Features from "./LandingPage/Features";
 import Events from "./LandingPage/Events";
-// import Announcements from "./LandingPage/Announcements";
-import Gallery from "./LandingPage/Gallery";
 import Members from "./LandingPage/Members";
-import Contact from "./LandingPage/Contact";
 
 export default function HomePage() {
   return (
@@ -20,13 +15,8 @@ export default function HomePage() {
       <Navbar />
       <main>
         <Hero />
-        <About />
-        <Features />
         <Events />
-        {/* <Announcements /> */}
-        <Gallery />
         <Members />
-        <Contact />
       </main>
       <Footer />
     </>

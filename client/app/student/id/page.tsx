@@ -5,24 +5,28 @@ import {
   LuIdCard,
   LuShieldCheck,
   LuDownload,
-  LuShare2,
-  LuQrCode,
   LuInfo,
   LuCamera,
   LuLoader,
-  LuCircleCheck
+  LuCrop,
 } from "react-icons/lu";
 import { createClient } from "@/utils/supabase/client";
 import { Button } from "@/app/Components/ui/button";
 import { toast } from "sonner";
 import { useRouter } from "next/navigation";
 import { toPng } from "html-to-image";
+import { ImageCropperModal } from "@/app/Components/ui/image-cropper-modal";
 
 export default function StudentIDPage() {
   const [user, setUser] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [uploading, setUploading] = useState(false);
   const [downloading, setDownloading] = useState(false);
+
+  // Cropper State
+  const [cropImageSrc, setCropImageSrc] = useState<string | null>(null);
+  const [showCropper, setShowCropper] = useState(false);
+
   const fileInputRef = useRef<HTMLInputElement>(null);
   const cardRef = useRef<HTMLDivElement>(null);
   const router = useRouter();
@@ -37,7 +41,9 @@ export default function StudentIDPage() {
     let userEmail = "";
 
     // 1. Check Supabase Auth
-    const { data: { user: authUser } } = await supabase.auth.getUser();
+    const {
+      data: { user: authUser },
+    } = await supabase.auth.getUser();
     if (authUser?.email) {
       userEmail = authUser.email;
     } else {
@@ -73,28 +79,47 @@ export default function StudentIDPage() {
     setLoading(false);
   };
 
-  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+  // 1. File Selected -> Open Image Cropper Modal
+  const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
 
-    if (file.size > 2 * 1024 * 1024) {
-      toast.error("File size must be below 2MB");
+    if (!file.type.startsWith("image/")) {
+      toast.error("Please select a valid image file (PNG, JPG, WEBP).");
       return;
     }
 
+    if (file.size > 5 * 1024 * 1024) {
+      toast.error("File size must be below 5MB");
+      return;
+    }
+
+    const reader = new FileReader();
+    reader.onload = () => {
+      setCropImageSrc(reader.result as string);
+      setShowCropper(true);
+    };
+    reader.readAsDataURL(file);
+
+    // Reset input so re-selecting same file triggers onChange
+    if (fileInputRef.current) fileInputRef.current.value = "";
+  };
+
+  // 2. Crop Confirmed -> Upload to Cloudinary & Delete Old Image
+  const handleCropComplete = async (croppedBlob: Blob) => {
     setUploading(true);
+
     try {
-      // 1. Get configuration
       const cloudName = process.env.NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME;
       const uploadPreset = process.env.NEXT_PUBLIC_CLOUDINARY_UPLOAD_PRESET;
 
       if (!cloudName || !uploadPreset) {
-        throw new Error("Cloudinary configuration is missing in .env");
+        throw new Error("Cloudinary configuration is missing in environment variables.");
       }
 
-      // 2. Upload to Cloudinary
+      // 1. Upload new cropped photo to Cloudinary
       const formData = new FormData();
-      formData.append("file", file);
+      formData.append("file", croppedBlob, "profile.jpg");
       formData.append("upload_preset", uploadPreset);
 
       const res = await fetch(`https://api.cloudinary.com/v1_1/${cloudName}/image/upload`, {
@@ -102,15 +127,33 @@ export default function StudentIDPage() {
         body: formData,
       });
 
-      if (!res.ok) {
-        const errorData = await res.json();
-        throw new Error(errorData.error?.message || "Cloudinary upload failed");
+      const cloudData = await res.json();
+      if (!res.ok || !cloudData.secure_url) {
+        throw new Error(cloudData.error?.message || "Cloudinary upload failed");
       }
 
-      const cloudData = await res.json();
-      if (!cloudData.secure_url) throw new Error("No secure URL returned");
+      // 2. Delete old photo on Cloudinary to prevent orphaned storage
+      if (user?.profile_picture?.includes("cloudinary.com")) {
+        try {
+          const parts = user.profile_picture.split("/upload/");
+          if (parts.length === 2) {
+            let publicId = parts[1];
+            if (publicId.match(/^v\d+\//)) publicId = publicId.replace(/^v\d+\//, "");
+            const dotIndex = publicId.lastIndexOf(".");
+            if (dotIndex !== -1) publicId = publicId.substring(0, dotIndex);
 
-      // 2. Update Supabase users table
+            await fetch("/api/cloudinary/delete", {
+              method: "POST",
+              body: JSON.stringify({ public_id: publicId, resource_type: "image" }),
+              headers: { "Content-Type": "application/json" },
+            });
+          }
+        } catch (e) {
+          console.error("Failed to cleanup old profile picture:", e);
+        }
+      }
+
+      // 3. Update Supabase users table with new secure URL
       if (!user?.id) {
         throw new Error("User session expired or invalid. Please refresh.");
       }
@@ -122,23 +165,27 @@ export default function StudentIDPage() {
 
       if (error) throw error;
 
-      toast.success("Profile picture updated!");
-      fetchUserData(); // Refresh local state
+      toast.success("Profile photo cropped and updated successfully!");
+      setShowCropper(false);
+      setCropImageSrc(null);
+      fetchUserData(); // Refresh ID card display
     } catch (err: any) {
       console.error(err);
-      toast.error("Upload failed. Please try again.");
+      toast.error(err.message || "Upload failed. Please try again.");
     } finally {
       setUploading(false);
     }
   };
 
   // Generate QR Value (JSON)
-  const qrData = user ? JSON.stringify({
-    name: `${user.first_name} ${user.last_name}`,
-    id: user.student_id,
-    email: user.email,
-    photo: user.profile_picture
-  }) : "";
+  const qrData = user
+    ? JSON.stringify({
+        name: `${user.first_name} ${user.last_name}`,
+        id: user.student_id,
+        email: user.email,
+        photo: user.profile_picture,
+      })
+    : "";
 
   const qrImageUrl = `https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(qrData)}`;
 
@@ -152,12 +199,12 @@ export default function StudentIDPage() {
         quality: 1,
         pixelRatio: 2, // Higher resolution
         style: {
-          transform: 'scale(1)', // Ensure it captures correctly
-        }
+          transform: "scale(1)",
+        },
       });
 
-      const link = document.createElement('a');
-      link.download = `ORGW_ID_${user.student_id || 'MEMBER'}.png`;
+      const link = document.createElement("a");
+      link.download = `ACES_ID_${user.student_id || "MEMBER"}.png`;
       link.href = dataUrl;
       link.click();
       toast.success("ID saved as image!");
@@ -173,7 +220,9 @@ export default function StudentIDPage() {
     return (
       <div className="flex flex-col items-center justify-center py-40 gap-4">
         <LuLoader className="size-10 text-primary animate-spin" />
-        <p className="text-xs font-black text-slate-400 uppercase tracking-widest">Synchronizing Identity...</p>
+        <p className="text-xs font-black text-slate-400 uppercase tracking-widest">
+          Synchronizing Identity...
+        </p>
       </div>
     );
   }
@@ -182,8 +231,12 @@ export default function StudentIDPage() {
     <div className="space-y-8 max-w-5xl mx-auto">
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
         <div>
-          <h1 className="text-3xl font-black text-slate-900 tracking-tight leading-none mb-2">My Digital ID</h1>
-          <p className="text-slate-500 font-medium tracking-tight">Your official scannable organization credentials.</p>
+          <h1 className="text-3xl font-black text-slate-900 tracking-tight leading-none mb-2">
+            My Digital ID
+          </h1>
+          <p className="text-slate-500 font-medium tracking-tight">
+            Your official scannable organization credentials.
+          </p>
         </div>
         {user?.profile_picture && (
           <div className="flex gap-2">
@@ -195,14 +248,42 @@ export default function StudentIDPage() {
             >
               <LuDownload className="size-4 mr-2" /> Save as Image
             </Button>
-
+            <Button
+              variant="outline"
+              onClick={() => fileInputRef.current?.click()}
+              disabled={uploading}
+              className="h-11 rounded-xl font-bold bg-white text-slate-600 border-slate-200"
+            >
+              <LuCrop className="size-4 mr-2 text-primary" /> Change & Crop Photo
+            </Button>
           </div>
         )}
       </div>
 
+      {/* Hidden File Input */}
+      <input
+        type="file"
+        ref={fileInputRef}
+        onChange={handleFileSelect}
+        accept="image/*"
+        className="hidden"
+      />
+
+      {/* Image Cropper Modal */}
+      <ImageCropperModal
+        isOpen={showCropper}
+        imageSrc={cropImageSrc}
+        onClose={() => {
+          setShowCropper(false);
+          setCropImageSrc(null);
+        }}
+        onCropComplete={handleCropComplete}
+        isUploading={uploading}
+      />
+
       {!user?.profile_picture ? (
-        /* Step 1: Upload Profile Gateway */
-        <div className="bg-white rounded-[3rem] p-12 md:p-20 border-2 border-dashed border-slate-200 flex flex-col items-center text-center space-y-8">
+        /* Step 1: Upload & Crop Profile Gateway */
+        <div className="bg-white rounded-[3rem] p-12 md:p-20 border-2 border-dashed border-slate-200 flex flex-col items-center text-center space-y-8 shadow-sm">
           <div className="relative group">
             <div className="size-40 rounded-[3rem] bg-slate-50 border-4 border-white shadow-2xl flex items-center justify-center text-slate-200 overflow-hidden ring-1 ring-slate-100">
               <LuIdCard className="size-20" />
@@ -213,37 +294,33 @@ export default function StudentIDPage() {
           </div>
 
           <div className="max-w-md space-y-4">
-            <h2 className="text-3xl font-black text-slate-900 tracking-tight transition-all">Complete Your Profile</h2>
+            <h2 className="text-3xl font-black text-slate-900 tracking-tight transition-all">
+              Upload Your Profile Photo
+            </h2>
             <p className="text-slate-500 font-medium leading-relaxed">
-              To generate your secure Digital ID and scannable QR Code, please upload a clear profile picture first.
+              Upload and crop your photo to generate your secure Digital ID and scannable QR Code for attendance.
             </p>
           </div>
 
           <Button
             onClick={() => fileInputRef.current?.click()}
             disabled={uploading}
-            className="h-14 px-10 rounded-2xl font-black gradient-primary text-white shadow-xl shadow-primary/20 hover:scale-105 transition-all text-lg"
+            className="h-14 px-10 rounded-2xl font-black bg-primary hover:bg-primary/95 text-white shadow-xl shadow-primary/20 hover:scale-105 transition-all text-lg"
           >
             {uploading ? (
               <LuLoader className="size-5 animate-spin mr-2" />
             ) : (
               <LuCamera className="size-5 mr-3" />
             )}
-            {uploading ? "Uploading..." : "Upload Profile Photo"}
+            {uploading ? "Uploading..." : "Upload & Crop Photo"}
           </Button>
 
-          <input
-            type="file"
-            ref={fileInputRef}
-            onChange={handleFileUpload}
-            accept="image/*"
-            className="hidden"
-          />
-
-          <p className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em]">Max file size: 2MB</p>
+          <p className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em]">
+            Select an image to crop and adjust
+          </p>
         </div>
       ) : (
-        /* Step 2: Display Physical ID Layout (5h x 3.5w) */
+        /* Step 2: Display Physical ID Layout (3.5w x 5.5h) */
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-12 items-start">
           {/* Card Section: 5 High x 3.5 Wide Ratio */}
           <div className="lg:col-span-5 flex justify-center">
@@ -257,7 +334,7 @@ export default function StudentIDPage() {
               <div className="absolute bottom-[-10%] right-[-10%] size-48 bg-amber-400/20 rounded-full blur-[60px]" />
 
               <div className="relative z-10 flex flex-col h-full p-8 items-center">
-                {/* 1. Profile Picture (Small & Compact) */}
+                {/* 1. Profile Picture */}
                 <div className="size-28 rounded-2xl overflow-hidden bg-white/50 border-2 border-white shadow-lg mb-4 flex-shrink-0 flex items-center justify-center text-orange-200">
                   {user.profile_picture ? (
                     <img
@@ -265,7 +342,7 @@ export default function StudentIDPage() {
                       alt="ID Photo"
                       className="size-full object-cover"
                       onError={(e) => {
-                        (e.target as HTMLImageElement).src = ""; // Clear broken src
+                        (e.target as HTMLImageElement).src = "";
                         (e.target as HTMLImageElement).style.display = "none";
                       }}
                     />
@@ -286,29 +363,37 @@ export default function StudentIDPage() {
 
                 {/* 3. Student ID */}
                 <div className="text-center mb-4">
-                  <p className="text-[8px] font-black text-slate-400 uppercase tracking-[0.3em] mb-0.5">Student ID</p>
-                  <p className="text-sm font-black text-slate-700 tracking-[0.1em]">{user.student_id || "NOT-SET"}</p>
+                  <p className="text-[8px] font-black text-slate-400 uppercase tracking-[0.3em] mb-0.5">
+                    Student ID
+                  </p>
+                  <p className="text-sm font-black text-slate-700 tracking-[0.1em]">
+                    {user.student_id || "NOT-SET"}
+                  </p>
                 </div>
 
-                {/* Separator - Tightened */}
+                {/* Separator */}
                 <div className="w-full h-px bg-slate-200/50" />
 
-                {/* 4. QR Code - Optimized for Scanability */}
+                {/* 4. QR Code */}
                 <div className="flex-1 flex flex-col items-center justify-center w-full">
-                  <div className="bg-white rounded-3 xl shadow-xl border border-white relative group">
+                  <div className="bg-white rounded-3xl shadow-xl border border-white relative group p-2">
                     <img
                       src={qrImageUrl}
                       alt="Scannable QR"
-                      className="size-40 transition-transform group-hover:scale-105 duration-500"
+                      className="size-36 transition-transform group-hover:scale-105 duration-500"
                     />
                     <div className="absolute -inset-2 bg-gradient-to-tr from-orange-500/10 to-amber-500/10 rounded-2xl -z-10 blur-sm opacity-0 group-hover:opacity-100 transition-opacity" />
                   </div>
-                  <p className="text-[9px] font-black text-slate-400 uppercase tracking-[0.4em] mt-2">Scan for Verification</p>
+                  <p className="text-[9px] font-black text-slate-400 uppercase tracking-[0.4em] mt-2">
+                    Scan for Verification
+                  </p>
                 </div>
 
                 {/* School/Org Name at Bottom */}
                 <div className="pt-1 border-t border-slate-200/50 w-full text-center">
-                  <p className="text-[11px] font-black text-slate-900 tracking-widest uppercase opacity-40">ACETRACK 3.0</p>
+                  <p className="text-[11px] font-black text-slate-900 tracking-widest uppercase opacity-40">
+                    ACES • ACETRACK 3.0
+                  </p>
                 </div>
               </div>
             </div>
@@ -316,26 +401,30 @@ export default function StudentIDPage() {
 
           {/* Details & Usage Section */}
           <div className="lg:col-span-7 space-y-6">
-            {/* New Official Usage Card */}
             <div className="bg-emerald-50 rounded-[2.5rem] border border-emerald-100 p-10 flex items-start gap-6 shadow-sm">
               <div className="p-4 bg-white rounded-3xl shadow-xl shadow-emerald-900/5 text-emerald-600">
                 <LuShieldCheck className="size-6" />
               </div>
               <div className="space-y-2 text-left">
-                <h3 className="text-lg font-black text-emerald-800 tracking-tight leading-none">Official Usage Guide</h3>
+                <h3 className="text-lg font-black text-emerald-800 tracking-tight leading-none">
+                  Official Usage Guide
+                </h3>
                 <div className="space-y-3 pt-2">
                   <div className="flex items-center gap-3">
                     <div className="size-2 rounded-full bg-emerald-400" />
-                    <p className="text-sm font-bold text-emerald-700">Use this for attendance monitoring</p>
+                    <p className="text-sm font-bold text-emerald-700">
+                      Use this for attendance monitoring
+                    </p>
                   </div>
                   <div className="flex items-center gap-3">
                     <div className="size-2 rounded-full bg-emerald-400" />
-                    <p className="text-sm font-bold text-emerald-700">Show this when paying other fees</p>
+                    <p className="text-sm font-bold text-emerald-700">
+                      Show this when paying other organization fees
+                    </p>
                   </div>
                 </div>
               </div>
             </div>
-
 
             <div className="bg-orange-50 rounded-[2.5rem] border border-orange-100 p-10 flex items-start gap-6">
               <div className="p-4 bg-white rounded-3xl shadow-xl shadow-orange-900/5 text-orange-600">
@@ -344,13 +433,11 @@ export default function StudentIDPage() {
               <div className="space-y-2">
                 <h3 className="text-lg font-black text-orange-900 tracking-tight">Security Protocol</h3>
                 <p className="text-sm font-medium text-orange-700 leading-relaxed">
-                  Your Digital ID is encrypted and linked directly to your school account. The QR code is refreshed periodically and contains verification metadata to prevent duplication. Always present this for official organization business.
+                  Your Digital ID is encrypted and linked directly to your student account. The QR code contains verification metadata to prevent duplication.
                 </p>
               </div>
             </div>
-
           </div>
-
         </div>
       )}
 

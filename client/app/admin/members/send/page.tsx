@@ -1,61 +1,64 @@
 "use client";
 
-import React, { useEffect, useState, useMemo } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 import { 
-  LuMail, 
   LuSearch, 
-  LuCircleCheck, 
-  LuHistory, 
-  LuExternalLink, 
   LuClipboard, 
-  LuInfo,
-  LuSend,
-  LuCircleAlert,
-  LuChevronLeft,
-  LuChevronRight,
-  LuFilter
+  LuFilter, 
+  LuChevronLeft, 
+  LuChevronRight, 
+  LuEye, 
+  LuEyeOff, 
+  LuUserCheck, 
+  LuKeyRound, 
+  LuGraduationCap, 
+  LuMail, 
+  LuHash, 
+  LuCheck 
 } from "react-icons/lu";
-import { Button } from "@/app/Components/ui/button";
-import { Card, CardContent } from "@/app/Components/ui/card";
-import { toast } from "sonner";
 import { createClient } from "@/utils/supabase/client";
-import { ConfirmModal } from "@/app/Components/ui/confirm-modal";
+import { Card } from "@/app/Components/ui/card";
+import { Button } from "@/app/Components/ui/button";
 import { Modal } from "@/app/Components/ui/modal";
+import { toast } from "sonner";
 
-interface MemberToNotify {
+interface MemberRecord {
   id: string;
+  student_id: string;
   first_name: string;
   middle_initial?: string;
   last_name: string;
   email: string;
-  student_id: string;
   course?: string;
-  accounts: {
-    role: number;
-  } | null;
-  send_credentials: {
-    sent_at: string;
-    status: string;
-  } | null;
+  section?: string;
+  year?: string;
+  created_at?: string;
+  memberships?: {
+    status?: string;
+    payment?: number;
+    receipt?: string;
+  };
 }
 
-export default function SendCredentialsPage() {
-  const [members, setMembers] = useState<MemberToNotify[]>([]);
+export default function StudentCredentialsPage() {
+  const [members, setMembers] = useState<MemberRecord[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
-  const [selectedCourse, setSelectedCourse] = useState<string>("All");
-  const [viewMode, setViewMode] = useState<"Pending" | "Sent">("Pending");
+  const [selectedCourse, setSelectedCourse] = useState("All");
+  const [selectedYear, setSelectedYear] = useState("All");
   const [currentPage, setCurrentPage] = useState(1);
-  const itemsPerPage = 10;
-  const supabase = createClient();
+  const [itemsPerPage] = useState(10);
+  
+  // Password visibility state per row ID
+  const [visiblePasswords, setVisiblePasswords] = useState<{ [key: string]: boolean }>({});
+  
+  // Modal State
+  const [selectedMember, setSelectedMember] = useState<MemberRecord | null>(null);
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [isModalPasswordVisible, setIsModalPasswordVisible] = useState(false);
+  const [copiedKey, setCopiedKey] = useState<string | null>(null);
 
-  const [isViewModalOpen, setIsViewModalOpen] = useState(false);
-  const [selectedMemberCredentials, setSelectedMemberCredentials] = useState<{
-    name: string;
-    email: string;
-    password: string;
-    studentId: string;
-  } | null>(null);
+  const supabase = createClient();
 
   const fetchMembers = async () => {
     setLoading(true);
@@ -63,65 +66,34 @@ export default function SendCredentialsPage() {
       const { data, error } = await supabase
         .from("users")
         .select(`
-          id, first_name, middle_initial, last_name, email, student_id, course,
-          accounts:accounts!inner(role),
-          send_credentials:send_credentials(id, sent_at, status)
+          id,
+          student_id,
+          first_name,
+          middle_initial,
+          last_name,
+          email,
+          course,
+          section,
+          year,
+          created_at,
+          memberships:memberships(status, payment, receipt),
+          accounts:accounts!inner(role)
         `)
         .neq('accounts.role', 0)
-        .order('created_at', { ascending: false });
+        .order("created_at", { ascending: false });
 
       if (error) throw error;
-      
+
       const formatted = (data as any[]).map(item => ({
         ...item,
-        accounts: Array.isArray(item.accounts) ? item.accounts[0] : item.accounts,
-        send_credentials: Array.isArray(item.send_credentials) ? item.send_credentials[0] : item.send_credentials
+        memberships: Array.isArray(item.memberships) ? item.memberships[0] : item.memberships
       }));
 
       setMembers(formatted);
     } catch (error: any) {
-      toast.error(`Failed to load members: ${error.message}`);
+      toast.error(`Failed to load student credentials: ${error.message}`);
     } finally {
       setLoading(false);
-    }
-  };
-
-  const uniqueCourses = useMemo(() => {
-    const courses = members.map(m => m.course).filter(Boolean) as string[];
-    return Array.from(new Set(courses)).sort();
-  }, [members]);
-
-  const generateNewPassword = (firstName: string, lastName: string) => {
-    const first2 = firstName.substring(0, 2).toLowerCase();
-    const last2 = lastName.substring(lastName.length - 2).toLowerCase();
-    const random5 = Math.random().toString(36).substring(2, 7);
-    return `${first2}${last2}${random5}2026`;
-  };
-
-  const handleViewCredentials = async (member: MemberToNotify) => {
-    const password = generateNewPassword(member.first_name, member.last_name);
-    const name = `${member.first_name} ${member.middle_initial ? member.middle_initial + " " : ""}${member.last_name}`;
-    
-    try {
-      const { error: updateError } = await supabase
-        .from("accounts")
-        .update({ password: password })
-        .eq("user_id", member.id);
-
-      if (updateError) throw updateError;
-
-      setSelectedMemberCredentials({
-        name,
-        email: member.email,
-        password,
-        studentId: member.student_id
-      });
-      setIsViewModalOpen(true);
-      toast.success(`Credentials generated for ${name}`);
-      fetchMembers();
-    } catch (error: any) {
-      console.error("View credentials generation failed:", error);
-      toast.error(`Failed to generate credentials: ${error.message}`);
     }
   };
 
@@ -129,143 +101,121 @@ export default function SendCredentialsPage() {
     fetchMembers();
   }, []);
 
-  // Reset to page 1 when filters change
+  // Reset to page 1 on filter changes
   useEffect(() => {
     setCurrentPage(1);
-  }, [searchQuery, viewMode, selectedCourse]);
+  }, [searchQuery, selectedCourse, selectedYear]);
 
-  const handleSendEmail = async (member: MemberToNotify) => {
-    const password = generateNewPassword(member.first_name, member.last_name);
-    const name = `${member.first_name} ${member.middle_initial ? member.middle_initial + " " : ""}${member.last_name}`;
-    
-    try {
-      // 1. Update the password in the database (this triggers the hash trigger)
-      const { error: updateError } = await supabase
-        .from("accounts")
-        .update({ password: password })
-        .eq("user_id", member.id);
+  const uniqueCourses = useMemo(() => {
+    const courses = members.map(m => m.course).filter(Boolean) as string[];
+    return Array.from(new Set(courses)).sort();
+  }, [members]);
 
-      if (updateError) throw updateError;
+  const uniqueYears = useMemo(() => {
+    const years = members.map(m => m.year).filter(Boolean) as string[];
+    return Array.from(new Set(years)).sort();
+  }, [members]);
 
-      // 2. Launch the email client with the PLAIN TEXT password (in memory only)
-      const email = member.email;
-      const subject = encodeURIComponent("Your ACETRACK 3.0 Member Credentials");
-      const body = encodeURIComponent(
-        `here is your credentials\n\nEmail: ${email}\nEncrypt Password: ${password}\n\nSender: roberto.prisoris12@gmail.com`
-      );
-
-      window.open(`mailto:${email}?subject=${subject}&body=${body}`, "_blank");
-
-      // 3. Mark as sent
-      const { error: logError } = await supabase
-        .from("send_credentials")
-        .upsert({ user_id: member.id, status: "Sent" }, { onConflict: 'user_id' });
-
-      if (logError) throw logError;
-      
-      toast.success(`Credentials generated and prepared for ${name}`);
-      fetchMembers();
-    } catch (error: any) {
-      console.error("Workflow failed:", error);
-      toast.error(`Failed to generate credentials: ${error.message}`);
-    }
+  const getStudentPassword = (studentId?: string) => {
+    return studentId && studentId.trim() ? studentId.trim() : "0000-0000";
   };
 
-  const copyToClipboard = (text: string) => {
+  const togglePasswordVisibility = (id: string) => {
+    setVisiblePasswords(prev => ({
+      ...prev,
+      [id]: !prev[id]
+    }));
+  };
+
+  const copyToClipboard = (text: string, keyName?: string) => {
     navigator.clipboard.writeText(text);
+    if (keyName) {
+      setCopiedKey(keyName);
+      setTimeout(() => setCopiedKey(null), 2000);
+    }
     toast.success("Copied to clipboard!");
   };
 
-  const filteredMembers = members.filter(member => {
-    const matchesSearch = 
-      `${member.first_name} ${member.middle_initial ? member.middle_initial + " " : ""}${member.last_name}`.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      member.email?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      (member.student_id || "").toLowerCase().includes(searchQuery.toLowerCase()) ||
-      (member.course || "").toLowerCase().includes(searchQuery.toLowerCase());
-    
-    const matchesCourse = selectedCourse === "All" || member.course === selectedCourse;
-    const isSent = !!member.send_credentials;
-    const matchesTab = viewMode === "Sent" ? isSent : !isSent;
+  const filteredMembers = useMemo(() => {
+    const query = searchQuery.toLowerCase().trim();
+    return members.filter(member => {
+      const fullName = `${member.first_name || ""} ${member.middle_initial || ""} ${member.last_name || ""}`.toLowerCase();
+      const studentId = (member.student_id || "").toLowerCase();
+      const email = (member.email || "").toLowerCase();
+      const course = (member.course || "").toLowerCase();
+      const section = (member.section || "").toLowerCase();
+      const year = (member.year || "").toLowerCase();
 
-    return matchesSearch && matchesCourse && matchesTab;
-  });
+      const matchesSearch = !query || 
+        fullName.includes(query) ||
+        studentId.includes(query) ||
+        email.includes(query) ||
+        course.includes(query) ||
+        section.includes(query) ||
+        year.includes(query);
+
+      const matchesCourse = selectedCourse === "All" || member.course === selectedCourse;
+      const matchesYear = selectedYear === "All" || member.year === selectedYear;
+
+      return matchesSearch && matchesCourse && matchesYear;
+    });
+  }, [members, searchQuery, selectedCourse, selectedYear]);
 
   const totalPages = Math.ceil(filteredMembers.length / itemsPerPage);
-  const paginatedMembers = filteredMembers.slice(
-    (currentPage - 1) * itemsPerPage,
-    currentPage * itemsPerPage
-  );
+  const paginatedMembers = useMemo(() => {
+    return filteredMembers.slice(
+      (currentPage - 1) * itemsPerPage,
+      currentPage * itemsPerPage
+    );
+  }, [filteredMembers, currentPage, itemsPerPage]);
+
+  const handleOpenDetails = (member: MemberRecord) => {
+    setSelectedMember(member);
+    setIsModalPasswordVisible(false);
+    setIsModalOpen(true);
+  };
 
   return (
     <div className="flex flex-col space-y-6 animate-in fade-in duration-700 h-[calc(100vh-6rem)] lg:h-[calc(100vh-8rem)] overflow-hidden">
+      {/* Header */}
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 shrink-0">
         <div>
-          <h1 className="text-4xl font-black tracking-tight text-slate-900">Send Credentials</h1>
-          <p className="text-slate-500 font-medium mt-1">Provide accounts credentials to students via email.</p>
+          <h1 className="text-4xl font-black tracking-tight text-slate-900">Student Credentials</h1>
+          <p className="text-slate-500 font-medium mt-1">Search and view student account login details and default passwords.</p>
         </div>
 
-        <div className="flex bg-slate-100 p-1.5 rounded-2xl border border-slate-200">
-          <button
-            onClick={() => setViewMode("Pending")}
-            className={`flex items-center gap-2 px-6 py-2.5 rounded-xl text-xs font-black transition-all ${
-              viewMode === "Pending" 
-                ? "bg-white text-primary shadow-xl shadow-primary/10" 
-                : "text-slate-500 hover:text-slate-800"
-            }`}
-          >
-            <LuSend className="size-4" />
-            PENDING ({members.filter(m => !m.send_credentials).length})
-          </button>
-          <button
-            onClick={() => setViewMode("Sent")}
-            className={`flex items-center gap-2 px-6 py-2.5 rounded-xl text-xs font-black transition-all ${
-              viewMode === "Sent" 
-                ? "bg-white text-primary shadow-xl shadow-primary/10" 
-                : "text-slate-500 hover:text-slate-800"
-            }`}
-          >
-            <LuHistory className="size-4" />
-            SENT ({members.filter(m => !!m.send_credentials).length})
-          </button>
+        <div className="flex items-center gap-2 bg-primary/5 border border-primary/15 px-4 py-2 rounded-2xl">
+          <LuKeyRound className="size-5 text-primary" />
+          <span className="text-xs font-black text-primary uppercase tracking-wider">
+            Total Students: {members.length}
+          </span>
         </div>
       </div>
 
-      {viewMode === "Pending" && (
-        <div className="bg-primary/5 border border-primary/10 p-5 rounded-[2rem] flex items-start gap-4 shrink-0">
-          <div className="size-10 rounded-2xl bg-primary/10 flex items-center justify-center text-primary shrink-0">
-            <LuInfo className="size-6" />
-          </div>
-          <div>
-            <h4 className="text-sm font-black text-primary">Secure Notification Workflow</h4>
-            <p className="text-xs text-primary/70 font-bold mt-1 leading-relaxed">
-              To maintain security, plain-text passwords are never stored. Clicking &quot;Send Credentials&quot; will generate a **NEW** password, 
-              save its secure hash in the database, and then open your email draft with the plain-text login details.
-            </p>
-          </div>
-        </div>
-      )}
-
+      {/* Main Table Card */}
       <Card className="flex-1 flex flex-col overflow-hidden border-slate-200 shadow-2xl shadow-slate-200/50 rounded-[2.5rem] bg-white">
+        {/* Search & Filters */}
         <div className="p-6 border-b border-slate-100 shrink-0">
-          <div className="flex flex-col sm:flex-row gap-4 items-center justify-between">
+          <div className="flex flex-col md:flex-row gap-4 items-center justify-between">
             <div className="relative group max-w-md w-full">
               <LuSearch className="absolute left-4 top-1/2 -translate-y-1/2 size-4 text-slate-400 group-focus-within:text-primary transition-colors" />
               <input 
                 type="text" 
-                placeholder="Filter by name, email, or course..." 
+                placeholder="Search by Student ID, name, email, or section..." 
                 className="w-full h-12 pl-12 pr-4 bg-slate-50 border border-slate-200 rounded-2xl text-sm focus:bg-white focus:outline-none focus:ring-4 focus:ring-primary/10 transition-all font-medium"
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
               />
             </div>
 
-            <div className="flex items-center gap-3 w-full sm:w-auto">
-              <div className="flex items-center gap-2 bg-slate-50 border border-slate-200 rounded-2xl px-4 h-12 w-full sm:w-auto focus-within:ring-4 focus-within:ring-primary/10 focus-within:bg-white transition-all">
+            <div className="flex items-center gap-3 w-full md:w-auto flex-wrap">
+              {/* Course Filter */}
+              <div className="flex items-center gap-2 bg-slate-50 border border-slate-200 rounded-2xl px-4 h-12 focus-within:ring-4 focus-within:ring-primary/10 focus-within:bg-white transition-all">
                 <LuFilter className="size-4 text-slate-400 shrink-0" />
                 <select
                   value={selectedCourse}
                   onChange={(e) => setSelectedCourse(e.target.value)}
-                  className="bg-transparent text-sm font-bold text-slate-700 focus:outline-none cursor-pointer w-full"
+                  className="bg-transparent text-sm font-bold text-slate-700 focus:outline-none cursor-pointer"
                 >
                   <option value="All">All Courses</option>
                   {uniqueCourses.map((course) => (
@@ -275,118 +225,167 @@ export default function SendCredentialsPage() {
                   ))}
                 </select>
               </div>
+
+              {/* Year Filter */}
+              <div className="flex items-center gap-2 bg-slate-50 border border-slate-200 rounded-2xl px-4 h-12 focus-within:ring-4 focus-within:ring-primary/10 focus-within:bg-white transition-all">
+                <select
+                  value={selectedYear}
+                  onChange={(e) => setSelectedYear(e.target.value)}
+                  className="bg-transparent text-sm font-bold text-slate-700 focus:outline-none cursor-pointer"
+                >
+                  <option value="All">All Years</option>
+                  {uniqueYears.map((yr) => (
+                    <option key={yr} value={yr}>
+                      {yr} Year
+                    </option>
+                  ))}
+                </select>
+              </div>
             </div>
           </div>
         </div>
 
+        {/* Table Content */}
         <div className="overflow-x-auto flex-1 overflow-y-auto custom-scrollbar">
           <table className="w-full text-left border-collapse">
             <thead>
               <tr className="bg-slate-50/50">
                 <th className="px-6 py-4 text-[10px] font-black uppercase tracking-widest text-slate-400">Student Info</th>
-                <th className="px-6 py-4 text-[10px] font-black uppercase tracking-widest text-slate-400 text-center">Status</th>
-                <th className="px-6 py-4 text-[10px] font-black uppercase tracking-widest text-slate-400 text-right">Actions</th>
+                <th className="px-6 py-4 text-[10px] font-black uppercase tracking-widest text-slate-400">Academic Info</th>
+                <th className="px-6 py-4 text-[10px] font-black uppercase tracking-widest text-slate-400">Student ID</th>
+                <th className="px-6 py-4 text-[10px] font-black uppercase tracking-widest text-slate-400">Default Password</th>
+                <th className="px-6 py-4 text-[10px] font-black uppercase tracking-widest text-slate-400 text-right">Action</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
               {loading ? (
-                <tr><td colSpan={3} className="px-6 py-20 text-center font-bold text-slate-400 italic">Processing data...</td></tr>
+                <tr>
+                  <td colSpan={5} className="px-6 py-20 text-center font-bold text-slate-400 italic">
+                    Loading student credentials...
+                  </td>
+                </tr>
               ) : paginatedMembers.length === 0 ? (
                 <tr>
-                  <td colSpan={3} className="px-6 py-24 text-center">
+                  <td colSpan={5} className="px-6 py-24 text-center">
                     <div className="mx-auto size-16 bg-slate-50 rounded-full flex items-center justify-center mb-4">
-                      {viewMode === "Pending" ? <LuCircleCheck className="size-8 text-emerald-300" /> : <LuCircleAlert className="size-8 text-slate-200" />}
+                      <LuSearch className="size-8 text-slate-300" />
                     </div>
-                    <h3 className="text-xl font-black text-slate-900">{viewMode === "Pending" ? "All Caught Up!" : "No History"}</h3>
+                    <h3 className="text-xl font-black text-slate-900">No Students Found</h3>
                     <p className="text-sm font-medium text-slate-500 mt-1">
-                      {viewMode === "Pending" ? "There are no students waiting for credentials." : "You haven't sent any credentials yet."}
+                      Try adjusting your search query or course/year filters.
                     </p>
                   </td>
                 </tr>
               ) : (
-                paginatedMembers.map((member) => (
-                  <tr key={member.id} className="hover:bg-slate-50/50 transition-colors group">
-                    <td className="px-6 py-5">
-                      <div className="flex items-center gap-4">
-                        <div className="size-11 rounded-2xl bg-slate-100 border border-slate-200 flex items-center justify-center text-slate-500 font-black text-sm">
-                          {member.first_name[0]}{member.last_name[0]}
-                        </div>
-                        <div>
-                          <div className="font-black text-slate-900 text-base">
-                            {member.first_name} {member.middle_initial ? member.middle_initial + " " : ""}{member.last_name}
+                paginatedMembers.map((member) => {
+                  const password = getStudentPassword(member.student_id);
+                  const isVisible = !!visiblePasswords[member.id];
+                  const fullName = `${member.first_name} ${member.middle_initial ? member.middle_initial + " " : ""}${member.last_name}`;
+
+                  return (
+                    <tr key={member.id} className="hover:bg-slate-50/50 transition-colors group">
+                      {/* Student Info */}
+                      <td className="px-6 py-4">
+                        <div className="flex items-center gap-3">
+                          <div className="size-10 rounded-2xl bg-primary/10 border border-primary/20 flex items-center justify-center text-primary font-black text-xs shrink-0">
+                            {member.first_name[0]}{member.last_name[0]}
                           </div>
-                          <div className="text-xs font-bold text-slate-400 tracking-tight flex items-center gap-1.5 flex-wrap mt-0.5">
-                            <span>{member.email}</span>
-                            <span>•</span>
-                            <span className="text-primary font-black">ID: {member.student_id || 'NOT SET'}</span>
-                            {member.course && (
-                              <>
-                                <span>•</span>
-                                <span className="bg-primary/10 text-primary px-2 py-0.5 rounded-md font-extrabold text-[10px] uppercase tracking-wider">
-                                  {member.course}
-                                </span>
-                              </>
-                            )}
+                          <div>
+                            <div className="font-black text-slate-900 text-sm">
+                              {fullName}
+                            </div>
+                            <div className="text-xs font-medium text-slate-400 flex items-center gap-1.5 mt-0.5">
+                              <span>{member.email}</span>
+                            </div>
                           </div>
                         </div>
-                      </div>
-                    </td>
-                    <td className="px-6 py-5 text-center">
-                      {member.send_credentials ? (
-                        <div className="flex flex-col items-center">
-                          <span className="inline-flex items-center px-3 py-1 rounded-lg text-[10px] font-black uppercase tracking-widest bg-emerald-50 text-emerald-600 border border-emerald-100">
-                            Authenticated & Sent
-                          </span>
-                          <span className="text-[10px] font-bold text-slate-400 mt-1">
-                            {new Date(member.send_credentials.sent_at).toLocaleDateString()}
-                          </span>
+                      </td>
+
+                      {/* Academic Info */}
+                      <td className="px-6 py-4">
+                        <div className="flex items-center gap-2 flex-wrap">
+                          {member.course && (
+                            <span className="bg-slate-100 text-slate-700 px-2.5 py-1 rounded-lg font-bold text-[11px] border border-slate-200">
+                              {member.course}
+                            </span>
+                          )}
+                          {member.year && (
+                            <span className="text-xs font-semibold text-slate-500">
+                              Yr {member.year}
+                            </span>
+                          )}
+                          {member.section && (
+                            <span className="text-xs font-semibold text-slate-500">
+                              Sec {member.section}
+                            </span>
+                          )}
                         </div>
-                      ) : (
-                        <span className="inline-flex items-center px-3 py-1 rounded-lg text-[10px] font-black uppercase tracking-widest bg-amber-50 text-amber-600 border border-amber-100">
-                           Awaiting Secure Generation
-                        </span>
-                      )}
-                    </td>
-                    <td className="px-6 py-5 text-right">
-                      <div className="flex justify-end gap-2">
+                      </td>
+
+                      {/* Student ID */}
+                      <td className="px-6 py-4">
+                        <div className="inline-flex items-center gap-2 bg-primary/5 border border-primary/15 px-3 py-1.5 rounded-xl">
+                          <span className="font-mono text-xs font-black text-primary tracking-wide">
+                            {member.student_id || "NOT SET"}
+                          </span>
+                          {member.student_id && (
+                            <button
+                              onClick={() => copyToClipboard(member.student_id, `id-${member.id}`)}
+                              title="Copy Student ID"
+                              className="text-primary/60 hover:text-primary transition-colors"
+                            >
+                              {copiedKey === `id-${member.id}` ? <LuCheck className="size-3.5 text-emerald-500" /> : <LuClipboard className="size-3.5" />}
+                            </button>
+                          )}
+                        </div>
+                      </td>
+
+                      {/* Default Password */}
+                      <td className="px-6 py-4">
+                        <div className="inline-flex items-center gap-2 bg-slate-100 border border-slate-200 px-3 py-1.5 rounded-xl">
+                          <span className="font-mono text-xs font-bold text-slate-900 tracking-wider">
+                            {isVisible ? password : "••••••••"}
+                          </span>
+                          <button
+                            onClick={() => togglePasswordVisibility(member.id)}
+                            title={isVisible ? "Hide Password" : "Show Password"}
+                            className="text-slate-400 hover:text-slate-700 transition-colors ml-1"
+                          >
+                            {isVisible ? <LuEyeOff className="size-3.5" /> : <LuEye className="size-3.5" />}
+                          </button>
+                          <button
+                            onClick={() => copyToClipboard(password, `pass-${member.id}`)}
+                            title="Copy Password"
+                            className="text-slate-400 hover:text-slate-700 transition-colors"
+                          >
+                            {copiedKey === `pass-${member.id}` ? <LuCheck className="size-3.5 text-emerald-500" /> : <LuClipboard className="size-3.5" />}
+                          </button>
+                        </div>
+                      </td>
+
+                      {/* Action */}
+                      <td className="px-6 py-4 text-right">
                         <Button 
                           variant="outline"
-                          onClick={() => handleViewCredentials(member)}
-                          className="rounded-xl h-10 px-4 font-black border-slate-200 hover:bg-slate-50 transition-all text-xs"
+                          onClick={() => handleOpenDetails(member)}
+                          className="rounded-xl h-9 px-3.5 font-bold border-slate-200 hover:bg-slate-100 hover:text-slate-900 transition-all text-xs"
                         >
-                          <LuClipboard className="size-4 mr-2" />
-                          View Only
+                          <LuUserCheck className="size-3.5 mr-1.5 text-primary" />
+                          View Details
                         </Button>
-                        {viewMode === "Pending" ? (
-                          <Button 
-                            onClick={() => handleSendEmail(member)}
-                            className="rounded-xl h-10 px-4 font-black gradient-primary shadow-lg shadow-primary/20 hover:scale-[1.02] transition-all text-xs"
-                          >
-                            <LuMail className="size-4 mr-2" />
-                            Send
-                          </Button>
-                        ) : (
-                          <Button 
-                            variant="outline" 
-                            onClick={() => handleSendEmail(member)}
-                            className="rounded-xl h-10 px-4 font-black border-slate-200 hover:bg-slate-50 transition-all text-xs"
-                          >
-                            <LuExternalLink className="size-4 mr-2" />
-                            Resend
-                          </Button>
-                        )}
-                      </div>
-                    </td>
-                  </tr>
-                ))
+                      </td>
+                    </tr>
+                  );
+                })
               )}
             </tbody>
           </table>
         </div>
         
+        {/* Pagination Footer */}
         <div className="p-6 bg-slate-50/50 border-t border-slate-100 flex items-center justify-between shrink-0">
           <p className="text-xs font-bold text-slate-500 uppercase tracking-widest">
-            Showing <span className="text-slate-900">{Math.min(filteredMembers.length, (currentPage - 1) * itemsPerPage + 1)}-{Math.min(filteredMembers.length, currentPage * itemsPerPage)}</span> of <span className="text-slate-900">{filteredMembers.length}</span> students
+            Showing <span className="text-slate-900">{filteredMembers.length > 0 ? (currentPage - 1) * itemsPerPage + 1 : 0}-{Math.min(filteredMembers.length, currentPage * itemsPerPage)}</span> of <span className="text-slate-900">{filteredMembers.length}</span> students
           </p>
           <div className="flex items-center gap-2">
             <Button 
@@ -410,88 +409,149 @@ export default function SendCredentialsPage() {
           </div>
         </div>
       </Card>
-      
-      <div className="text-center shrink-0">
-        <p className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-300">
-          Sender Email: roberto.prisoris12@gmail.com
-        </p>
-      </div>
 
+      {/* Student Details & Credentials Modal */}
       <Modal
-        isOpen={isViewModalOpen}
+        isOpen={isModalOpen}
         onClose={() => {
-          setIsViewModalOpen(false);
-          setSelectedMemberCredentials(null);
+          setIsModalOpen(false);
+          setSelectedMember(null);
         }}
-        title="View Student Credentials"
+        title="Student Credentials & Details"
+        className="max-w-lg"
       >
-        {selectedMemberCredentials && (
-          <div className="space-y-6">
-            <div className="bg-slate-50 p-4 rounded-2xl border border-slate-100 space-y-3">
-              <div className="flex justify-between items-center text-xs font-bold uppercase tracking-wider text-slate-400">
-                <span>Student Details</span>
-                <span className="text-primary">ID: {selectedMemberCredentials.studentId || 'N/A'}</span>
+        {selectedMember && (
+          <div className="space-y-6 pt-2">
+            {/* Student Header */}
+            <div className="bg-slate-50 p-5 rounded-2xl border border-slate-100 flex items-center gap-4">
+              <div className="size-14 rounded-2xl bg-primary text-white flex items-center justify-center font-black text-xl shadow-lg shadow-primary/20 shrink-0">
+                {selectedMember.first_name[0]}{selectedMember.last_name[0]}
               </div>
-              <p className="text-lg font-black text-slate-900">{selectedMemberCredentials.name}</p>
+              <div className="min-w-0 flex-1">
+                <h3 className="text-lg font-black text-slate-900 truncate">
+                  {selectedMember.first_name} {selectedMember.middle_initial ? selectedMember.middle_initial + " " : ""}{selectedMember.last_name}
+                </h3>
+                <p className="text-xs font-semibold text-slate-400 truncate mt-0.5">
+                  {selectedMember.email}
+                </p>
+                <div className="flex items-center gap-2 mt-2 flex-wrap">
+                  {selectedMember.course && (
+                    <span className="bg-primary/10 text-primary font-bold text-[10px] uppercase tracking-wider px-2 py-0.5 rounded-md">
+                      {selectedMember.course}
+                    </span>
+                  )}
+                  {selectedMember.year && (
+                    <span className="bg-slate-200 text-slate-700 font-bold text-[10px] px-2 py-0.5 rounded-md">
+                      Year {selectedMember.year}
+                    </span>
+                  )}
+                  {selectedMember.section && (
+                    <span className="bg-slate-200 text-slate-700 font-bold text-[10px] px-2 py-0.5 rounded-md">
+                      Section {selectedMember.section}
+                    </span>
+                  )}
+                </div>
+              </div>
             </div>
 
+            {/* Credentials Section */}
             <div className="space-y-4">
+              {/* Student ID */}
               <div className="space-y-1.5">
-                <label className="text-xs font-black uppercase tracking-wider text-slate-400">Email / Username</label>
+                <label className="text-xs font-black uppercase tracking-wider text-slate-400 flex items-center gap-1.5">
+                  <LuHash className="size-3.5 text-slate-400" />
+                  Student ID
+                </label>
                 <div className="flex gap-2">
                   <input
                     type="text"
                     readOnly
-                    value={selectedMemberCredentials.email}
+                    value={selectedMember.student_id || "NOT SET"}
+                    className="flex-1 h-11 px-4 bg-slate-50 border border-slate-200 rounded-xl text-sm font-mono font-black text-slate-800 outline-none"
+                  />
+                  <Button
+                    variant="outline"
+                    className="rounded-xl px-3 border-slate-200 hover:bg-slate-100"
+                    onClick={() => copyToClipboard(selectedMember.student_id || "", "modal-id")}
+                  >
+                    {copiedKey === "modal-id" ? <LuCheck className="size-4 text-emerald-500" /> : <LuClipboard className="size-4" />}
+                  </Button>
+                </div>
+              </div>
+
+              {/* Email / Username */}
+              <div className="space-y-1.5">
+                <label className="text-xs font-black uppercase tracking-wider text-slate-400 flex items-center gap-1.5">
+                  <LuMail className="size-3.5 text-slate-400" />
+                  Login Email / Username
+                </label>
+                <div className="flex gap-2">
+                  <input
+                    type="text"
+                    readOnly
+                    value={selectedMember.email}
                     className="flex-1 h-11 px-4 bg-slate-50 border border-slate-200 rounded-xl text-sm font-bold text-slate-700 outline-none"
                   />
                   <Button
                     variant="outline"
-                    className="rounded-xl px-3 border-slate-200 hover:bg-slate-50"
-                    onClick={() => copyToClipboard(selectedMemberCredentials.email)}
+                    className="rounded-xl px-3 border-slate-200 hover:bg-slate-100"
+                    onClick={() => copyToClipboard(selectedMember.email, "modal-email")}
                   >
-                    <LuClipboard className="size-4" />
+                    {copiedKey === "modal-email" ? <LuCheck className="size-4 text-emerald-500" /> : <LuClipboard className="size-4" />}
                   </Button>
                 </div>
               </div>
 
+              {/* Password */}
               <div className="space-y-1.5">
-                <label className="text-xs font-black uppercase tracking-wider text-slate-400">Temporary Password</label>
+                <label className="text-xs font-black uppercase tracking-wider text-slate-400 flex items-center gap-1.5">
+                  <LuKeyRound className="size-3.5 text-slate-400" />
+                  Default Password (Student ID)
+                </label>
                 <div className="flex gap-2">
                   <input
-                    type="text"
+                    type={isModalPasswordVisible ? "text" : "password"}
                     readOnly
-                    value={selectedMemberCredentials.password}
-                    className="flex-1 h-11 px-4 bg-slate-50 border border-slate-200 rounded-xl text-sm font-mono font-bold text-slate-900 tracking-wider outline-none"
+                    value={getStudentPassword(selectedMember.student_id)}
+                    className="flex-1 h-11 px-4 bg-slate-50 border border-slate-200 rounded-xl text-sm font-mono font-black text-slate-900 tracking-wider outline-none"
                   />
                   <Button
                     variant="outline"
-                    className="rounded-xl px-3 border-slate-200 hover:bg-slate-50"
-                    onClick={() => copyToClipboard(selectedMemberCredentials.password)}
+                    className="rounded-xl px-3 border-slate-200 hover:bg-slate-100"
+                    onClick={() => setIsModalPasswordVisible(!isModalPasswordVisible)}
                   >
-                    <LuClipboard className="size-4" />
+                    {isModalPasswordVisible ? <LuEyeOff className="size-4" /> : <LuEye className="size-4" />}
+                  </Button>
+                  <Button
+                    variant="outline"
+                    className="rounded-xl px-3 border-slate-200 hover:bg-slate-100"
+                    onClick={() => copyToClipboard(getStudentPassword(selectedMember.student_id), "modal-pass")}
+                  >
+                    {copiedKey === "modal-pass" ? <LuCheck className="size-4 text-emerald-500" /> : <LuClipboard className="size-4" />}
                   </Button>
                 </div>
               </div>
             </div>
 
+            {/* Actions */}
             <div className="pt-2 flex gap-3">
               <Button
-                className="flex-1 rounded-xl h-11 font-black gradient-primary shadow-lg shadow-primary/20 hover:scale-[1.02] transition-all text-xs"
+                className="flex-1 rounded-xl h-11 font-black bg-primary text-white hover:bg-primary/90 shadow-lg shadow-primary/20 transition-all text-xs"
                 onClick={() => {
-                  const text = `Email: ${selectedMemberCredentials.email}\nPassword: ${selectedMemberCredentials.password}`;
-                  copyToClipboard(text);
-                  toast.success("Credentials block copied!");
+                  const pass = getStudentPassword(selectedMember.student_id);
+                  const text = `Student ID: ${selectedMember.student_id || "N/A"}\nEmail: ${selectedMember.email}\nPassword: ${pass}`;
+                  copyToClipboard(text, "modal-all");
                 }}
               >
-                Copy All Credentials
+                <LuClipboard className="size-4 mr-2" />
+                {copiedKey === "modal-all" ? "Credentials Copied!" : "Copy All Credentials"}
               </Button>
               <Button
                 variant="outline"
-                className="rounded-xl h-11 px-6 font-black border-slate-200 hover:bg-slate-50 transition-all text-xs"
+                className="rounded-xl h-11 px-6 font-black border-slate-200 hover:bg-slate-100 transition-all text-xs"
                 onClick={() => {
-                  setIsViewModalOpen(false);
-                  setSelectedMemberCredentials(null);
+                  setIsModalOpen(false);
+                  setSelectedMember(null);
                 }}
               >
                 Close
@@ -500,7 +560,6 @@ export default function SendCredentialsPage() {
           </div>
         )}
       </Modal>
-
-      </div>
+    </div>
   );
 }
