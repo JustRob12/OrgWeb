@@ -9,12 +9,14 @@ import {
   LuCamera,
   LuLoader,
   LuCrop,
+  LuSparkles,
 } from "react-icons/lu";
 import { createClient } from "@/utils/supabase/client";
 import { Button } from "@/app/Components/ui/button";
 import { toast } from "sonner";
 import { useRouter } from "next/navigation";
-import { toPng } from "html-to-image";
+import { toJpeg } from "html-to-image";
+import { QRCodeSVG } from "qrcode.react";
 import { ImageCropperModal } from "@/app/Components/ui/image-cropper-modal";
 
 export default function StudentIDPage() {
@@ -180,37 +182,35 @@ export default function StudentIDPage() {
   // Generate QR Value (JSON)
   const qrData = user
     ? JSON.stringify({
-        name: `${user.first_name} ${user.last_name}`,
         id: user.student_id,
+        name: `${user.first_name} ${user.last_name}`,
         email: user.email,
-        photo: user.profile_picture,
       })
     : "";
-
-  const qrImageUrl = `https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(qrData)}`;
 
   const downloadIDCard = async () => {
     if (!cardRef.current) return;
     setDownloading(true);
 
     try {
-      const dataUrl = await toPng(cardRef.current, {
+      const dataUrl = await toJpeg(cardRef.current, {
         cacheBust: true,
-        quality: 1,
-        pixelRatio: 2, // Higher resolution
+        quality: 0.95,
+        pixelRatio: 3, // Ultra-high-res crisp quality
+        backgroundColor: "#ffffff",
         style: {
           transform: "scale(1)",
         },
       });
 
       const link = document.createElement("a");
-      link.download = `ACES_ID_${user.student_id || "MEMBER"}.png`;
+      link.download = `ACES_ID_${user.student_id || "MEMBER"}.jpg`;
       link.href = dataUrl;
       link.click();
-      toast.success("ID saved as image!");
+      toast.success("ID saved as JPG image!");
     } catch (err) {
       console.error("Download error:", err);
-      toast.error("Failed to save image. Try again.");
+      toast.error("Failed to save JPG image. Try again.");
     } finally {
       setDownloading(false);
     }
@@ -244,15 +244,20 @@ export default function StudentIDPage() {
               variant="outline"
               onClick={downloadIDCard}
               disabled={downloading}
-              className="w-full sm:w-auto h-11 rounded-xl font-bold bg-white text-slate-600 border-slate-200 shadow-sm cursor-pointer justify-center"
+              className="w-full sm:w-auto h-11 rounded-xl font-bold bg-white text-slate-700 border-slate-200 shadow-sm cursor-pointer justify-center hover:bg-orange-50 hover:text-primary hover:border-orange-300 transition-all"
             >
-              <LuDownload className="size-4 mr-2" /> Save as Image
+              {downloading ? (
+                <LuLoader className="size-4 mr-2 animate-spin text-primary" />
+              ) : (
+                <LuDownload className="size-4 mr-2 text-primary" />
+              )}
+              {downloading ? "Saving JPG..." : "Save as JPG"}
             </Button>
             <Button
               variant="outline"
               onClick={() => fileInputRef.current?.click()}
               disabled={uploading}
-              className="w-full sm:w-auto h-11 rounded-xl font-bold bg-white text-slate-600 border-slate-200 shadow-sm cursor-pointer justify-center"
+              className="w-full sm:w-auto h-11 rounded-xl font-bold bg-white text-slate-700 border-slate-200 shadow-sm cursor-pointer justify-center hover:bg-slate-50 transition-all"
             >
               <LuCrop className="size-4 mr-2 text-primary" /> Change & Crop Photo
             </Button>
@@ -326,23 +331,32 @@ export default function StudentIDPage() {
           <div className="lg:col-span-5 flex justify-center w-full">
             <div
               ref={cardRef}
-              className="relative w-full max-w-[300px] xs:max-w-[320px] sm:max-w-[340px] aspect-[3.5/5.5] rounded-[2.5rem] sm:rounded-[3rem] overflow-hidden shadow-2xl shadow-orange-950/10 border border-white/40 glass-container flex flex-col justify-between"
+              className="relative w-full max-w-[300px] xs:max-w-[320px] sm:max-w-[340px] aspect-[3.5/5.6] rounded-[2.5rem] sm:rounded-[3rem] overflow-hidden shadow-2xl shadow-orange-950/15 border-2 border-orange-200/90 flex flex-col justify-between bg-gradient-to-b from-orange-500 via-orange-400/20 to-white"
             >
-              {/* Background Shades of Orange & Glass */}
-              <div className="absolute inset-0 bg-gradient-to-br from-orange-500/20 via-white/40 to-amber-500/10 backdrop-blur-3xl z-0" />
-              <div className="absolute top-[-10%] left-[-10%] size-64 bg-orange-400/20 rounded-full blur-[80px]" />
-              <div className="absolute bottom-[-10%] right-[-10%] size-48 bg-amber-400/20 rounded-full blur-[60px]" />
+              {/* Decorative Geometric Top & Bottom Curves */}
+              <div className="absolute top-0 left-0 right-0 h-28 bg-gradient-to-b from-orange-500 to-orange-500/90 z-0" />
+              <div className="absolute top-20 -left-10 -right-10 h-16 bg-white/30 rounded-[100%] blur-sm z-0" />
+              <div className="absolute -bottom-10 -left-10 -right-10 h-28 bg-orange-500/5 rounded-[100%] blur-md z-0" />
 
-              <div className="relative z-10 flex flex-col h-full p-5 sm:p-7 items-center justify-between">
-                {/* Top: Profile Picture + Info */}
+              <div className="relative z-10 flex flex-col h-full p-5 sm:p-6 items-center justify-between">
+                {/* Top: Header Pill + Profile Picture + Info */}
                 <div className="flex flex-col items-center w-full">
-                  {/* 1. Profile Picture */}
-                  <div className="size-24 sm:size-28 rounded-2xl overflow-hidden bg-white/50 border-2 border-white shadow-lg mb-3 shrink-0 flex items-center justify-center text-orange-200">
+                  {/* Top Org Badge */}
+                  <div className="flex items-center gap-1.5 px-3 py-1 rounded-full bg-white/90 shadow-sm border border-white mb-3">
+                    <span className="size-1.5 rounded-full bg-orange-500 animate-pulse" />
+                    <p className="text-[9px] font-black text-orange-950 uppercase tracking-widest">
+                      ACETRACK 3.0 • ACES
+                    </p>
+                  </div>
+
+                  {/* 1. Square Profile Picture Frame */}
+                  <div className="size-24 sm:size-28 rounded-2xl sm:rounded-3xl overflow-hidden bg-white border-3 border-white shadow-xl mb-2.5 shrink-0 flex items-center justify-center text-orange-300 ring-2 ring-orange-200/80">
                     {user.profile_picture ? (
                       <img
                         src={user.profile_picture}
                         alt="ID Photo"
                         className="size-full object-cover"
+                        crossOrigin="anonymous"
                         onError={(e) => {
                           (e.target as HTMLImageElement).src = "";
                           (e.target as HTMLImageElement).style.display = "none";
@@ -358,42 +372,42 @@ export default function StudentIDPage() {
                     <h2 className="text-lg sm:text-xl font-black text-slate-900 tracking-tight leading-tight line-clamp-1">
                       {user.first_name} {user.last_name}
                     </h2>
-                    <div className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-orange-500/10 border border-orange-500/20 text-orange-600 text-[8px] sm:text-[9px] font-black uppercase tracking-widest">
+                    <div className="inline-flex items-center gap-1.5 px-3 py-0.5 rounded-full bg-orange-500/10 border border-orange-500/25 text-orange-600 text-[8px] sm:text-[9px] font-black uppercase tracking-widest">
                       <LuShieldCheck className="size-2.5" /> Official Member
                     </div>
                   </div>
 
-                  {/* 3. Student ID */}
-                  <div className="text-center">
-                    <p className="text-[8px] font-black text-slate-400 uppercase tracking-[0.25em] mb-0.5">
+                  {/* 3. Student ID Pill */}
+                  <div className="text-center mt-1">
+                    <span className="text-[8px] font-black text-slate-400 uppercase tracking-[0.25em] block mb-0.5">
                       Student ID
-                    </p>
-                    <p className="text-xs sm:text-sm font-black text-slate-700 tracking-[0.1em]">
+                    </span>
+                    <span className="inline-block px-3 py-0.5 rounded-lg bg-white border border-slate-200/80 text-xs sm:text-sm font-black text-slate-800 tracking-[0.1em] shadow-xs">
                       {user.student_id || "NOT-SET"}
-                    </p>
+                    </span>
                   </div>
                 </div>
 
-                {/* Middle: QR Code with Separator */}
+                {/* Middle: QR Code with Subtle Container */}
                 <div className="flex flex-col items-center justify-center w-full my-1 sm:my-2">
-                  <div className="w-full h-px bg-slate-200/50 mb-3 sm:mb-4" />
-                  <div className="bg-white rounded-2xl sm:rounded-3xl shadow-xl border border-white relative group p-2">
-                    <img
-                      src={qrImageUrl}
-                      alt="Scannable QR"
-                      className="size-28 sm:size-34 transition-transform group-hover:scale-105 duration-500 object-contain"
+                  <div className="bg-white rounded-2xl sm:rounded-3xl shadow-lg border border-orange-200/90 p-2.5 flex items-center justify-center">
+                    <QRCodeSVG
+                      value={qrData}
+                      size={110}
+                      level="M"
+                      includeMargin={false}
+                      className="size-24 sm:size-28"
                     />
-                    <div className="absolute -inset-2 bg-gradient-to-tr from-orange-500/10 to-amber-500/10 rounded-2xl -z-10 blur-sm opacity-0 group-hover:opacity-100 transition-opacity" />
                   </div>
-                  <p className="text-[8px] sm:text-[9px] font-black text-slate-400 uppercase tracking-[0.3em] mt-2">
-                    Scan for Verification
+                  <p className="text-[9px] font-black text-slate-700 uppercase tracking-[0.25em] mt-2">
+                    Scan for Attendance
                   </p>
                 </div>
 
-                {/* Bottom: School/Org Name */}
-                <div className="pt-2 border-t border-slate-200/50 w-full text-center">
-                  <p className="text-[10px] sm:text-[11px] font-black text-slate-900 tracking-widest uppercase opacity-40">
-                    ACES • ACETRACK 3.0
+                {/* Bottom: Organization Footer */}
+                <div className="pt-2 border-t border-slate-300/80 w-full text-center">
+                  <p className="text-[9px] sm:text-[10px] font-black text-slate-800 tracking-widest uppercase">
+                    ASSOCIATION OF COMPUTER ENGINEERING STUDENTS
                   </p>
                 </div>
               </div>
