@@ -1,7 +1,7 @@
 "use client"
 
 import { useState, useEffect } from "react"
-import { LuGraduationCap, LuLogIn, LuMenu, LuX } from "react-icons/lu"
+import { LuLogIn, LuMenu, LuX, LuCalendar, LuUsers } from "react-icons/lu"
 import { Button } from "./ui/button"
 import { cn } from "@/lib/utils"
 
@@ -15,88 +15,111 @@ export default function Navbar() {
     return () => window.removeEventListener("scroll", handleScroll)
   }, [])
 
+  // Close mobile menu on resize to desktop
+  useEffect(() => {
+    const handleResize = () => {
+      if (window.innerWidth >= 768) {
+        setMenuOpen(false)
+      }
+    }
+    window.addEventListener("resize", handleResize)
+    return () => window.removeEventListener("resize", handleResize)
+  }, [])
+
   const navLinks = [
-    { href: "#events", label: "Events" },
-    { href: "#members", label: "Members" },
+    { href: "#events", label: "Events", icon: LuCalendar },
+    { href: "#members", label: "Members", icon: LuUsers },
   ]
 
   return (
-    <nav
-      className={cn(
-        "fixed top-0 left-0 right-0 z-50 transition-all duration-300 border-b",
-        scrolled
-          ? "bg-background/80 backdrop-blur-md py-3 shadow-sm border-border"
-          : "bg-transparent py-5 border-transparent"
-      )}
-    >
-      <div className="container flex items-center justify-between">
-        <a href="#" className="flex items-center gap-2 group">
-          <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-primary text-primary-foreground transition-transform group-hover:scale-105">
-            <LuGraduationCap className="size-6" />
-          </div>
-          <span className="text-xl font-semibold tracking-tight text-primary">
-            ACETRACK 3.0
-          </span>
-        </a>
+    <>
+      <nav
+        className={cn(
+          "fixed top-0 left-0 right-0 z-50 transition-all duration-300 border-b",
+          scrolled || menuOpen
+            ? "bg-white/90 dark:bg-slate-900/90 backdrop-blur-xl py-3 shadow-xs border-slate-200/80 dark:border-slate-800"
+            : "bg-transparent py-4 sm:py-5 border-transparent"
+        )}
+      >
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex items-center justify-between">
+          <a href="#" className="flex items-center group py-1 select-none">
+            <span className="text-xl sm:text-2xl font-black tracking-tight text-primary transition-colors group-hover:opacity-90">
+              ACETRACK 3.0
+            </span>
+          </a>
 
-        {/* Desktop Links */}
-        <div className="hidden items-center gap-6 md:flex">
-          <ul className="flex items-center gap-2 list-none">
-            {navLinks.map((link) => (
-              <li key={link.href}>
-                <a
-                  href={link.href}
-                  className="rounded-md px-3 py-2 text-sm font-medium text-muted-foreground transition-colors hover:text-primary"
-                >
-                  {link.label}
-                </a>
-              </li>
-            ))}
-          </ul>
-          <div className="h-6 w-px bg-border" />
-          <Button asChild variant="default" size="sm" className="gap-2 rounded-full">
-            <a href="/login">
-              <LuLogIn className="size-4" />
-              Login
-            </a>
-          </Button>
-        </div>
-
-        {/* Mobile Toggle */}
-        <Button
-          variant="ghost"
-          size="icon"
-          className="md:hidden"
-          onClick={() => setMenuOpen(!menuOpen)}
-        >
-          {menuOpen ? <LuX className="size-6" /> : <LuMenu className="size-6" />}
-        </Button>
-      </div>
-
-      {/* Mobile Menu */}
-      {menuOpen && (
-        <div className="border-t bg-background/95 backdrop-blur-lg p-6 md:hidden animate-in fade-in slide-in-from-top-5 duration-300">
-          <div className="flex flex-col gap-4">
-            {navLinks.map((link) => (
-              <a
-                key={link.href}
-                href={link.href}
-                onClick={() => setMenuOpen(false)}
-                className="block rounded-lg px-4 py-3 text-lg font-medium text-muted-foreground transition-all hover:bg-primary/10 hover:text-primary active:scale-95"
-              >
-                {link.label}
-              </a>
-            ))}
-            <div className="my-2 h-px bg-border/50" />
-            <Button asChild className="w-full h-12 justify-center font-medium text-base shadow-lg shadow-primary/20">
-              <a href="/login" onClick={() => setMenuOpen(false)}>
-                <LuLogIn className="mr-2 size-5" />
-                Login to Portal
+          {/* Desktop Links */}
+          <div className="hidden items-center gap-6 md:flex">
+            <ul className="flex items-center gap-1 list-none m-0 p-0">
+              {navLinks.map((link) => (
+                <li key={link.href}>
+                  <a
+                    href={link.href}
+                    className="rounded-xl px-4 py-2 text-sm font-bold text-slate-600 hover:text-primary hover:bg-slate-50 transition-all"
+                  >
+                    {link.label}
+                  </a>
+                </li>
+              ))}
+            </ul>
+            <div className="h-5 w-px bg-slate-200" />
+            <Button asChild variant="default" size="sm" className="h-10 px-5 rounded-xl font-bold shadow-md shadow-primary/20 hover:scale-105 transition-all">
+              <a href="/login">
+                <LuLogIn className="size-4 mr-1.5" />
+                Login
               </a>
             </Button>
           </div>
+
+          {/* Mobile Toggle Button */}
+          <Button
+            variant="ghost"
+            size="icon"
+            className="md:hidden size-10 rounded-xl text-slate-700 hover:bg-slate-100 transition-colors"
+            onClick={() => setMenuOpen(!menuOpen)}
+            aria-label="Toggle navigation menu"
+          >
+            {menuOpen ? <LuX className="size-6 text-slate-900" /> : <LuMenu className="size-6 text-slate-900" />}
+          </Button>
         </div>
+
+        {/* Mobile Dropdown Menu */}
+        {menuOpen && (
+          <div className="border-t border-slate-100 bg-white/95 dark:bg-slate-900/95 backdrop-blur-xl px-4 py-6 md:hidden animate-in fade-in slide-in-from-top-3 duration-200 shadow-xl">
+            <div className="flex flex-col gap-2 max-w-sm mx-auto">
+              {navLinks.map((link) => {
+                const Icon = link.icon
+                return (
+                  <a
+                    key={link.href}
+                    href={link.href}
+                    onClick={() => setMenuOpen(false)}
+                    className="flex items-center gap-3 rounded-2xl px-4 py-3 text-base font-bold text-slate-700 hover:bg-primary/10 hover:text-primary active:scale-[0.98] transition-all"
+                  >
+                    <Icon className="size-5 text-primary" />
+                    {link.label}
+                  </a>
+                )
+              })}
+              <div className="my-2 h-px bg-slate-100" />
+              <Button asChild className="w-full h-12 justify-center font-bold text-base shadow-lg shadow-primary/20 rounded-2xl">
+                <a href="/login" onClick={() => setMenuOpen(false)}>
+                  <LuLogIn className="mr-2 size-5" />
+                  Login to Portal
+                </a>
+              </Button>
+            </div>
+          </div>
+        )}
+      </nav>
+
+      {/* Mobile Menu Backdrop */}
+      {menuOpen && (
+        <div
+          className="fixed inset-0 bg-slate-950/20 backdrop-blur-xs z-40 md:hidden"
+          onClick={() => setMenuOpen(false)}
+        />
       )}
-    </nav>
+    </>
   )
 }
