@@ -30,84 +30,125 @@ export default function StudentFinancePage() {
    useEffect(() => {
       const getFinanceData = async () => {
          try {
-            const localUser = localStorage.getItem("acetrack_user");
-            if (!localUser) return;
+            let email = "";
 
-            const parsed = JSON.parse(localUser);
-            const email = parsed.email || parsed.username;
-            if (!email) return;
+            // 1. Check Supabase Auth session first
+            const { data: { user: authUser } } = await supabase.auth.getUser();
+            if (authUser?.email) {
+               email = authUser.email;
+            } else {
+               // 2. Check localStorage fallback
+               const localUser = localStorage.getItem("acetrack_user");
+               if (localUser) {
+                  try {
+                     const parsed = JSON.parse(localUser);
+                     email = parsed.email || parsed.username || "";
+                  } catch (e) {
+                     console.error("Session parse error:", e);
+                  }
+               }
+            }
 
-            const { data: userData } = await supabase
+            if (!email) {
+               setLoading(false);
+               return;
+            }
+
+            // 3. Fetch user record
+            const { data: userData, error: userError } = await supabase
                .from("users")
                .select("id, student_id")
                .eq("email", email)
-               .single();
+               .maybeSingle();
 
-            if (!userData) return;
+            if (userError || !userData) {
+               setLoading(false);
+               return;
+            }
 
-            // 1. Fetch all active finance items
-            const { data: items, error: itemsError } = await supabase
+            // 4. Fetch all active finance items
+            const { data: items } = await supabase
                .from("finance_items")
                .select("*")
                .order("deadline", { ascending: true });
 
-            if (itemsError) {
-               console.error("Error loading finance items:", itemsError);
-            }
+            const safeItems = items || [];
+            const itemsMap: Record<string, string> = {};
+            safeItems.forEach((item: any) => {
+               if (item.id) {
+                  itemsMap[item.id] = item.title;
+               }
+            });
 
-            // 2. Fetch student's transactions from the flat view
-            const { data: txs, error: txsError } = await supabase
-               .from("finance_audit_view")
+            // 5. Fetch student's transactions directly by user_id
+            let txsList: any[] = [];
+            const { data: txsData, error: txsError } = await supabase
+               .from("finance_transactions")
                .select("*")
-               .eq("student_id", userData.student_id)
+               .eq("user_id", userData.id)
                .order("transaction_date", { ascending: false });
 
-            if (txsError) {
-               console.error("Error loading transactions:", txsError);
+            if (!txsError && txsData && txsData.length > 0) {
+               txsList = txsData.map((t: any) => ({
+                  ...t,
+                  item_title: itemsMap[t.finance_id] || "Organization Payment",
+               }));
+            } else if (userData.student_id) {
+               // Fallback query via audit view or student_id if needed
+               const { data: viewTxs } = await supabase
+                  .from("finance_audit_view")
+                  .select("*")
+                  .eq("student_id", userData.student_id)
+                  .order("transaction_date", { ascending: false });
+
+               if (viewTxs && viewTxs.length > 0) {
+                  txsList = viewTxs;
+               }
             }
 
-            // Fetch membership details
+            // 6. Fetch membership details
             const { data: membershipData } = await supabase
                .from("memberships")
                .select("*")
                .eq("user_id", userData.id)
                .maybeSingle();
 
-            // Map transactions for the list
-            const mappedTxs = (txs || []).map((t: any) => {
-               const tDate = new Date(t.transaction_date);
+            // Map transactions for the UI list
+            const mappedTxs = txsList.map((t: any) => {
+               const tDate = t.transaction_date ? new Date(t.transaction_date) : new Date();
                return {
-                  title: t.item_title || "Organization Payment",
-                  amount: `₱${(t.amount || 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}`,
+                  id: t.id,
+                  title: t.item_title || itemsMap[t.finance_id] || "Organization Payment",
+                  amount: `₱${(parseFloat(t.amount) || 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}`,
                   date: tDate.toLocaleDateString("en-US", { month: "short", day: "2-digit", year: "numeric" }),
                   status: "Paid",
                   type: "Fee",
-                  receipt_number: t.receipt_number || "N/A"
+                  receipt_number: t.receipt_number || "N/A",
                };
             });
 
             const membershipTx = membershipData && membershipData.payment > 0 ? [{
                id: membershipData.id,
                title: "Membership Fee",
-               amount: `₱${(membershipData.payment || 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}`,
-               date: new Date(membershipData.created_at).toLocaleDateString("en-US", { month: "short", day: "2-digit", year: "numeric" }),
-               status: membershipData.status,
+               amount: `₱${(parseFloat(membershipData.payment) || 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}`,
+               date: new Date(membershipData.created_at || Date.now()).toLocaleDateString("en-US", { month: "short", day: "2-digit", year: "numeric" }),
+               status: membershipData.status || "Paid",
                type: "Membership",
                receipt_number: membershipData.receipt || "N/A"
             }] : [];
 
             setTransactions([...membershipTx, ...mappedTxs]);
 
-            // Calculate outstanding balance: aggregate payments per finance item and compute remaining balances
+            // 7. Calculate outstanding balance: aggregate payments per finance item and compute remaining balances
             const paidAmountsMap: Record<string, number> = {};
-            (txs || []).forEach((t: any) => {
+            txsList.forEach((t: any) => {
                if (t.finance_id) {
-                  paidAmountsMap[t.finance_id] = (paidAmountsMap[t.finance_id] || 0) + parseFloat(t.amount || 0);
+                  paidAmountsMap[t.finance_id] = (paidAmountsMap[t.finance_id] || 0) + (parseFloat(t.amount) || 0);
                }
             });
 
             let outstandingSum = 0;
-            const mappedDues = (items || []).map((item) => {
+            const mappedDues = safeItems.map((item: any) => {
                const totalPaid = paidAmountsMap[item.id] || 0;
                const totalAmount = parseFloat(item.amount || 0);
                const remaining = Math.max(0, totalAmount - totalPaid);
@@ -138,7 +179,7 @@ export default function StudentFinancePage() {
             setRecurringDues(mappedDues);
 
          } catch (err) {
-            console.error(err);
+            console.error("Finance data loading error:", err);
          } finally {
             setLoading(false);
          }

@@ -155,6 +155,8 @@ FROM finance_transactions ft
 JOIN users u ON ft.user_id = u.id
 JOIN finance_items fi ON ft.finance_id = fi.id;
 
+GRANT SELECT ON finance_audit_view TO anon, authenticated, service_role;
+
 -- Seed Default Membership Fee Item
 INSERT INTO finance_items (title, description, amount)
 SELECT 'Membership Fee', 'Default official organization membership fee.', 100
@@ -235,6 +237,14 @@ CREATE TABLE IF NOT EXISTS documents (
     web_view_link TEXT,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
 );
+
+-- Enable RLS for Document Folders & Documents
+ALTER TABLE document_folders ENABLE ROW LEVEL SECURITY;
+ALTER TABLE documents ENABLE ROW LEVEL SECURITY;
+CREATE POLICY "Public document_folders access" ON document_folders FOR ALL USING (true) WITH CHECK (true);
+CREATE POLICY "Public documents access" ON documents FOR ALL USING (true) WITH CHECK (true);
+GRANT SELECT, INSERT, UPDATE, DELETE ON document_folders TO anon, authenticated, service_role;
+GRANT SELECT, INSERT, UPDATE, DELETE ON documents TO anon, authenticated, service_role;
 
 -- 16. Create the Polls Table
 CREATE TABLE IF NOT EXISTS polls (

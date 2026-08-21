@@ -173,9 +173,8 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
       )}>
         <div className="h-full flex flex-col overflow-hidden">
           <div className="p-6 border-b border-slate-100 flex items-center justify-between">
-            <Link href={userRole === 2 ? "/admin/attendance" : userRole === 3 ? "/admin/finance" : "/admin"} className="flex items-center gap-2">
-              <div className="size-8 bg-primary rounded-lg flex items-center justify-center text-white font-bold shrink-0">A</div>
-              <span className="font-bold text-xl tracking-tight">ACETRACK</span>
+            <Link href={userRole === 2 ? "/admin/attendance" : userRole === 3 ? "/admin/finance" : "/admin"} className="flex items-center">
+              <span className="font-black text-xl tracking-tight text-slate-900">ACETRACK</span>
             </Link>
             <button className="lg:hidden" onClick={() => setIsSidebarOpen(false)}>
               <LuX className="size-6 text-slate-400" />

@@ -27,7 +27,8 @@ import {
   LuFileArchive,
   LuCheck,
   LuRotateCcw,
-  LuClock
+  LuClock,
+  LuPencil
 } from "react-icons/lu";
 import { createClient } from "@/utils/supabase/client";
 import { toast } from "sonner";
@@ -84,6 +85,11 @@ export default function DocumentsPage() {
   const [showAddFolder, setShowAddFolder] = useState(false);
   const [newFolderName, setNewFolderName] = useState("");
   const [isCreatingFolder, setIsCreatingFolder] = useState(false);
+
+  // Folder Rename State
+  const [editingFolder, setEditingFolder] = useState<Folder | null>(null);
+  const [editFolderName, setEditFolderName] = useState("");
+  const [isRenamingFolder, setIsRenamingFolder] = useState(false);
 
   const [uploading, setUploading] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -214,6 +220,31 @@ export default function DocumentsPage() {
       setShowAddFolder(false);
       setNewFolderName("");
       fetchContents();
+    }
+  };
+
+  const handleRenameFolder = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editingFolder || !editFolderName.trim()) return;
+
+    setIsRenamingFolder(true);
+    const { error } = await supabase
+      .from("document_folders")
+      .update({ name: editFolderName.trim() })
+      .eq("id", editingFolder.id);
+
+    setIsRenamingFolder(false);
+
+    if (error) {
+      toast.error("Failed to rename folder.");
+    } else {
+      toast.success("Folder renamed successfully!");
+      setEditingFolder(null);
+      setEditFolderName("");
+      fetchContents();
+      if (currentFolderId) {
+        buildBreadcrumbs(currentFolderId);
+      }
     }
   };
 
@@ -1134,6 +1165,65 @@ export default function DocumentsPage() {
         </div>
       )}
 
+      {/* Rename Folder Modal */}
+      {editingFolder && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-6 bg-slate-950/40 backdrop-blur-sm">
+          <div className="bg-white rounded-[2rem] p-8 max-w-md w-full shadow-2xl animate-in zoom-in-95 duration-200">
+            <div className="flex items-center gap-3 mb-6">
+              <div className="p-3 rounded-2xl bg-amber-50 text-amber-600 border border-amber-100">
+                <LuFolder className="size-6 fill-amber-400/30" />
+              </div>
+              <div>
+                <h3 className="text-xl font-black text-slate-900 leading-tight">Rename Folder</h3>
+                <p className="text-xs font-bold text-slate-400">Enter a new name for this folder.</p>
+              </div>
+            </div>
+            <form onSubmit={handleRenameFolder}>
+              <div className="space-y-3 mb-8">
+                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">
+                  Folder Name
+                </label>
+                <input
+                  type="text"
+                  required
+                  autoFocus
+                  placeholder="e.g. Activity Proposals"
+                  value={editFolderName}
+                  onChange={(e) => setEditFolderName(e.target.value)}
+                  className="w-full h-14 px-6 bg-slate-50 border border-slate-200 rounded-2xl text-sm font-bold text-slate-700 outline-none focus:bg-white focus:border-primary focus:ring-4 ring-primary/10 transition-all"
+                />
+              </div>
+              <div className="flex gap-3">
+                <Button
+                  type="button"
+                  onClick={() => {
+                    setEditingFolder(null);
+                    setEditFolderName("");
+                  }}
+                  variant="outline"
+                  className="flex-1 h-12 rounded-xl text-slate-600 font-bold cursor-pointer"
+                >
+                  Cancel
+                </Button>
+                <Button
+                  type="submit"
+                  disabled={isRenamingFolder || !editFolderName.trim()}
+                  className="flex-1 h-12 rounded-xl bg-slate-900 hover:bg-slate-800 text-white font-bold shadow-lg cursor-pointer"
+                >
+                  {isRenamingFolder ? (
+                    <>
+                      <LuLoader className="size-4 mr-2 animate-spin" /> Saving...
+                    </>
+                  ) : (
+                    "Save Changes"
+                  )}
+                </Button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
       {/* Delete Confirmation Modal */}
       {itemToDelete && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-6 bg-slate-950/40 backdrop-blur-sm">
@@ -1181,19 +1271,44 @@ export default function DocumentsPage() {
             ) : (
               breadcrumbs.map((crumb, idx) => (
                 <React.Fragment key={crumb.id || "root"}>
-                  <button
-                    onClick={() => {
-                      setCurrentFolderId(crumb.id);
-                      setSearchScope("current");
-                    }}
-                    className={`text-xs sm:text-sm font-bold transition-all whitespace-nowrap px-3 py-1.5 rounded-xl ${
-                      idx === breadcrumbs.length - 1
-                        ? "bg-primary/10 text-primary shadow-xs"
-                        : "text-slate-500 hover:bg-slate-200/60 hover:text-slate-800"
-                    }`}
-                  >
-                    {crumb.name}
-                  </button>
+                  <div className="flex items-center gap-1">
+                    <button
+                      onClick={() => {
+                        setCurrentFolderId(crumb.id);
+                        setSearchScope("current");
+                      }}
+                      className={`text-xs sm:text-sm font-bold transition-all whitespace-nowrap px-3 py-1.5 rounded-xl ${
+                        idx === breadcrumbs.length - 1
+                          ? "bg-primary/10 text-primary shadow-xs"
+                          : "text-slate-500 hover:bg-slate-200/60 hover:text-slate-800"
+                      }`}
+                    >
+                      {crumb.name}
+                    </button>
+                    {idx === breadcrumbs.length - 1 && crumb.id !== null && (
+                      <button
+                        onClick={() => {
+                          const cur = allFoldersMap[crumb.id!] || folders.find((f) => f.id === crumb.id);
+                          if (cur) {
+                            setEditingFolder(cur);
+                            setEditFolderName(cur.name);
+                          } else {
+                            setEditingFolder({
+                              id: crumb.id!,
+                              name: crumb.name,
+                              parent_folder_id: null,
+                              created_at: "",
+                            });
+                            setEditFolderName(crumb.name);
+                          }
+                        }}
+                        className="p-1.5 text-primary/70 hover:text-primary hover:bg-primary/10 rounded-lg transition-all"
+                        title="Rename current folder"
+                      >
+                        <LuPencil className="size-3.5" />
+                      </button>
+                    )}
+                  </div>
                   {idx < breadcrumbs.length - 1 && (
                     <LuChevronRight className="size-4 text-slate-300 flex-shrink-0" />
                   )}
@@ -1294,6 +1409,17 @@ export default function DocumentsPage() {
                         </div>
 
                         <div className="flex items-center opacity-80 group-hover:opacity-100 transition-opacity">
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setEditingFolder(folder);
+                              setEditFolderName(folder.name);
+                            }}
+                            className="p-2 text-slate-400 hover:text-primary hover:bg-primary/10 rounded-xl transition-all"
+                            title="Rename Folder"
+                          >
+                            <LuPencil className="size-4" />
+                          </button>
                           <button
                             onClick={(e) => {
                               e.stopPropagation();
@@ -1510,6 +1636,16 @@ export default function DocumentsPage() {
                       </td>
                       <td className="py-3.5 px-4 text-right">
                         <div className="flex items-center justify-end gap-1" onClick={(e) => e.stopPropagation()}>
+                          <button
+                            onClick={() => {
+                              setEditingFolder(folder);
+                              setEditFolderName(folder.name);
+                            }}
+                            className="p-2 text-slate-400 hover:text-primary hover:bg-primary/10 rounded-xl transition-all"
+                            title="Rename Folder"
+                          >
+                            <LuPencil className="size-4" />
+                          </button>
                           <button
                             onClick={() => handleDownloadFolder(folder)}
                             className="p-2 text-slate-400 hover:text-primary hover:bg-primary/10 rounded-xl transition-all"

@@ -104,15 +104,26 @@ export default function StudentDashboard() {
           .order("deadline", { ascending: true })
           .limit(5);
 
-        const { data: txs } = await supabase
-          .from("finance_audit_view")
+        let txsData: any[] = [];
+        const { data: directTxs, error: directTxsError } = await supabase
+          .from("finance_transactions")
           .select("*")
-          .eq("student_id", userData.student_id);
+          .eq("user_id", userData.id);
+
+        if (!directTxsError && directTxs) {
+          txsData = directTxs;
+        } else if (userData.student_id) {
+          const { data: viewTxs } = await supabase
+            .from("finance_audit_view")
+            .select("*")
+            .eq("student_id", userData.student_id);
+          if (viewTxs) txsData = viewTxs;
+        }
 
         const paidAmountsMap: Record<string, number> = {};
-        (txs || []).forEach((t: any) => {
+        txsData.forEach((t: any) => {
           if (t.finance_id) {
-            paidAmountsMap[t.finance_id] = (paidAmountsMap[t.finance_id] || 0) + parseFloat(t.amount || 0);
+            paidAmountsMap[t.finance_id] = (paidAmountsMap[t.finance_id] || 0) + (parseFloat(t.amount) || 0);
           }
         });
 

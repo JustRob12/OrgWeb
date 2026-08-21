@@ -119,13 +119,10 @@ export default function StudentLayout({ children }: { children: React.ReactNode 
       )}>
         <div className="flex flex-col h-full p-6">
           {/* Logo */}
-          <div className="flex items-center gap-3 px-2 mb-10">
-            <div className="size-10 rounded-2xl gradient-primary flex items-center justify-center text-white shadow-lg shadow-primary/20">
-              <span className="text-xl font-black">O</span>
-            </div>
+          <div className="flex items-center px-2 mb-8">
             <div>
-              <h2 className="text-lg font-black text-slate-900 tracking-tight leading-none">Portal</h2>
-              <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-1">Student Access</p>
+              <h2 className="text-xl font-black text-slate-900 tracking-tight leading-none">Portal</h2>
+              <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-1.5">Student Access</p>
             </div>
           </div>
 

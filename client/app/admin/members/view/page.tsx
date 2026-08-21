@@ -456,8 +456,22 @@ export default function ViewMembersPage() {
                   <tr key={member.id} className="hover:bg-slate-50/50 transition-colors group">
                     <td className="px-6 py-5">
                       <div className="flex items-center gap-3">
-                        <div className="size-12 rounded-2xl bg-gradient-to-br from-slate-100 to-slate-200 flex items-center justify-center text-slate-400 font-black shadow-inner">
-                          {member.first_name[0]}{member.last_name[0]}
+                        <div className="size-12 rounded-2xl bg-gradient-to-br from-slate-100 to-slate-200 flex items-center justify-center text-slate-500 font-black shadow-inner overflow-hidden border border-slate-200/80 shrink-0">
+                          {member.profile_picture ? (
+                            <img
+                              src={member.profile_picture}
+                              alt={`${member.first_name} ${member.last_name}`}
+                              className="size-full object-cover"
+                              onError={(e) => {
+                                (e.target as HTMLImageElement).style.display = "none";
+                              }}
+                            />
+                          ) : (
+                            <span className="text-xs font-bold text-slate-500">
+                              {(member.first_name?.[0] || "").toUpperCase()}
+                              {(member.last_name?.[0] || "").toUpperCase()}
+                            </span>
+                          )}
                         </div>
                         <div>
                           <div className="font-black text-slate-900">
@@ -603,6 +617,32 @@ export default function ViewMembersPage() {
         className="max-w-2xl"
       >
         <form onSubmit={handleSaveEdit} className="space-y-6">
+          {selectedMemberForEdit && (
+            <div className="flex items-center gap-4 p-4 bg-slate-50 border border-slate-100 rounded-2xl">
+              <div className="size-14 rounded-2xl bg-white border-2 border-slate-200 flex items-center justify-center text-slate-400 font-black shadow-sm overflow-hidden shrink-0">
+                {selectedMemberForEdit.profile_picture ? (
+                  <img
+                    src={selectedMemberForEdit.profile_picture}
+                    alt={`${selectedMemberForEdit.first_name} ${selectedMemberForEdit.last_name}`}
+                    className="size-full object-cover"
+                  />
+                ) : (
+                  <span className="text-base text-slate-500 font-bold">
+                    {(selectedMemberForEdit.first_name?.[0] || "").toUpperCase()}{(selectedMemberForEdit.last_name?.[0] || "").toUpperCase()}
+                  </span>
+                )}
+              </div>
+              <div>
+                <h4 className="font-black text-slate-900 text-base leading-tight">
+                  {selectedMemberForEdit.first_name} {selectedMemberForEdit.middle_initial ? selectedMemberForEdit.middle_initial + " " : ""}{selectedMemberForEdit.last_name}
+                </h4>
+                <p className="text-xs font-bold text-primary tracking-tight mt-0.5">
+                  ID: {selectedMemberForEdit.student_id || "NOT SET"} • {selectedMemberForEdit.course || "No course"}
+                </p>
+              </div>
+            </div>
+          )}
+
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div className="space-y-1">
               <label className="text-xs font-bold text-slate-500 uppercase">First Name</label>
