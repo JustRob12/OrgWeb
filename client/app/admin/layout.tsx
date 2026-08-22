@@ -20,7 +20,8 @@ import {
   LuBell,
   LuUser,
   LuChevronDown,
-  LuLogOut
+  LuLogOut,
+  LuShieldAlert
 } from "react-icons/lu"
 import { cn } from "@/lib/utils"
 import { Button } from "../Components/ui/button"
@@ -62,6 +63,7 @@ const menuItems = [
       { name: "Financial Records", href: "/admin/finance/records" },
     ]
   },
+  { name: "Sanctions", icon: LuShieldAlert, href: "/admin/sanctions" },
   { name: "Documents", icon: LuFiles, href: "/admin/documents" },
   { name: "Voting", icon: LuVote, href: "/admin/voting" },
   { name: "Roles", icon: LuUserCog, href: "/admin/settings" },

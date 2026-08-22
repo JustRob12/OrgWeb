@@ -422,7 +422,62 @@ CREATE TABLE IF NOT EXISTS attendance (
 -- Enable RLS for attendance
 ALTER TABLE attendance ENABLE ROW LEVEL SECURITY;
 CREATE POLICY "Public attendance access" ON attendance FOR ALL USING (true) WITH CHECK (true);
-GRANT SELECT, INSERT, UPDATE, DELETE ON attendance TO anon, authenticated, service_role;
+-- 24. Create the Sanctions Table
+CREATE TABLE IF NOT EXISTS sanctions (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    student_id TEXT NOT NULL,
+    student_name TEXT NOT NULL,
+    email TEXT,
+    course TEXT,
+    year_section TEXT,
+    department TEXT,
+    title TEXT NOT NULL,
+    description TEXT,
+    sanction_type TEXT DEFAULT 'Community Service',
+    penalty_details TEXT,
+    status TEXT DEFAULT 'Pending' CHECK (status IN ('Pending', 'In Progress', 'Completed', 'Waived')),
+    due_date DATE,
+    issued_by TEXT DEFAULT 'ACES Disciplinary Board',
+    absent_count INTEGER DEFAULT 0,
+    missed_events TEXT,
+    cleared_at TIMESTAMP WITH TIME ZONE,
+    notes TEXT,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+);
+
+-- Enable RLS for sanctions
+ALTER TABLE sanctions ENABLE ROW LEVEL SECURITY;
+CREATE POLICY "Public sanctions access" ON sanctions FOR ALL USING (true) WITH CHECK (true);
+GRANT SELECT, INSERT, UPDATE, DELETE ON sanctions TO anon, authenticated, service_role;
+
+-- 25. Create the Sanction Rules Table
+CREATE TABLE IF NOT EXISTS sanction_rules (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    min_absent INTEGER NOT NULL,
+    max_absent INTEGER NOT NULL,
+    title TEXT NOT NULL,
+    sanction_type TEXT DEFAULT 'Community Service',
+    penalty_details TEXT NOT NULL,
+    description TEXT,
+    is_active BOOLEAN DEFAULT true,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+);
+
+-- Enable RLS for sanction_rules
+ALTER TABLE sanction_rules ENABLE ROW LEVEL SECURITY;
+CREATE POLICY "Public sanction_rules access" ON sanction_rules FOR ALL USING (true) WITH CHECK (true);
+GRANT SELECT, INSERT, UPDATE, DELETE ON sanction_rules TO anon, authenticated, service_role;
+
+-- Insert default sanction rules if table is empty
+INSERT INTO sanction_rules (min_absent, max_absent, title, sanction_type, penalty_details, description)
+VALUES 
+    (1, 1, '1 Event Absence Warning', 'Written Warning', 'Formal Warning Letter & 30-min Counseling', 'Automatic sanction for missing 1 mandatory organizational event.'),
+    (2, 2, '2 Events Absence Penalty', 'Community Service', '1.5 Hours Campus / Org Clean-up', 'Automatic sanction for missing 2 mandatory organizational events.'),
+    (3, 4, '3-4 Events Absence Sanction', 'Community Service', '3 Hours Campus Community Service & ₱50 Org Contribution', 'Severe sanction for missing 3 to 4 mandatory events.'),
+    (5, 99, '5+ Events Critical Absence', 'Suspension of Privilege', '5 Hours Community Service & Org Good Standing Suspension', 'Critical non-compliance sanction.')
+ON CONFLICT DO NOTHING;
 
 
 

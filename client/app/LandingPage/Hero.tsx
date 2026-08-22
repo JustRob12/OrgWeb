@@ -46,7 +46,7 @@ const TARGET_COURSES = [
   },
   {
     code: "BSM",
-    title: "Mathematics / Mgt.",
+    title: "Mathematics",
     icon: LuCompass,
     badgeBg: "bg-purple-50 text-purple-700 border-purple-200",
     iconBg: "bg-purple-50 text-purple-600",
@@ -54,7 +54,7 @@ const TARGET_COURSES = [
   },
   {
     code: "BSMRS",
-    title: "Medical Radiation",
+    title: "Math w/ Research Statistics",
     icon: LuActivity,
     badgeBg: "bg-rose-50 text-rose-700 border-rose-200",
     iconBg: "bg-rose-50 text-rose-600",
@@ -83,12 +83,18 @@ export default function Hero() {
     return () => clearInterval(interval);
   }, []);
 
-  // Fetch real-time member count per course from Supabase
+  // Fetch real-time member count per course from Supabase (excluding admins)
   useEffect(() => {
     const fetchMemberCounts = async () => {
       try {
         const supabase = createClient();
-        const { data, error } = await supabase.from("users").select("course");
+        const { data, error } = await supabase
+          .from("users")
+          .select(`
+            course,
+            accounts:accounts!inner(role)
+          `)
+          .eq("accounts.role", 1);
 
         if (!error && data) {
           const counts: Record<string, number> = {

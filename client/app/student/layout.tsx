@@ -16,6 +16,7 @@ import {
   LuBell,
   LuVote,
   LuAward,
+  LuShieldAlert,
 } from "react-icons/lu";
 import { cn } from "@/lib/utils";
 import { Button } from "@/app/Components/ui/button";
@@ -29,6 +30,7 @@ const navItems = [
   { name: "Events", href: "/student/events", icon: LuCalendar },
   { name: "Officers", href: "/student/officers", icon: LuAward },
   { name: "Finance", href: "/student/finance", icon: LuWallet },
+  { name: "Sanctions", href: "/student/sanctions", icon: LuShieldAlert },
   { name: "Voting", href: "/student/voting", icon: LuVote },
   { name: "Profile", href: "/student/profile", icon: LuUserRound },
 ];

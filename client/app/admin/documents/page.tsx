@@ -299,45 +299,117 @@ export default function DocumentsPage() {
     setIsDeleting(true);
     const { id, type, doc } = itemToDelete;
 
-    if (type === "folder") {
-      const { error } = await supabase.from("document_folders").delete().eq("id", id);
-      if (error) toast.error("Failed to delete folder.");
-      else {
-        toast.success("Folder deleted.");
-        fetchContents();
-      }
-    } else {
-      if (doc?.drive_file_id) {
-        const toastId = toast.loading("Deleting from cloud...");
-        try {
-          const res = await fetch("/api/cloudinary/delete", {
-            method: "POST",
-            body: JSON.stringify({
-              public_id: doc.drive_file_id,
-              resource_type: doc.file_type.includes("image") ? "image" : "raw",
-            }),
-            headers: { "Content-Type": "application/json" },
-          });
-          if (!res.ok) {
-            const data = await res.json();
-            console.error("Cloudinary Delete Error:", data);
+    try {
+      if (type === "folder") {
+        const toastId = toast.loading("Deleting folder and contents...");
+
+        // 1. Recursively find all subfolder IDs
+        const folderIdsToDelete = [id];
+        const collectFolderIds = async (parentId: string) => {
+          const { data: subs } = await supabase
+            .from("document_folders")
+            .select("id")
+            .eq("parent_folder_id", parentId);
+          if (subs && subs.length > 0) {
+            for (const sub of subs) {
+              folderIdsToDelete.push(sub.id);
+              await collectFolderIds(sub.id);
+            }
           }
-        } catch (err: any) {
-          console.error("Cloudinary request failed:", err);
+        };
+        await collectFolderIds(id);
+
+        // 2. Find all documents within any of these folders
+        const { data: docsInFolders } = await supabase
+          .from("documents")
+          .select("*")
+          .in("folder_id", folderIdsToDelete);
+
+        // 3. Delete files from Cloudinary
+        if (docsInFolders && docsInFolders.length > 0) {
+          for (const d of docsInFolders) {
+            if (d.drive_file_id) {
+              try {
+                await fetch("/api/cloudinary/delete", {
+                  method: "POST",
+                  body: JSON.stringify({
+                    public_id: d.drive_file_id,
+                    resource_type: d.file_type.includes("image") ? "image" : "raw",
+                  }),
+                  headers: { "Content-Type": "application/json" },
+                });
+              } catch (e) {
+                console.error("Cloudinary delete failed for file", d.name, e);
+              }
+            }
+          }
+
+          // 4. Delete documents from database
+          const { error: docsDeleteError } = await supabase
+            .from("documents")
+            .delete()
+            .in("folder_id", folderIdsToDelete);
+
+          if (docsDeleteError) {
+            console.error("Docs delete error:", docsDeleteError);
+          }
         }
+
+        // 5. Delete all subfolders and the main folder from document_folders
+        const { error: folderError } = await supabase
+          .from("document_folders")
+          .delete()
+          .in("id", folderIdsToDelete);
+
         toast.dismiss(toastId);
-      }
 
-      const { error } = await supabase.from("documents").delete().eq("id", id);
-      if (error) toast.error("Failed to delete file record.");
-      else {
-        toast.success("File removed.");
-        fetchContents();
+        if (folderError) {
+          toast.error(folderError.message || "Failed to delete folder.");
+        } else {
+          toast.success("Folder and all contents deleted successfully!");
+          // If we were inside this folder or any of its deleted subfolders, go back to Root Drive
+          if (currentFolderId && folderIdsToDelete.includes(currentFolderId)) {
+            setCurrentFolderId(null);
+            setBreadcrumbs([{ id: null, name: "Drive" }]);
+          }
+          fetchContents();
+        }
+      } else {
+        if (doc?.drive_file_id) {
+          const toastId = toast.loading("Deleting from cloud...");
+          try {
+            const res = await fetch("/api/cloudinary/delete", {
+              method: "POST",
+              body: JSON.stringify({
+                public_id: doc.drive_file_id,
+                resource_type: doc.file_type.includes("image") ? "image" : "raw",
+              }),
+              headers: { "Content-Type": "application/json" },
+            });
+            if (!res.ok) {
+              const data = await res.json();
+              console.error("Cloudinary Delete Error:", data);
+            }
+          } catch (err: any) {
+            console.error("Cloudinary request failed:", err);
+          }
+          toast.dismiss(toastId);
+        }
+
+        const { error } = await supabase.from("documents").delete().eq("id", id);
+        if (error) toast.error(error.message || "Failed to delete file record.");
+        else {
+          toast.success("File removed.");
+          fetchContents();
+        }
       }
+    } catch (err: any) {
+      console.error("Delete failed:", err);
+      toast.error(err.message || "An unexpected error occurred while deleting.");
+    } finally {
+      setIsDeleting(false);
+      setItemToDelete(null);
     }
-
-    setIsDeleting(false);
-    setItemToDelete(null);
   };
 
   const handleDownloadFolder = async (folder: Folder) => {

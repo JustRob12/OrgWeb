@@ -56,7 +56,7 @@ export default function ViewMembersPage() {
   const [memberToDelete, setMemberToDelete] = useState<string | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
-  const itemsPerPage = 10;
+  const itemsPerPage = 5;
   const supabase = createClient();
 
   // Edit Member Modal States
@@ -572,28 +572,52 @@ export default function ViewMembersPage() {
           </table>
         </div>
 
-        <div className="p-6 bg-slate-50/50 border-t border-slate-100 flex items-center justify-between shrink-0">
+        <div className="p-4 sm:p-6 bg-slate-50/50 border-t border-slate-100 flex flex-col sm:flex-row items-center justify-between gap-4 shrink-0">
           <p className="text-xs font-bold text-slate-500 uppercase tracking-widest">
-            Showing <span className="text-slate-900">{Math.min(filteredMembers.length, (currentPage - 1) * itemsPerPage + 1)}-{Math.min(filteredMembers.length, currentPage * itemsPerPage)}</span> of <span className="text-slate-900">{filteredMembers.length}</span> results
+            Showing <span className="text-slate-900">{filteredMembers.length > 0 ? (currentPage - 1) * itemsPerPage + 1 : 0}-{Math.min(filteredMembers.length, currentPage * itemsPerPage)}</span> of <span className="text-slate-900">{filteredMembers.length}</span> members
           </p>
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-1.5 flex-wrap justify-center">
             <Button 
               variant="outline" 
               size="sm" 
               disabled={currentPage <= 1} 
-              onClick={() => setCurrentPage(prev => prev - 1)}
-              className="rounded-xl px-4 py-2 border-slate-200 hover:bg-white transition-all disabled:opacity-50"
+              onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
+              className="rounded-xl px-3 py-1.5 h-9 border-slate-200 hover:bg-white transition-all disabled:opacity-50 text-xs font-bold cursor-pointer"
             >
-              <LuChevronLeft className="size-4 mr-2" /> Previous
+              <LuChevronLeft className="size-4 mr-1" /> Prev
             </Button>
+
+            {Array.from({ length: totalPages }, (_, i) => i + 1)
+              .filter(p => p === 1 || p === totalPages || Math.abs(p - currentPage) <= 1)
+              .map((pageNum, index, array) => {
+                const prevNum = array[index - 1];
+                const showEllipsis = prevNum && pageNum - prevNum > 1;
+
+                return (
+                  <React.Fragment key={pageNum}>
+                    {showEllipsis && <span className="px-1 text-slate-400 text-xs font-bold">...</span>}
+                    <button
+                      onClick={() => setCurrentPage(pageNum)}
+                      className={`size-9 rounded-xl text-xs font-black transition-all cursor-pointer ${
+                        currentPage === pageNum
+                          ? "bg-primary text-white shadow-xs"
+                          : "bg-white text-slate-600 border border-slate-200 hover:bg-slate-50"
+                      }`}
+                    >
+                      {pageNum}
+                    </button>
+                  </React.Fragment>
+                );
+              })}
+
             <Button 
               variant="outline" 
               size="sm" 
               disabled={currentPage >= totalPages} 
-              onClick={() => setCurrentPage(prev => prev + 1)}
-              className="rounded-xl px-4 py-2 border-slate-200 hover:bg-white transition-all disabled:opacity-50"
+              onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
+              className="rounded-xl px-3 py-1.5 h-9 border-slate-200 hover:bg-white transition-all disabled:opacity-50 text-xs font-bold cursor-pointer"
             >
-              Next <LuChevronRight className="size-4 ml-2" />
+              Next <LuChevronRight className="size-4 ml-1" />
             </Button>
           </div>
         </div>
