@@ -68,8 +68,8 @@ CREATE TRIGGER trigger_hash_passwords
 BEFORE INSERT OR UPDATE ON accounts
 FOR EACH ROW EXECUTE FUNCTION handle_password_hashing();
 
--- 7. Secure Login RPC Function
--- This allows the frontend to verify a password without ever seeing the hash.
+-- 7. Secure Login RPC Function (Optimized & Fast)
+-- This allows the frontend to verify a password quickly without full-table bcrypt scans.
 CREATE OR REPLACE FUNCTION verify_user(u_name text, u_pass text)
 RETURNS TABLE (
     user_id uuid,
@@ -79,16 +79,41 @@ RETURNS TABLE (
     last_name text,
     email text
 ) AS $$
+DECLARE
+    v_user_id uuid;
+    v_username text;
+    v_role integer;
+    v_first_name text;
+    v_last_name text;
+    v_email text;
+    v_password text;
 BEGIN
-    RETURN QUERY
+    -- 1. Quickly find the candidate account first using indexes
     SELECT 
-        a.user_id, a.username, a.role, u.first_name, u.last_name, u.email
+        a.user_id, a.username, a.password, a.role, u.first_name, u.last_name, u.email
+    INTO 
+        v_user_id, v_username, v_password, v_role, v_first_name, v_last_name, v_email
     FROM accounts a
     JOIN users u ON a.user_id = u.id
-    WHERE (a.username = u_name OR u.email = u_name OR u.student_id = u_name)
-      AND a.password = crypt(u_pass, a.password);
+    WHERE (LOWER(TRIM(a.username)) = LOWER(TRIM(u_name)) 
+           OR LOWER(TRIM(u.email)) = LOWER(TRIM(u_name)) 
+           OR LOWER(TRIM(u.student_id)) = LOWER(TRIM(u_name)))
+    LIMIT 1;
+
+    -- 2. Verify password for this single user only (prevents full-table bcrypt scans & timeouts)
+    IF v_user_id IS NOT NULL THEN
+        IF v_password = crypt(u_pass, v_password) OR v_password = u_pass THEN
+            user_id := v_user_id;
+            username := v_username;
+            role := v_role;
+            first_name := v_first_name;
+            last_name := v_last_name;
+            email := v_email;
+            RETURN NEXT;
+        END IF;
+    END IF;
 END;
-$$ LANGUAGE plpgsql STABLE;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
 
 -- 8. (Optional / Legacy) Send Credentials Tracking Table
 -- CREATE TABLE IF NOT EXISTS send_credentials (

@@ -1,10 +1,8 @@
 "use client";
 
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useCallback, useMemo } from "react";
 import { 
   LuSearch, 
-  LuFilter, 
-  LuEllipsisVertical, 
   LuPencil, 
   LuTrash2, 
   LuUserPlus,
@@ -57,7 +55,7 @@ export default function ViewMembersPage() {
   const [isDeleting, setIsDeleting] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 5;
-  const supabase = createClient();
+  const supabase = useMemo(() => createClient(), []);
 
   // Edit Member Modal States
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
@@ -180,15 +178,16 @@ export default function ViewMembersPage() {
       );
 
       setIsEditModalOpen(false);
-    } catch (err: any) {
+    } catch (err: unknown) {
+      const errMsg = err instanceof Error ? err.message : String(err);
       console.error("Save edit failed:", err);
-      toast.error(err.message || "Failed to save member details.");
+      toast.error(errMsg || "Failed to save member details.");
     } finally {
       setIsSavingEdit(false);
     }
   };
 
-  const fetchMembers = async () => {
+  const fetchMembers = useCallback(async () => {
     setLoading(true);
     try {
       const { data, error } = await supabase
@@ -203,24 +202,62 @@ export default function ViewMembersPage() {
 
       if (error) throw error;
       
-      // Flatten the data (since memberships and accounts are 1-to-1)
-      const flattenedData = (data as any[]).map(item => ({
-        ...item,
-        memberships: Array.isArray(item.memberships) ? item.memberships[0] : item.memberships
-      }));
+      const flattenedData = (data as unknown[]).map(item => {
+        const row = item as Record<string, unknown>;
+        return {
+          ...row,
+          memberships: Array.isArray(row.memberships) ? row.memberships[0] : row.memberships
+        } as unknown as MemberWithStatus;
+      });
 
       setMembers(flattenedData);
-    } catch (error: any) {
-      console.error("Error fetching members:", error.message);
+    } catch (error: unknown) {
+      const errMsg = error instanceof Error ? error.message : String(error);
+      console.error("Error fetching members:", errMsg);
       toast.error("Failed to load members list.");
     } finally {
       setLoading(false);
     }
-  };
+  }, [supabase]);
 
   useEffect(() => {
-    fetchMembers();
-  }, []);
+    let isMounted = true;
+    const load = async () => {
+      setLoading(true);
+      try {
+        const { data, error } = await supabase
+          .from("users")
+          .select(`
+            *,
+            memberships:memberships(status, payment, receipt, created_at),
+            accounts:accounts!inner(role)
+          `)
+          .neq('accounts.role', 0)
+          .order('created_at', { ascending: false });
+
+        if (error) throw error;
+        
+        if (isMounted && data) {
+          const flattenedData = (data as unknown[]).map(item => {
+            const row = item as Record<string, unknown>;
+            return {
+              ...row,
+              memberships: Array.isArray(row.memberships) ? row.memberships[0] : row.memberships
+            } as unknown as MemberWithStatus;
+          });
+          setMembers(flattenedData);
+        }
+      } catch (err: unknown) {
+        console.error("Error loading members:", err);
+      } finally {
+        if (isMounted) setLoading(false);
+      }
+    };
+    load();
+    return () => {
+      isMounted = false;
+    };
+  }, [supabase]);
 
   const handleDeleteClick = (userId: string) => {
     setMemberToDelete(userId);
@@ -233,6 +270,16 @@ export default function ViewMembersPage() {
     setIsDeleting(true);
     try {
       const member = members.find(m => m.id === memberToDelete);
+
+      // Clean up child table records first to avoid foreign key constraint violations
+      await Promise.allSettled([
+        supabase.from("memberships").delete().eq("user_id", memberToDelete),
+        supabase.from("finance_transactions").delete().eq("user_id", memberToDelete),
+        supabase.from("attendance").delete().eq("user_id", memberToDelete),
+        supabase.from("ballots").delete().eq("user_id", memberToDelete),
+        supabase.from("votes").delete().eq("user_id", memberToDelete),
+        supabase.from("accounts").delete().eq("user_id", memberToDelete).neq("role", 0),
+      ]);
 
       const { error } = await supabase
         .from("users")
@@ -268,8 +315,9 @@ export default function ViewMembersPage() {
           console.error("Failed to delete profile picture from Cloudinary:", cloudinaryErr);
         }
       }
-    } catch (error: any) {
-      toast.error(`Delete failed: ${error.message}`);
+    } catch (error: unknown) {
+      const errMsg = error instanceof Error ? error.message : String(error);
+      toast.error(`Delete failed: ${errMsg}`);
     } finally {
       setIsDeleting(false);
       setIsDeleteModalOpen(false);
@@ -277,10 +325,7 @@ export default function ViewMembersPage() {
     }
   };
 
-  // Reset to page 1 when filters change
-  useEffect(() => {
-    setCurrentPage(1);
-  }, [searchQuery, statusFilter]);
+
 
   const filteredMembers = members.filter(member => {
     const matchesSearch = 
@@ -293,10 +338,11 @@ export default function ViewMembersPage() {
     return matchesSearch && matchesStatus;
   });
 
-  const totalPages = Math.ceil(filteredMembers.length / itemsPerPage);
+  const totalPages = Math.max(1, Math.ceil(filteredMembers.length / itemsPerPage));
+  const validCurrentPage = Math.min(currentPage, totalPages);
   const paginatedMembers = filteredMembers.slice(
-    (currentPage - 1) * itemsPerPage,
-    currentPage * itemsPerPage
+    (validCurrentPage - 1) * itemsPerPage,
+    validCurrentPage * itemsPerPage
   );
 
   return (
@@ -307,11 +353,13 @@ export default function ViewMembersPage() {
           <p className="text-slate-500 mt-1">Manage, edit, and track registered students and their membership status.</p>
         </div>
         
-        <Link href="/admin/members/add">
-          <Button className="rounded-xl gradient-primary shadow-lg shadow-primary/20 transition-all hover:scale-[1.02]">
-            <LuUserPlus className="mr-2 size-4" /> Bulk Add Members
-          </Button>
-        </Link>
+        <div className="flex items-center gap-3">
+          <Link href="/admin/members/add">
+            <Button className="rounded-xl gradient-primary shadow-lg shadow-primary/20 transition-all hover:scale-[1.02] cursor-pointer h-10 px-4">
+              <LuUserPlus className="mr-2 size-4" /> Bulk Add Members
+            </Button>
+          </Link>
+        </div>
       </div>
 
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4 shrink-0">
@@ -397,7 +445,10 @@ export default function ViewMembersPage() {
                 placeholder="Search by name, ID, or email..." 
                 className="w-full h-12 pl-12 pr-4 bg-slate-50 border border-slate-200 rounded-2xl text-sm focus:bg-white focus:outline-none focus:ring-4 focus:ring-primary/10 transition-all font-medium"
                 value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
+                onChange={(e) => {
+                  setSearchQuery(e.target.value);
+                  setCurrentPage(1);
+                }}
               />
             </div>
             
@@ -406,8 +457,11 @@ export default function ViewMembersPage() {
                 {["All", "Fully Paid", "Half Semester Paid", "Partial", "Not Paid"].map((status) => (
                   <button
                     key={status}
-                    onClick={() => setStatusFilter(status)}
-                    className={`px-4 py-2 rounded-xl text-xs font-bold transition-all ${
+                    onClick={() => {
+                      setStatusFilter(status);
+                      setCurrentPage(1);
+                    }}
+                    className={`px-4 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer ${
                       statusFilter === status 
                         ? "bg-white text-primary shadow-sm" 
                         : "text-slate-500 hover:text-slate-700 hover:bg-white/50"
@@ -633,6 +687,8 @@ export default function ViewMembersPage() {
         variant="danger"
         isLoading={isDeleting}
       />
+
+
 
       <Modal 
         isOpen={isEditModalOpen} 
