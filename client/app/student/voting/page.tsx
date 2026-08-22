@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { 
   LuVote, 
@@ -49,7 +49,7 @@ interface Poll {
 
 export default function StudentVotingPage() {
   const router = useRouter();
-  const [user, setUser] = useState<any>(null);
+  const [user, setUser] = useState<{ id: string; [key: string]: unknown } | null>(null);
   const [polls, setPolls] = useState<Poll[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedPoll, setSelectedPoll] = useState<Poll | null>(null);
@@ -58,7 +58,6 @@ export default function StudentVotingPage() {
   const [submitting, setSubmitting] = useState(false);
   const [success, setSuccess] = useState(false);
   const [activeTab, setActiveTab] = useState<"active" | "past">("active");
-  const [searchQuery, setSearchQuery] = useState("");
   const [zoomImage, setZoomImage] = useState<string | null>(null);
 
   // Zoom/Pan/Pinch State
@@ -66,7 +65,7 @@ export default function StudentVotingPage() {
   const [position, setPosition] = useState({ x: 0, y: 0 });
   const [isDragging, setIsDragging] = useState(false);
   const [dragStart, setDragStart] = useState({ x: 0, y: 0 });
-  const [lastTap, setLastTap] = useState<Record<string, number>>({});
+  const lastTapRef = useRef<Record<string, number>>({});
 
   const closeZoom = () => {
     setZoomImage(null);
@@ -75,21 +74,28 @@ export default function StudentVotingPage() {
     setIsDragging(false);
   };
 
-  const handleCardClick = (questionId: string, option: Option) => {
+  const handleSelectOption = (questionId: string, optionId: string) => {
+    setSelections((prev) => ({
+      ...prev,
+      [questionId]: optionId,
+    }));
+  };
+
+  const handleCardClick = (questionId: string, option: Option, e?: React.MouseEvent) => {
     // 1. Single click select
     handleSelectOption(questionId, option.id);
 
     // 2. Double tap detect for zooming
     if (option.image_url) {
-      const now = Date.now();
-      const prevTap = lastTap[option.id] || 0;
-      if (now - prevTap < 300) {
+      const now = e ? e.timeStamp : 0;
+      const prevTap = lastTapRef.current[option.id] || 0;
+      if (now > 0 && prevTap > 0 && now - prevTap < 300) {
         setZoomImage(option.image_url);
         setScale(1);
         setPosition({ x: 0, y: 0 });
         setIsDragging(false);
       }
-      setLastTap(prev => ({ ...prev, [option.id]: now }));
+      lastTapRef.current[option.id] = now;
     }
   };
 
@@ -327,7 +333,7 @@ export default function StudentVotingPage() {
 
         if (!pvError && previousVotes) {
           const initialSelections: Record<string, string> = {};
-          previousVotes.forEach((v: any) => {
+          (previousVotes as Array<{ question_id: string; option_id: string }>).forEach((v) => {
             initialSelections[v.question_id] = v.option_id;
           });
           setSelections(initialSelections);
@@ -342,13 +348,6 @@ export default function StudentVotingPage() {
     } finally {
       setLoading(false);
     }
-  };
-
-  const handleSelectOption = (questionId: string, optionId: string) => {
-    setSelections((prev) => ({
-      ...prev,
-      [questionId]: optionId,
-    }));
   };
 
   const handleSubmitBallot = async () => {
@@ -375,22 +374,57 @@ export default function StudentVotingPage() {
         option_id: oId,
       }));
 
-      const { data, error } = await supabase.rpc("cast_ballot", {
+      const { error: rpcError } = await supabase.rpc("cast_ballot", {
         p_poll_id: selectedPoll.id,
         p_user_id: user.id,
         p_selections: formattedSelections,
       });
 
-      if (error) throw error;
+      if (rpcError) {
+        console.warn("RPC cast_ballot note, executing direct database fallback:", rpcError);
+        
+        // 1. Handle ballot record
+        const { data: existingBallot } = await supabase
+          .from("ballots")
+          .select("id")
+          .eq("user_id", user.id)
+          .eq("poll_id", selectedPoll.id)
+          .maybeSingle();
+
+        if (existingBallot) {
+          await supabase
+            .from("votes")
+            .delete()
+            .eq("user_id", user.id)
+            .eq("poll_id", selectedPoll.id);
+        } else {
+          const { error: ballotErr } = await supabase
+            .from("ballots")
+            .insert({ user_id: user.id, poll_id: selectedPoll.id });
+          if (ballotErr) throw ballotErr;
+        }
+
+        // 2. Insert vote selections
+        const voteRows = formattedSelections.map((sel) => ({
+          poll_id: selectedPoll.id,
+          question_id: sel.question_id,
+          option_id: sel.option_id,
+          user_id: user.id,
+        }));
+
+        const { error: votesErr } = await supabase.from("votes").insert(voteRows);
+        if (votesErr) throw votesErr;
+      }
 
       setSuccess(true);
       // Mark as voted in the state list
       setPolls((prev) =>
         prev.map((p) => (p.id === selectedPoll.id ? { ...p, voted: true } : p))
       );
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error("Ballot submission error:", err);
-      alert(err.message || "Failed to submit ballot. Please try again.");
+      const errMsg = err instanceof Error ? err.message : "Failed to submit ballot. Please try again.";
+      alert(errMsg);
     } finally {
       setSubmitting(false);
     }

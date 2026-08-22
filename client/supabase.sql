@@ -421,7 +421,9 @@ BEGIN
 
     RETURN TRUE;
 END;
-$$ LANGUAGE plpgsql;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+
+GRANT EXECUTE ON FUNCTION cast_ballot(UUID, UUID, JSONB) TO anon, authenticated, service_role;
 
 -- 22. Add category column to polls table
 ALTER TABLE polls ADD COLUMN IF NOT EXISTS category TEXT CHECK (category IN ('standard', 'visual', 'pageant')) DEFAULT 'standard';
