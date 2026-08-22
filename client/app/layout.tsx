@@ -4,6 +4,7 @@ import "./globals.css";
 import { Toaster } from "sonner";
 import DisableDevTools from "@/app/Components/DisableDevTools";
 import PwaRegister from "@/app/Components/PwaRegister";
+import AutoLogoutProvider from "@/app/Components/AutoLogoutProvider";
 
 const roboto = Roboto({
   subsets: ["latin"],
@@ -64,6 +65,7 @@ export default function RootLayout({
       <body suppressHydrationWarning>
         <PwaRegister />
         <DisableDevTools />
+        <AutoLogoutProvider />
         {children}
         <Toaster richColors position="top-center" />
       </body>
