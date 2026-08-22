@@ -24,6 +24,7 @@ import { Textarea } from "@/app/Components/ui/textarea";
 import { Modal } from "@/app/Components/ui/modal";
 import { ConfirmModal } from "@/app/Components/ui/confirm-modal";
 import { createClient } from "@/utils/supabase/client";
+import { toast } from "sonner";
 
 interface Option {
   id?: string;
@@ -124,7 +125,7 @@ export default function AdminVotingPage() {
     return true;
   });
 
-  const supabase = createClient();
+  const supabase = React.useMemo(() => createClient(), []);
 
   const [uploadingOptions, setUploadingOptions] = useState<Record<string, boolean>>({});
 
@@ -186,16 +187,16 @@ export default function AdminVotingPage() {
 
       const data = await res.json();
       handleOptionChange(qIdx, oIdx, "image_url", data.secure_url);
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error(err);
-      alert(err.message || "Failed to upload image. Please try again.");
+      const errMsg = err instanceof Error ? err.message : "Failed to upload image. Please try again.";
+      alert(errMsg);
     } finally {
       setUploadingOptions((prev) => ({ ...prev, [key]: false }));
     }
   };
 
-  const fetchDashboardData = async () => {
-    setLoading(true);
+  const fetchDashboardData = React.useCallback(async () => {
     try {
       // 1. Fetch count of students (role = 1)
       const { data: studentsData, error: stdError } = await supabase
@@ -218,7 +219,7 @@ export default function AdminVotingPage() {
       // 3. For each poll, fetch ballot counts to compute turnout
       const pollsWithBallotCounts = await Promise.all(
         (pollsData || []).map(async (poll: Poll) => {
-          const { count, error: bError } = await supabase
+          const { count } = await supabase
             .from("ballots")
             .select("*", { count: "exact", head: true })
             .eq("poll_id", poll.id);
@@ -236,11 +237,54 @@ export default function AdminVotingPage() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [supabase]);
 
   useEffect(() => {
-    fetchDashboardData();
-  }, []);
+    let isMounted = true;
+    const load = async () => {
+      try {
+        const { data: studentsData, error: stdError } = await supabase
+          .from("users")
+          .select(`id, accounts:accounts!inner(role)`)
+          .eq("accounts.role", 1);
+
+        if (stdError) throw stdError;
+        if (isMounted) setTotalStudents(studentsData?.length || 0);
+
+        const { data: pollsData, error: pollsError } = await supabase
+          .from("polls")
+          .select("*")
+          .order("created_at", { ascending: false });
+
+        if (pollsError) throw pollsError;
+
+        const pollsWithBallotCounts = await Promise.all(
+          (pollsData || []).map(async (poll: Poll) => {
+            const { count } = await supabase
+              .from("ballots")
+              .select("*", { count: "exact", head: true })
+              .eq("poll_id", poll.id);
+
+            return {
+              ...poll,
+              voter_count: count || 0,
+            };
+          })
+        );
+
+        if (isMounted) setPolls(pollsWithBallotCounts);
+      } catch (err) {
+        console.error("Error fetching dashboard data:", err);
+      } finally {
+        if (isMounted) setLoading(false);
+      }
+    };
+
+    load();
+    return () => {
+      isMounted = false;
+    };
+  }, [supabase]);
 
   const handleAddQuestion = () => {
     setQuestions((prev) => [
@@ -366,9 +410,10 @@ export default function AdminVotingPage() {
 
       resetFormState();
       await fetchDashboardData();
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error("Error creating poll:", err);
-      alert(err.message || "Failed to create poll.");
+      const errMsg = err instanceof Error ? err.message : "Failed to create poll.";
+      alert(errMsg);
     } finally {
       setCreating(false);
     }
@@ -492,11 +537,11 @@ export default function AdminVotingPage() {
       
       const dbQuestionIds = (dbQuestions || []).map((q) => q.id);
 
-      let dbOptions: any[] = [];
+      let dbOptions: Array<{ id: string; question_id: string; image_url?: string }> = [];
       if (dbQuestionIds.length > 0) {
         const { data: dbOpts, error: dbOptError } = await supabase
           .from("poll_options")
-          .select("id, question_id")
+          .select("id, question_id, image_url")
           .in("question_id", dbQuestionIds);
         if (dbOptError) throw dbOptError;
         dbOptions = dbOpts || [];
@@ -513,7 +558,7 @@ export default function AdminVotingPage() {
         await Promise.all(
           optionsForDeletedQuestions
             .map((o) => o.image_url)
-            .filter(Boolean)
+            .filter((url): url is string => Boolean(url))
             .map((url) => deleteCloudinaryImage(url))
         );
 
@@ -569,7 +614,6 @@ export default function AdminVotingPage() {
 
           // Process options for this existing question
           const dbQuestionOptions = dbOptions.filter((o) => o.question_id === questionId);
-          const dbQuestionOptionIds = dbQuestionOptions.map((o) => o.id);
 
           // Delete options no longer in this question
           const formOptionIds = qForm.options.map((o) => o.id).filter(Boolean);
@@ -581,7 +625,7 @@ export default function AdminVotingPage() {
             await Promise.all(
               optionsToDeleteObjects
                 .map((o) => o.image_url)
-                .filter(Boolean)
+                .filter((url): url is string => Boolean(url))
                 .map((url) => deleteCloudinaryImage(url))
             );
 
@@ -593,7 +637,7 @@ export default function AdminVotingPage() {
             if (delOptError) throw delOptError;
           }
 
-          // Update existing options or insert new options
+          // Update existing options or insert new ones
           for (let oIdx = 0; oIdx < qForm.options.length; oIdx++) {
             const oForm = qForm.options[oIdx];
             if (!oForm.id) {
@@ -625,9 +669,10 @@ export default function AdminVotingPage() {
 
       resetFormState();
       await fetchDashboardData();
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error("Error editing poll:", err);
-      alert(err.message || "Failed to update poll.");
+      const errMsg = err instanceof Error ? err.message : "Failed to update poll.";
+      alert(errMsg);
     } finally {
       setCreating(false);
     }
@@ -664,8 +709,8 @@ export default function AdminVotingPage() {
       
       const qIds = (dbQuestions || []).map((q) => q.id);
       
+      // 2. Fetch options to get Cloudinary images
       if (qIds.length > 0) {
-        // 2. Fetch options to get Cloudinary images
         const { data: dbOptions } = await supabase
           .from("poll_options")
           .select("image_url")
@@ -676,22 +721,54 @@ export default function AdminVotingPage() {
           await Promise.all(
             dbOptions
               .map((o) => o.image_url)
-              .filter(Boolean)
+              .filter((url): url is string => Boolean(url))
               .map((url) => deleteCloudinaryImage(url))
           );
         }
+
+        // 4. Delete votes associated with these questions
+        await supabase
+          .from("votes")
+          .delete()
+          .in("question_id", qIds);
+
+        // 5. Delete candidate options
+        await supabase
+          .from("poll_options")
+          .delete()
+          .in("question_id", qIds);
       }
 
-      // 4. Delete the poll
+      // 6. Delete remaining votes & ballots for the poll
+      await supabase
+        .from("votes")
+        .delete()
+        .eq("poll_id", pollToDelete);
+
+      await supabase
+        .from("ballots")
+        .delete()
+        .eq("poll_id", pollToDelete);
+
+      // 7. Delete questions
+      await supabase
+        .from("poll_questions")
+        .delete()
+        .eq("poll_id", pollToDelete);
+
+      // 8. Delete the poll record
       const { error } = await supabase
         .from("polls")
         .delete()
         .eq("id", pollToDelete);
 
       if (error) throw error;
+      toast.success("Election poll and all associated data deleted.");
       await fetchDashboardData();
-    } catch (err) {
+    } catch (err: unknown) {
       console.error("Error deleting poll:", err);
+      const errMsg = err instanceof Error ? err.message : "Failed to delete poll.";
+      toast.error(errMsg);
     } finally {
       setIsDeletingPoll(false);
       setIsDeleteModalOpen(false);
@@ -945,7 +1022,7 @@ export default function AdminVotingPage() {
               <label className="text-xs font-black text-slate-500 uppercase">Poll Category / Layout Style</label>
               <select
                 value={category}
-                onChange={(e) => setCategory(e.target.value as any)}
+                onChange={(e) => setCategory(e.target.value as "standard" | "visual" | "pageant")}
                 className="flex h-10 w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
               >
                 <option value="standard">Standard (Officer Elections / Profile Cards)</option>
@@ -1096,8 +1173,9 @@ export default function AdminVotingPage() {
                                   const input = document.createElement("input");
                                   input.type = "file";
                                   input.accept = "image/*";
-                                  input.onchange = (e: any) => {
-                                    const file = e.target.files?.[0];
+                                  input.onchange = (e: Event) => {
+                                    const target = e.target as HTMLInputElement;
+                                    const file = target.files?.[0];
                                     if (file) {
                                       uploadOptionImage(file, qIdx, oIdx);
                                     }

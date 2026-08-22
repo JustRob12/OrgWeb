@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useMemo, useCallback } from "react";
 import {
   LuShieldAlert,
   LuCircleCheck,
@@ -57,18 +57,27 @@ interface EventItem {
   status?: string;
 }
 
+interface UserProfile {
+  first_name?: string;
+  last_name?: string;
+  email?: string;
+  course?: string;
+  section?: string;
+  student_id?: string;
+}
+
 export default function StudentSanctionsPage() {
   const [sanctions, setSanctions] = useState<Sanction[]>([]);
   const [events, setEvents] = useState<EventItem[]>([]);
   const [attendedEventIds, setAttendedEventIds] = useState<Set<string>>(new Set());
   const [rules, setRules] = useState<SanctionRule[]>([]);
   const [loading, setLoading] = useState(true);
-  const [user, setUser] = useState<any>(null);
+  const [user, setUser] = useState<UserProfile | null>(null);
   const [refreshing, setRefreshing] = useState(false);
 
-  const supabase = createClient();
+  const supabase = useMemo(() => createClient(), []);
 
-  const fetchStudentData = async () => {
+  const fetchStudentData = useCallback(async () => {
     let studentId = "";
     let userEmail = "";
 
@@ -93,6 +102,7 @@ export default function StudentSanctionsPage() {
       }
     }
 
+    let fetchedUser: UserProfile | null = null;
     if (userEmail || studentId) {
       const query = supabase.from("users").select("*");
       if (studentId) {
@@ -103,7 +113,8 @@ export default function StudentSanctionsPage() {
 
       const { data: userData } = await query.maybeSingle();
       if (userData) {
-        setUser(userData);
+        fetchedUser = userData as UserProfile;
+        setUser(fetchedUser);
         studentId = userData.student_id;
       }
     }
@@ -153,34 +164,36 @@ export default function StudentSanctionsPage() {
             (r) => r.is_active && currentAbsents >= r.min_absent && currentAbsents <= r.max_absent
           );
 
-          const autoSanction: Sanction = {
-            id: "auto-generated",
-            student_id: studentId,
-            student_name: user ? `${user.first_name} ${user.last_name}` : "Student",
-            email: user?.email || null,
-            course: user?.course || null,
-            year_section: user?.section || null,
-            title: matchedRule?.title || `${currentAbsents} Event Absence(s)`,
-            description: `Automated notice for missing ${currentAbsents} mandatory event(s): ${missed
-              .map((e) => e.title)
-              .join(", ")}.`,
-            sanction_type: matchedRule?.sanction_type || "Community Service",
-            penalty_details:
-              matchedRule?.penalty_details || `${currentAbsents * 1.5} Hours Community Service`,
-            status: "Pending",
-            due_date: null,
-            issued_by: "ACES Attendance Auto-Detector",
-            absent_count: currentAbsents,
-            missed_events: missed.map((e) => e.title).join(", "),
-            cleared_at: null,
-            notes: null,
-            created_at: new Date().toISOString(),
-          };
-          setSanctions([autoSanction]);
+          if (matchedRule) {
+            const autoSanction: Sanction = {
+              id: "auto-generated",
+              student_id: studentId,
+              student_name: fetchedUser ? `${fetchedUser.first_name || ""} ${fetchedUser.last_name || ""}`.trim() : "Student",
+              email: fetchedUser?.email || null,
+              course: fetchedUser?.course || null,
+              year_section: fetchedUser?.section || null,
+              title: matchedRule.title,
+              description: matchedRule.description || `Automated notice for missing ${currentAbsents} mandatory event(s): ${missed.map((e) => e.title).join(", ")}.`,
+              sanction_type: matchedRule.sanction_type || "Community Service",
+              penalty_details: matchedRule.penalty_details,
+              status: "Pending",
+              due_date: null,
+              issued_by: "ACES Attendance System",
+              absent_count: currentAbsents,
+              missed_events: missed.map((e) => e.title).join(", "),
+              cleared_at: null,
+              notes: null,
+              created_at: new Date().toISOString(),
+            };
+            setSanctions([autoSanction]);
+          } else {
+            setSanctions([]);
+          }
         } else {
           setSanctions([]);
         }
       } catch (err) {
+        console.error("Error loading sanctions:", err);
         setSanctions([]);
       }
     } else {
@@ -189,11 +202,20 @@ export default function StudentSanctionsPage() {
 
     setLoading(false);
     setRefreshing(false);
-  };
+  }, [supabase]);
 
   useEffect(() => {
-    fetchStudentData();
-  }, []);
+    let isMounted = true;
+    const load = async () => {
+      if (isMounted) {
+        await fetchStudentData();
+      }
+    };
+    load();
+    return () => {
+      isMounted = false;
+    };
+  }, [fetchStudentData]);
 
   const handleRefresh = () => {
     setRefreshing(true);

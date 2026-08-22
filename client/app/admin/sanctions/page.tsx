@@ -100,7 +100,7 @@ export default function AdminSanctionsPage() {
   // Data States
   const [students, setStudents] = useState<StudentUser[]>([]);
   const [events, setEvents] = useState<EventItem[]>([]);
-  const [attendanceRecords, setAttendanceRecords] = useState<any[]>([]);
+  const [attendanceRecords, setAttendanceRecords] = useState<Array<{ event_id: string; student_id: string; status?: string }>>([]);
   const [rules, setRules] = useState<SanctionRule[]>([]);
   const [sanctionOverrides, setSanctionOverrides] = useState<SanctionOverride[]>([]);
   const [loading, setLoading] = useState(true);
@@ -135,11 +135,12 @@ export default function AdminSanctionsPage() {
   const [isDeleteRuleModalOpen, setIsDeleteRuleModalOpen] = useState(false);
   const [ruleToDelete, setRuleToDelete] = useState<SanctionRule | null>(null);
   const [isDeletingRule, setIsDeletingRule] = useState(false);
+  const [isClearAllModalOpen, setIsClearAllModalOpen] = useState(false);
+  const [isClearingAllRules, setIsClearingAllRules] = useState(false);
 
-  const supabase = createClient();
+  const supabase = React.useMemo(() => createClient(), []);
 
-  const fetchData = async () => {
-    setLoading(true);
+  const fetchData = React.useCallback(async () => {
     try {
       // 1. Fetch Events
       const { data: eventsData } = await supabase
@@ -166,53 +167,7 @@ export default function AdminSanctionsPage() {
         .select("*")
         .order("min_absent", { ascending: true });
 
-      if (rulesData && rulesData.length > 0) {
-        setRules(rulesData);
-      } else {
-        const defaultRules: SanctionRule[] = [
-          {
-            id: "default-1",
-            min_absent: 1,
-            max_absent: 1,
-            title: "1 Event Absence Warning",
-            sanction_type: "Written Warning",
-            penalty_details: "Formal Warning Notice & Counseling",
-            description: "Automatic sanction for missing 1 organization event.",
-            is_active: true,
-          },
-          {
-            id: "default-2",
-            min_absent: 2,
-            max_absent: 2,
-            title: "2 Events Absence Sanction",
-            sanction_type: "Community Service",
-            penalty_details: "1.5 Hours Campus / Org Clean-up",
-            description: "Community service duty for missing 2 organization events.",
-            is_active: true,
-          },
-          {
-            id: "default-3",
-            min_absent: 3,
-            max_absent: 4,
-            title: "3-4 Events Absence Sanction",
-            sanction_type: "Community Service",
-            penalty_details: "3 Hours Campus Service & ₱50 Org Contribution",
-            description: "Elevated sanction for missing 3 to 4 mandatory events.",
-            is_active: true,
-          },
-          {
-            id: "default-4",
-            min_absent: 5,
-            max_absent: 99,
-            title: "5+ Events Critical Absence",
-            sanction_type: "Suspension of Privilege",
-            penalty_details: "5 Hours Community Service & Org Privilege Review",
-            description: "Critical non-compliance penalty.",
-            is_active: true,
-          },
-        ];
-        setRules(defaultRules);
-      }
+      setRules(rulesData || []);
 
       // 5. Fetch Sanctions Table (for status overrides / custom notes)
       const { data: sanctionsData } = await supabase.from("sanctions").select("*");
@@ -222,11 +177,20 @@ export default function AdminSanctionsPage() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [supabase]);
 
   useEffect(() => {
-    fetchData();
-  }, []);
+    let isMounted = true;
+    const load = async () => {
+      if (isMounted) {
+        await fetchData();
+      }
+    };
+    load();
+    return () => {
+      isMounted = false;
+    };
+  }, [fetchData]);
 
   const totalEventsCount = events.length;
 
@@ -282,14 +246,10 @@ export default function AdminSanctionsPage() {
     return true;
   });
 
-  // Reset pagination when search or filters change
-  useEffect(() => {
-    setCurrentPage(1);
-  }, [searchQuery, absentFilter, statusFilter]);
-
   // 5 items per page pagination
   const totalPages = Math.max(1, Math.ceil(filteredItems.length / itemsPerPage));
-  const paginatedItems = filteredItems.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage);
+  const safeCurrentPage = Math.min(Math.max(1, currentPage), totalPages);
+  const paginatedItems = filteredItems.slice((safeCurrentPage - 1) * itemsPerPage, safeCurrentPage * itemsPerPage);
 
   // Handlers for Status Updates
   const handleQuickStatusChange = async (
@@ -308,9 +268,11 @@ export default function AdminSanctionsPage() {
           .map((e) => e.title)
           .join(", ")}.`,
         sanction_type: item.matchedRule?.sanction_type || "Community Service",
-        penalty_details: item.matchedRule?.penalty_details || `${item.absentCount * 1.5} Hours Community Service`,
+        penalty_details:
+          item.matchedRule?.penalty_details || `${item.absentCount * 1.5} Hours Community Service`,
         status: newStatus,
         due_date: item.dueDate || null,
+        notes: item.customNotes || null,
         issued_by: "ACES Attendance Auto-Detector",
         absent_count: item.absentCount,
         missed_events: item.missedEvents.map((e) => e.title).join(", "),
@@ -328,8 +290,9 @@ export default function AdminSanctionsPage() {
 
       toast.success(`Updated status of ${item.student.first_name} to ${newStatus}`);
       fetchData();
-    } catch (err: any) {
-      toast.error(err.message || "Failed to update sanction status.");
+    } catch (err: unknown) {
+      const errMsg = err instanceof Error ? err.message : "Failed to update sanction status.";
+      toast.error(errMsg);
     }
   };
 
@@ -381,8 +344,9 @@ export default function AdminSanctionsPage() {
       toast.success("Sanction details updated!");
       setIsEditModalOpen(false);
       fetchData();
-    } catch (err: any) {
-      toast.error(err.message || "Failed to save details.");
+    } catch (err: unknown) {
+      const errMsg = err instanceof Error ? err.message : "Failed to save details.";
+      toast.error(errMsg);
     } finally {
       setIsSavingStatus(false);
     }
@@ -448,7 +412,7 @@ export default function AdminSanctionsPage() {
         updated_at: new Date().toISOString(),
       };
 
-      if (editingRule && !editingRule.id.startsWith("default-")) {
+      if (editingRule && editingRule.id) {
         const { error } = await supabase.from("sanction_rules").update(payload).eq("id", editingRule.id);
         if (error) throw error;
         toast.success("Sanction rule tier updated!");
@@ -460,8 +424,9 @@ export default function AdminSanctionsPage() {
 
       setIsRuleModalOpen(false);
       fetchData();
-    } catch (err: any) {
-      toast.error(err.message || "Failed to save rule tier.");
+    } catch (err: unknown) {
+      const errMsg = err instanceof Error ? err.message : "Failed to save rule tier.";
+      toast.error(errMsg);
     } finally {
       setIsSavingRule(false);
     }
@@ -471,18 +436,35 @@ export default function AdminSanctionsPage() {
     if (!ruleToDelete) return;
     setIsDeletingRule(true);
     try {
-      if (!ruleToDelete.id.startsWith("default-")) {
+      if (ruleToDelete.id) {
         const { error } = await supabase.from("sanction_rules").delete().eq("id", ruleToDelete.id);
         if (error) throw error;
       }
       toast.success("Rule tier deleted.");
       setRules((prev) => prev.filter((r) => r.id !== ruleToDelete.id));
-    } catch (err: any) {
-      toast.error(err.message || "Failed to delete rule.");
+    } catch (err: unknown) {
+      const errMsg = err instanceof Error ? err.message : "Failed to delete rule.";
+      toast.error(errMsg);
     } finally {
       setIsDeletingRule(false);
       setIsDeleteRuleModalOpen(false);
       setRuleToDelete(null);
+    }
+  };
+
+  const handleClearAllRules = async () => {
+    setIsClearingAllRules(true);
+    try {
+      const { error } = await supabase.from("sanction_rules").delete().neq("id", "00000000-0000-0000-0000-000000000000");
+      if (error) throw error;
+      toast.success("All sanction rules removed!");
+      setRules([]);
+    } catch (err: unknown) {
+      const errMsg = err instanceof Error ? err.message : "Failed to clear rules.";
+      toast.error(errMsg);
+    } finally {
+      setIsClearingAllRules(false);
+      setIsClearAllModalOpen(false);
     }
   };
 
@@ -553,78 +535,78 @@ export default function AdminSanctionsPage() {
       </div>
 
       {/* KPI Counters */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-        <Card className="rounded-3xl border-slate-200/90 shadow-xs bg-white">
-          <CardContent className="p-5 flex items-center gap-4">
-            <div className="p-3.5 rounded-2xl bg-orange-50 text-primary border border-orange-100">
-              <LuCalendar className="size-6" />
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-2.5 sm:gap-4">
+        <Card className="rounded-2xl sm:rounded-3xl border-slate-200/90 shadow-xs bg-white">
+          <CardContent className="p-3.5 sm:p-5 flex items-center gap-2.5 sm:gap-4">
+            <div className="p-2.5 sm:p-3.5 rounded-xl sm:rounded-2xl bg-orange-50 text-primary border border-orange-100 shrink-0">
+              <LuCalendar className="size-4 sm:size-6" />
             </div>
             <div>
-              <p className="text-xs font-bold text-slate-400 uppercase tracking-wider">Total Events</p>
-              <h3 className="text-2xl font-black text-slate-900 leading-tight">{totalEventsCount}</h3>
+              <p className="text-[10px] sm:text-xs font-bold text-slate-400 uppercase tracking-wider">Total Events</p>
+              <h3 className="text-lg sm:text-2xl font-black text-slate-900 leading-tight">{totalEventsCount}</h3>
             </div>
           </CardContent>
         </Card>
 
-        <Card className="rounded-3xl border-slate-200/90 shadow-xs bg-white">
-          <CardContent className="p-5 flex items-center gap-4">
-            <div className="p-3.5 rounded-2xl bg-rose-50 text-rose-600 border border-rose-100">
-              <LuTriangleAlert className="size-6" />
+        <Card className="rounded-2xl sm:rounded-3xl border-slate-200/90 shadow-xs bg-white">
+          <CardContent className="p-3.5 sm:p-5 flex items-center gap-2.5 sm:gap-4">
+            <div className="p-2.5 sm:p-3.5 rounded-xl sm:rounded-2xl bg-rose-50 text-rose-600 border border-rose-100 shrink-0">
+              <LuTriangleAlert className="size-4 sm:size-6" />
             </div>
             <div>
-              <p className="text-xs font-bold text-slate-400 uppercase tracking-wider">Absent Students</p>
-              <h3 className="text-2xl font-black text-rose-600 leading-tight">{totalAbsentStudents}</h3>
+              <p className="text-[10px] sm:text-xs font-bold text-slate-400 uppercase tracking-wider">Absent Students</p>
+              <h3 className="text-lg sm:text-2xl font-black text-rose-600 leading-tight">{totalAbsentStudents}</h3>
             </div>
           </CardContent>
         </Card>
 
-        <Card className="rounded-3xl border-slate-200/90 shadow-xs bg-white">
-          <CardContent className="p-5 flex items-center gap-4">
-            <div className="p-3.5 rounded-2xl bg-amber-50 text-amber-600 border border-amber-100">
-              <LuClock className="size-6" />
+        <Card className="rounded-2xl sm:rounded-3xl border-slate-200/90 shadow-xs bg-white">
+          <CardContent className="p-3.5 sm:p-5 flex items-center gap-2.5 sm:gap-4">
+            <div className="p-2.5 sm:p-3.5 rounded-xl sm:rounded-2xl bg-amber-50 text-amber-600 border border-amber-100 shrink-0">
+              <LuClock className="size-4 sm:size-6" />
             </div>
             <div>
-              <p className="text-xs font-bold text-slate-400 uppercase tracking-wider">In Progress</p>
-              <h3 className="text-2xl font-black text-amber-600 leading-tight">{inProgressSanctions}</h3>
+              <p className="text-[10px] sm:text-xs font-bold text-slate-400 uppercase tracking-wider">In Progress</p>
+              <h3 className="text-lg sm:text-2xl font-black text-amber-600 leading-tight">{inProgressSanctions}</h3>
             </div>
           </CardContent>
         </Card>
 
-        <Card className="rounded-3xl border-slate-200/90 shadow-xs bg-white">
-          <CardContent className="p-5 flex items-center gap-4">
-            <div className="p-3.5 rounded-2xl bg-emerald-50 text-emerald-600 border border-emerald-100">
-              <LuCircleCheck className="size-6" />
+        <Card className="rounded-2xl sm:rounded-3xl border-slate-200/90 shadow-xs bg-white">
+          <CardContent className="p-3.5 sm:p-5 flex items-center gap-2.5 sm:gap-4">
+            <div className="p-2.5 sm:p-3.5 rounded-xl sm:rounded-2xl bg-emerald-50 text-emerald-600 border border-emerald-100 shrink-0">
+              <LuCircleCheck className="size-4 sm:size-6" />
             </div>
             <div>
-              <p className="text-xs font-bold text-slate-400 uppercase tracking-wider">Resolved / Cleared</p>
-              <h3 className="text-2xl font-black text-emerald-600 leading-tight">{completedSanctions}</h3>
+              <p className="text-[10px] sm:text-xs font-bold text-slate-400 uppercase tracking-wider">Resolved</p>
+              <h3 className="text-lg sm:text-2xl font-black text-emerald-600 leading-tight">{completedSanctions}</h3>
             </div>
           </CardContent>
         </Card>
       </div>
 
       {/* Tabs Header */}
-      <div className="flex items-center gap-2 border-b border-slate-200/80 pb-3">
+      <div className="flex flex-wrap items-center gap-2 border-b border-slate-200/80 pb-3">
         <button
           onClick={() => setActiveTab("sanctions")}
-          className={`px-4 py-2 rounded-2xl text-xs sm:text-sm font-black transition-all cursor-pointer flex items-center gap-2 ${
+          className={`px-3 sm:px-4 py-2 rounded-2xl text-xs sm:text-sm font-black transition-all cursor-pointer flex items-center gap-1.5 sm:gap-2 ${
             activeTab === "sanctions"
               ? "bg-slate-900 text-white shadow-sm"
               : "bg-white text-slate-600 hover:bg-slate-100 border border-slate-200"
           }`}
         >
-          <LuShieldAlert className="size-4" /> Auto-Detected Attendance Sanctions ({totalAbsentStudents})
+          <LuShieldAlert className="size-3.5 sm:size-4 shrink-0" /> Sanctions ({totalAbsentStudents})
         </button>
 
         <button
           onClick={() => setActiveTab("rules")}
-          className={`px-4 py-2 rounded-2xl text-xs sm:text-sm font-black transition-all cursor-pointer flex items-center gap-2 ${
+          className={`px-3 sm:px-4 py-2 rounded-2xl text-xs sm:text-sm font-black transition-all cursor-pointer flex items-center gap-1.5 sm:gap-2 ${
             activeTab === "rules"
               ? "bg-slate-900 text-white shadow-sm"
               : "bg-white text-slate-600 hover:bg-slate-100 border border-slate-200"
           }`}
         >
-          <LuSlidersHorizontal className="size-4" /> Sanction Rules Setup ({rules.length} Tiers)
+          <LuSlidersHorizontal className="size-3.5 sm:size-4 shrink-0" /> Rules ({rules.length} Tiers)
         </button>
       </div>
 
@@ -632,35 +614,35 @@ export default function AdminSanctionsPage() {
       {/* TAB 1: AUTO-DETECTED ATTENDANCE SANCTIONS */}
       {/* ========================================================================= */}
       {activeTab === "sanctions" && (
-        <Card className="rounded-3xl border-slate-200/90 shadow-xs bg-white overflow-hidden">
-          <div className="p-4 sm:p-6 border-b border-slate-100 space-y-4">
+        <Card className="rounded-2xl sm:rounded-3xl border-slate-200/90 shadow-xs bg-white overflow-hidden">
+          <div className="p-3.5 sm:p-6 border-b border-slate-100 space-y-3.5">
             <div className="flex flex-col md:flex-row gap-3 items-stretch md:items-center justify-between">
               {/* Search Bar */}
               <div className="relative flex-1">
-                <LuSearch className="absolute left-3.5 top-1/2 -translate-y-1/2 size-4 text-slate-400" />
+                <LuSearch className="absolute left-3.5 top-1/2 -translate-y-1/2 size-3.5 sm:size-4 text-slate-400" />
                 <input
                   type="text"
                   placeholder="Search by student name, ID, or course..."
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
-                  className="w-full h-11 pl-10 pr-4 bg-slate-50 border border-slate-200 rounded-xl text-sm font-medium focus:bg-white focus:outline-none focus:ring-4 focus:ring-primary/10 transition-all"
+                  className="w-full h-10 sm:h-11 pl-9 sm:pl-10 pr-4 bg-slate-50 border border-slate-200 rounded-xl text-xs sm:text-sm font-medium focus:bg-white focus:outline-none focus:ring-4 focus:ring-primary/10 transition-all"
                 />
               </div>
 
-              {/* Absence Filters */}
-              <div className="flex items-center gap-1.5 overflow-x-auto pb-1 md:pb-0 scrollbar-none">
+              {/* Absent Filters */}
+              <div className="flex items-center gap-1.5 overflow-x-auto pb-1 sm:pb-0 scrollbar-none">
                 {[
-                  { label: "All Absents", val: "AbsentsOnly" },
+                  { label: "Absents Only", val: "AbsentsOnly" },
                   { label: "1 Absent", val: "1" },
                   { label: "2 Absents", val: "2" },
                   { label: "3+ Absents", val: "3+" },
                   { label: "All Students", val: "All" },
-                  { label: "0 Absents (Clean)", val: "0" },
+                  { label: "0 Clean", val: "0" },
                 ].map((f) => (
                   <button
                     key={f.val}
                     onClick={() => setAbsentFilter(f.val)}
-                    className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer whitespace-nowrap ${
+                    className={`px-2.5 sm:px-3 py-1.5 rounded-xl text-[11px] sm:text-xs font-bold transition-all cursor-pointer whitespace-nowrap ${
                       absentFilter === f.val
                         ? "bg-slate-900 text-white shadow-xs"
                         : "bg-slate-100 text-slate-600 hover:bg-slate-200"
@@ -673,13 +655,13 @@ export default function AdminSanctionsPage() {
             </div>
 
             {/* Status Filter Sub-Bar */}
-            <div className="flex items-center gap-2 pt-1">
-              <span className="text-xs font-bold text-slate-400 uppercase tracking-wider">Status:</span>
+            <div className="flex items-center gap-1.5 overflow-x-auto pt-1 scrollbar-none">
+              <span className="text-[10px] sm:text-xs font-bold text-slate-400 uppercase tracking-wider whitespace-nowrap">Status:</span>
               {["All", "Pending", "In Progress", "Completed", "Waived"].map((st) => (
                 <button
                   key={st}
                   onClick={() => setStatusFilter(st)}
-                  className={`px-2.5 py-1 rounded-lg text-xs font-semibold transition-all cursor-pointer ${
+                  className={`px-2.5 py-1 rounded-lg text-[11px] sm:text-xs font-semibold transition-all cursor-pointer whitespace-nowrap ${
                     statusFilter === st
                       ? "bg-primary text-white font-bold"
                       : "text-slate-500 hover:bg-slate-100"
@@ -693,15 +675,15 @@ export default function AdminSanctionsPage() {
 
           {loading ? (
             <div className="py-24 flex flex-col items-center justify-center gap-3 text-slate-400">
-              <LuLoader className="size-8 animate-spin text-primary" />
+              <LuLoader className="size-6 sm:size-8 animate-spin text-primary" />
               <p className="text-xs font-bold uppercase tracking-widest">Auto-detecting student attendance...</p>
             </div>
           ) : filteredItems.length === 0 ? (
-            <div className="py-24 flex flex-col items-center justify-center text-center p-6 space-y-3">
-              <div className="p-4 bg-emerald-50 text-emerald-600 rounded-3xl border border-emerald-100">
-                <LuCircleCheck className="size-10" />
+            <div className="py-16 sm:py-24 flex flex-col items-center justify-center text-center p-6 space-y-3">
+              <div className="p-3 sm:p-4 bg-emerald-50 text-emerald-600 rounded-2xl sm:rounded-3xl border border-emerald-100">
+                <LuCircleCheck className="size-6 sm:size-10" />
               </div>
-              <h3 className="text-lg font-black text-slate-900">No sanction records found</h3>
+              <h3 className="text-base sm:text-lg font-black text-slate-900">No sanction records found</h3>
               <p className="text-xs sm:text-sm text-slate-500 font-medium max-w-sm">
                 {absentFilter === "AbsentsOnly"
                   ? "All students have attended their events with zero recorded absences!"
@@ -709,125 +691,221 @@ export default function AdminSanctionsPage() {
               </p>
             </div>
           ) : (
-            <div className="overflow-x-auto">
-              <table className="w-full text-left border-collapse">
-                <thead>
-                  <tr className="bg-slate-50/80 border-b border-slate-100 text-[11px] font-black text-slate-400 uppercase tracking-wider">
-                    <th className="py-3.5 px-4 sm:px-6">Student Information</th>
-                    <th className="py-3.5 px-4">Attendance & Missed Events</th>
-                    <th className="py-3.5 px-4">Auto-Assigned Sanction</th>
-                    <th className="py-3.5 px-4">Status</th>
-                    <th className="py-3.5 px-4 text-right">Details</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-slate-100 text-sm">
-                  {paginatedItems.map((item) => {
-                    const hasAbsence = item.absentCount > 0;
+            <>
+              {/* 1. Mobile Cards View (Hidden on Tablet / Desktop) */}
+              <div className="block md:hidden divide-y divide-slate-100">
+                {paginatedItems.map((item) => {
+                  const hasAbsence = item.absentCount > 0;
 
-                    return (
-                      <tr key={item.student.id} className="hover:bg-slate-50/60 transition-colors">
-                        {/* Student Info */}
-                        <td className="py-4 px-4 sm:px-6">
-                          <div className="flex items-center gap-3">
-                            <div className="size-10 rounded-2xl bg-orange-50 border border-orange-100 text-primary font-black text-xs flex items-center justify-center shrink-0">
-                              {item.student.first_name[0]}
-                              {item.student.last_name[0]}
-                            </div>
-                            <div>
-                              <p className="font-bold text-slate-900 leading-tight">
-                                {item.student.first_name} {item.student.last_name}
-                              </p>
-                              <p className="text-xs font-semibold text-slate-400 font-mono mt-0.5">
-                                {item.student.student_id} {item.student.course && `• ${item.student.course}`}
-                              </p>
-                            </div>
+                  return (
+                    <div key={item.student.id} className="p-4 space-y-3 hover:bg-slate-50/50 transition-colors">
+                      <div className="flex items-start justify-between gap-2">
+                        <div className="flex items-center gap-2.5">
+                          <div className="size-8 rounded-xl bg-orange-50 border border-orange-100 text-primary font-black text-xs flex items-center justify-center shrink-0">
+                            {item.student.first_name[0]}
+                            {item.student.last_name[0]}
                           </div>
-                        </td>
+                          <div>
+                            <p className="font-bold text-slate-900 text-xs sm:text-sm leading-tight">
+                              {item.student.first_name} {item.student.last_name}
+                            </p>
+                            <p className="text-[11px] font-semibold text-slate-400 font-mono mt-0.5">
+                              {item.student.student_id} {item.student.course && `• ${item.student.course}`}
+                            </p>
+                          </div>
+                        </div>
+                        <button
+                          onClick={() => handleOpenEditModal(item)}
+                          className="p-1.5 rounded-lg text-slate-400 hover:text-primary hover:bg-slate-100 transition-colors cursor-pointer"
+                          title="Edit Details"
+                        >
+                          <LuPencil className="size-3.5" />
+                        </button>
+                      </div>
 
-                        {/* Attendance & Missed Events */}
-                        <td className="py-4 px-4">
+                      {/* Attendance Badge & Dropdown */}
+                      <div className="flex flex-wrap items-center justify-between gap-2 bg-slate-50 p-2.5 rounded-xl border border-slate-100">
+                        <div>
                           {!hasAbsence ? (
-                            <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200 text-xs font-black">
-                              <LuCircleCheck className="size-3.5" /> 100% Attendance (0 Absents)
+                            <span className="inline-flex items-center gap-1 text-emerald-700 font-bold text-[11px]">
+                              <LuCircleCheck className="size-3" /> Clean (0 Absents)
                             </span>
                           ) : (
-                            <div className="space-y-0.5">
-                              <div className="flex items-center gap-2">
-                                <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-rose-50 text-rose-700 border border-rose-200 text-xs font-black">
-                                  <LuTriangleAlert className="size-3" /> {item.absentCount} Absence
-                                  {item.absentCount > 1 ? "s" : ""}
-                                </span>
-                                <span className="text-xs font-semibold text-slate-500">
-                                  ({item.attendedCount}/{item.totalEvents} attended)
-                                </span>
-                              </div>
-                              <p className="text-[11px] text-slate-500 font-medium line-clamp-1">
-                                Missed: {item.missedEvents.map((e) => e.title).join(", ")}
-                              </p>
+                            <div className="flex items-center gap-1.5">
+                              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-rose-50 text-rose-700 border border-rose-200 text-[10px] font-black">
+                                <LuTriangleAlert className="size-2.5" /> {item.absentCount} Absent{item.absentCount > 1 ? "s" : ""}
+                              </span>
+                              <span className="text-[10px] text-slate-500 font-medium">({item.attendedCount}/{item.totalEvents} attended)</span>
                             </div>
                           )}
-                        </td>
+                        </div>
 
-                        {/* Auto-Assigned Sanction */}
-                        <td className="py-4 px-4">
-                          {!hasAbsence ? (
-                            <span className="text-xs font-semibold text-emerald-600">Clean Standing</span>
-                          ) : item.matchedRule ? (
-                            <div>
-                              <p className="text-xs font-bold text-slate-800">{item.matchedRule.title}</p>
-                              <p className="text-[11px] font-semibold text-primary">
-                                {item.matchedRule.penalty_details}
-                              </p>
-                            </div>
-                          ) : (
-                            <span className="text-xs font-semibold text-amber-600">
-                              {item.absentCount * 1.5} Hours Community Service
-                            </span>
-                          )}
-                        </td>
-
-                        {/* Quick Status Dropdown */}
-                        <td className="py-4 px-4">
-                          {!hasAbsence ? (
-                            <span className="inline-block text-xs font-bold text-emerald-600">Exempt</span>
-                          ) : (
-                            <select
-                              value={item.status}
-                              onChange={(e) =>
-                                handleQuickStatusChange(
-                                  item,
-                                  e.target.value as "Pending" | "In Progress" | "Completed" | "Waived"
-                                )
-                              }
-                              className={`text-xs font-black px-3 py-1.5 rounded-full border shadow-xs cursor-pointer focus:outline-none ${getStatusBadge(
-                                item.status
-                              )}`}
-                            >
-                              {STATUS_OPTIONS.map((opt) => (
-                                <option key={opt} value={opt}>
-                                  {opt}
-                                </option>
-                              ))}
-                            </select>
-                          )}
-                        </td>
-
-                        {/* Details Modal Trigger */}
-                        <td className="py-4 px-4 text-right">
-                          <button
-                            onClick={() => handleOpenEditModal(item)}
-                            className="p-2 rounded-xl text-slate-500 hover:text-primary hover:bg-slate-100 transition-colors cursor-pointer"
-                            title="Edit Notes & Deadline"
+                        {hasAbsence ? (
+                          <select
+                            value={item.status}
+                            onChange={(e) =>
+                              handleQuickStatusChange(
+                                item,
+                                e.target.value as "Pending" | "In Progress" | "Completed" | "Waived"
+                              )
+                            }
+                            className={`text-[10px] font-black px-2.5 py-1 rounded-full border shadow-xs cursor-pointer focus:outline-none ${getStatusBadge(
+                              item.status
+                            )}`}
                           >
-                            <LuPencil className="size-4" />
-                          </button>
-                        </td>
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
-            </div>
+                            {STATUS_OPTIONS.map((opt) => (
+                              <option key={opt} value={opt}>
+                                {opt}
+                              </option>
+                            ))}
+                          </select>
+                        ) : (
+                          <span className="text-[10px] font-bold text-emerald-600">Exempt</span>
+                        )}
+                      </div>
+
+                      {/* Sanction Details */}
+                      {hasAbsence && (
+                        <div className="text-xs space-y-1 bg-orange-50/40 p-2.5 rounded-xl border border-orange-100/60">
+                          <p className="font-bold text-slate-800 text-[11px]">
+                            {item.matchedRule ? item.matchedRule.title : `${item.absentCount} Event Absence(s)`}
+                          </p>
+                          <p className="text-[11px] font-bold text-primary">
+                            Penalty: {item.matchedRule ? item.matchedRule.penalty_details : `${item.absentCount * 1.5} Hours Community Service`}
+                          </p>
+                          {item.missedEvents.length > 0 && (
+                            <p className="text-[10px] text-slate-500 font-medium line-clamp-1">
+                              Missed: {item.missedEvents.map((e) => e.title).join(", ")}
+                            </p>
+                          )}
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+
+              {/* 2. Desktop Table View (Hidden on Mobile) */}
+              <div className="hidden md:block overflow-x-auto">
+                <table className="w-full text-left border-collapse">
+                  <thead>
+                    <tr className="bg-slate-50/80 border-b border-slate-100 text-[11px] font-black text-slate-400 uppercase tracking-wider">
+                      <th className="py-3.5 px-4 sm:px-6">Student Information</th>
+                      <th className="py-3.5 px-4">Attendance & Missed Events</th>
+                      <th className="py-3.5 px-4">Auto-Assigned Sanction</th>
+                      <th className="py-3.5 px-4">Status</th>
+                      <th className="py-3.5 px-4 text-right">Details</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-100 text-sm">
+                    {paginatedItems.map((item) => {
+                      const hasAbsence = item.absentCount > 0;
+
+                      return (
+                        <tr key={item.student.id} className="hover:bg-slate-50/60 transition-colors">
+                          {/* Student Info */}
+                          <td className="py-4 px-4 sm:px-6">
+                            <div className="flex items-center gap-3">
+                              <div className="size-10 rounded-2xl bg-orange-50 border border-orange-100 text-primary font-black text-xs flex items-center justify-center shrink-0">
+                                {item.student.first_name[0]}
+                                {item.student.last_name[0]}
+                              </div>
+                              <div>
+                                <p className="font-bold text-slate-900 leading-tight">
+                                  {item.student.first_name} {item.student.last_name}
+                                </p>
+                                <p className="text-xs font-semibold text-slate-400 font-mono mt-0.5">
+                                  {item.student.student_id} {item.student.course && `• ${item.student.course}`}
+                                </p>
+                              </div>
+                            </div>
+                          </td>
+
+                          {/* Attendance & Missed Events */}
+                          <td className="py-4 px-4">
+                            {!hasAbsence ? (
+                              <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200 text-xs font-black">
+                                <LuCircleCheck className="size-3.5" /> 100% Attendance (0 Absents)
+                              </span>
+                            ) : (
+                              <div className="space-y-0.5">
+                                <div className="flex items-center gap-2">
+                                  <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-rose-50 text-rose-700 border border-rose-200 text-xs font-black">
+                                    <LuTriangleAlert className="size-3" /> {item.absentCount} Absence
+                                    {item.absentCount > 1 ? "s" : ""}
+                                  </span>
+                                  <span className="text-xs font-semibold text-slate-500">
+                                    ({item.attendedCount}/{item.totalEvents} attended)
+                                  </span>
+                                </div>
+                                <p className="text-[11px] text-slate-500 font-medium line-clamp-1">
+                                  Missed: {item.missedEvents.map((e) => e.title).join(", ")}
+                                </p>
+                              </div>
+                            )}
+                          </td>
+
+                          {/* Auto-Assigned Sanction */}
+                          <td className="py-4 px-4">
+                            {!hasAbsence ? (
+                              <span className="text-xs font-semibold text-emerald-600">Clean Standing</span>
+                            ) : item.matchedRule ? (
+                              <div>
+                                <p className="text-xs font-bold text-slate-800">{item.matchedRule.title}</p>
+                                <p className="text-[11px] font-semibold text-primary">
+                                  {item.matchedRule.penalty_details}
+                                </p>
+                              </div>
+                            ) : (
+                              <span className="text-xs font-semibold text-amber-600">
+                                {item.absentCount * 1.5} Hours Community Service
+                              </span>
+                            )}
+                          </td>
+
+                          {/* Quick Status Dropdown */}
+                          <td className="py-4 px-4">
+                            {!hasAbsence ? (
+                              <span className="inline-block text-xs font-bold text-emerald-600">Exempt</span>
+                            ) : (
+                              <select
+                                value={item.status}
+                                onChange={(e) =>
+                                  handleQuickStatusChange(
+                                    item,
+                                    e.target.value as "Pending" | "In Progress" | "Completed" | "Waived"
+                                  )
+                                }
+                                className={`text-xs font-black px-3 py-1.5 rounded-full border shadow-xs cursor-pointer focus:outline-none ${getStatusBadge(
+                                  item.status
+                                )}`}
+                              >
+                                {STATUS_OPTIONS.map((opt) => (
+                                  <option key={opt} value={opt}>
+                                    {opt}
+                                  </option>
+                                ))}
+                              </select>
+                            )}
+                          </td>
+
+                          {/* Details Modal Trigger */}
+                          <td className="py-4 px-4 text-right">
+                            <button
+                              onClick={() => handleOpenEditModal(item)}
+                              className="p-2 rounded-xl text-slate-500 hover:text-primary hover:bg-slate-100 transition-colors cursor-pointer"
+                              title="Edit Notes & Deadline"
+                            >
+                              <LuPencil className="size-4" />
+                            </button>
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            </>
           )}
 
           {/* 5-Item Pagination Footer */}
@@ -905,81 +983,110 @@ export default function AdminSanctionsPage() {
               </p>
             </div>
 
-            <Button
-              onClick={handleOpenAddRuleModal}
-              className="h-10 px-4 rounded-xl font-bold bg-primary hover:bg-primary/95 text-white text-xs cursor-pointer inline-flex items-center gap-1.5 shrink-0"
-            >
-              <LuPlus className="size-4" /> Add Rule Tier
-            </Button>
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            {rules.map((rule) => {
-              const isSingle = rule.min_absent === rule.max_absent;
-              const rangeText = isSingle
-                ? `${rule.min_absent} Event Absence`
-                : rule.max_absent >= 99
-                ? `${rule.min_absent}+ Event Absences`
-                : `${rule.min_absent} to ${rule.max_absent} Event Absences`;
-
-              return (
-                <div
-                  key={rule.id}
-                  className="bg-white rounded-3xl border border-slate-200/90 p-5 sm:p-6 shadow-xs hover:border-primary/40 transition-all flex flex-col justify-between space-y-4"
+            <div className="flex items-center gap-2 shrink-0">
+              {rules.length > 0 && (
+                <Button
+                  variant="outline"
+                  onClick={() => setIsClearAllModalOpen(true)}
+                  className="h-10 px-3.5 rounded-xl font-bold border-rose-200 text-rose-600 hover:bg-rose-50 text-xs cursor-pointer inline-flex items-center gap-1.5"
                 >
-                  <div className="space-y-3">
-                    <div className="flex items-center justify-between gap-2">
-                      <span className="inline-block px-3 py-1 rounded-full bg-orange-50 border border-orange-200 text-primary text-xs font-black uppercase tracking-wider">
-                        {rangeText}
-                      </span>
-                      <span className="text-[11px] font-bold text-slate-400 uppercase tracking-widest">
-                        {rule.sanction_type}
-                      </span>
-                    </div>
-
-                    <div>
-                      <h4 className="text-base font-black text-slate-900 leading-tight">{rule.title}</h4>
-                      <p className="text-xs font-bold text-primary mt-1 flex items-center gap-1.5">
-                        <LuShieldAlert className="size-3.5" /> Penalty: {rule.penalty_details}
-                      </p>
-                    </div>
-
-                    {rule.description && (
-                      <p className="text-xs text-slate-500 font-medium leading-relaxed bg-slate-50 p-3 rounded-2xl border border-slate-100">
-                        {rule.description}
-                      </p>
-                    )}
-                  </div>
-
-                  <div className="flex items-center justify-between pt-3 border-t border-slate-100 text-xs">
-                    <span className="font-semibold text-slate-400">
-                      Matches {allSanctionItems.filter((p) => p.matchedRule?.id === rule.id).length} student(s)
-                    </span>
-
-                    <div className="flex items-center gap-1.5">
-                      <button
-                        onClick={() => handleOpenEditRuleModal(rule)}
-                        className="p-2 rounded-xl text-slate-500 hover:text-primary hover:bg-slate-100 transition-colors cursor-pointer"
-                        title="Edit Rule"
-                      >
-                        <LuPencil className="size-4" />
-                      </button>
-                      <button
-                        onClick={() => {
-                          setRuleToDelete(rule);
-                          setIsDeleteRuleModalOpen(true);
-                        }}
-                        className="p-2 rounded-xl text-slate-500 hover:text-rose-600 hover:bg-rose-50 transition-colors cursor-pointer"
-                        title="Delete Rule"
-                      >
-                        <LuTrash2 className="size-4" />
-                      </button>
-                    </div>
-                  </div>
-                </div>
-              );
-            })}
+                  <LuTrash2 className="size-3.5" /> Clear All Rules
+                </Button>
+              )}
+              <Button
+                onClick={handleOpenAddRuleModal}
+                className="h-10 px-4 rounded-xl font-bold bg-primary hover:bg-primary/95 text-white text-xs cursor-pointer inline-flex items-center gap-1.5"
+              >
+                <LuPlus className="size-4" /> Add Rule Tier
+              </Button>
+            </div>
           </div>
+
+          {rules.length > 0 ? (
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              {rules.map((rule) => {
+                const isSingle = rule.min_absent === rule.max_absent;
+                const rangeText = isSingle
+                  ? `${rule.min_absent} Event Absence`
+                  : rule.max_absent >= 99
+                  ? `${rule.min_absent}+ Event Absences`
+                  : `${rule.min_absent} to ${rule.max_absent} Event Absences`;
+
+                return (
+                  <div
+                    key={rule.id}
+                    className="bg-white rounded-3xl border border-slate-200/90 p-5 sm:p-6 shadow-xs hover:border-primary/40 transition-all flex flex-col justify-between space-y-4"
+                  >
+                    <div className="space-y-3">
+                      <div className="flex items-center justify-between gap-2">
+                        <span className="inline-block px-3 py-1 rounded-full bg-orange-50 border border-orange-200 text-primary text-xs font-black uppercase tracking-wider">
+                          {rangeText}
+                        </span>
+                        <span className="text-[11px] font-bold text-slate-400 uppercase tracking-widest">
+                          {rule.sanction_type}
+                        </span>
+                      </div>
+
+                      <div>
+                        <h4 className="text-base font-black text-slate-900 leading-tight">{rule.title}</h4>
+                        <p className="text-xs font-bold text-primary mt-1 flex items-center gap-1.5">
+                          <LuShieldAlert className="size-3.5" /> Penalty: {rule.penalty_details}
+                        </p>
+                      </div>
+
+                      {rule.description && (
+                        <p className="text-xs text-slate-500 font-medium leading-relaxed bg-slate-50 p-3 rounded-2xl border border-slate-100">
+                          {rule.description}
+                        </p>
+                      )}
+                    </div>
+
+                    <div className="flex items-center justify-between pt-3 border-t border-slate-100 text-xs">
+                      <span className="font-semibold text-slate-400">
+                        Matches {allSanctionItems.filter((p) => p.matchedRule?.id === rule.id).length} student(s)
+                      </span>
+
+                      <div className="flex items-center gap-1.5">
+                        <button
+                          onClick={() => handleOpenEditRuleModal(rule)}
+                          className="p-2 rounded-xl text-slate-500 hover:text-primary hover:bg-slate-100 transition-colors cursor-pointer"
+                          title="Edit Rule"
+                        >
+                          <LuPencil className="size-4" />
+                        </button>
+                        <button
+                          onClick={() => {
+                            setRuleToDelete(rule);
+                            setIsDeleteRuleModalOpen(true);
+                          }}
+                          className="p-2 rounded-xl text-slate-500 hover:text-rose-600 hover:bg-rose-50 transition-colors cursor-pointer"
+                          title="Delete Rule"
+                        >
+                          <LuTrash2 className="size-4" />
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          ) : (
+            <div className="bg-white rounded-3xl border border-slate-200/90 p-12 text-center flex flex-col items-center justify-center space-y-3 shadow-xs">
+              <div className="size-12 rounded-2xl bg-orange-50 border border-orange-200 flex items-center justify-center text-primary">
+                <LuSlidersHorizontal className="size-6" />
+              </div>
+              <h4 className="text-base font-black text-slate-800">No Sanction Rules Defined</h4>
+              <p className="text-xs text-slate-500 max-w-md font-medium">
+                No automatic penalties are currently configured. Click below to add an absence threshold rule.
+              </p>
+              <Button
+                onClick={handleOpenAddRuleModal}
+                className="h-10 px-5 rounded-xl font-bold bg-primary hover:bg-primary/95 text-white text-xs cursor-pointer inline-flex items-center gap-1.5 mt-2"
+              >
+                <LuPlus className="size-4" /> Add Rule Tier
+              </Button>
+            </div>
+          )}
         </div>
       )}
 
@@ -1212,6 +1319,18 @@ export default function AdminSanctionsPage() {
         confirmText="Delete Tier"
         variant="danger"
         isLoading={isDeletingRule}
+      />
+
+      {/* Clear All Rules Modal */}
+      <ConfirmModal
+        isOpen={isClearAllModalOpen}
+        onClose={() => setIsClearAllModalOpen(false)}
+        onConfirm={handleClearAllRules}
+        title="Clear All Sanction Rules?"
+        description="Are you sure you want to remove all default sanction rules? This will completely clear all automated penalty tiers from your database."
+        confirmText="Clear All Rules"
+        variant="danger"
+        isLoading={isClearingAllRules}
       />
     </div>
   );

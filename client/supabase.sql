@@ -497,14 +497,30 @@ ALTER TABLE sanction_rules ENABLE ROW LEVEL SECURITY;
 CREATE POLICY "Public sanction_rules access" ON sanction_rules FOR ALL USING (true) WITH CHECK (true);
 GRANT SELECT, INSERT, UPDATE, DELETE ON sanction_rules TO anon, authenticated, service_role;
 
--- Insert default sanction rules if table is empty
-INSERT INTO sanction_rules (min_absent, max_absent, title, sanction_type, penalty_details, description)
-VALUES 
-    (1, 1, '1 Event Absence Warning', 'Written Warning', 'Formal Warning Letter & 30-min Counseling', 'Automatic sanction for missing 1 mandatory organizational event.'),
-    (2, 2, '2 Events Absence Penalty', 'Community Service', '1.5 Hours Campus / Org Clean-up', 'Automatic sanction for missing 2 mandatory organizational events.'),
-    (3, 4, '3-4 Events Absence Sanction', 'Community Service', '3 Hours Campus Community Service & ₱50 Org Contribution', 'Severe sanction for missing 3 to 4 mandatory events.'),
-    (5, 99, '5+ Events Critical Absence', 'Suspension of Privilege', '5 Hours Community Service & Org Good Standing Suspension', 'Critical non-compliance sanction.')
-ON CONFLICT DO NOTHING;
+-- 26. Helper to ensure ON DELETE CASCADE on existing Voting Foreign Keys
+DO $$ 
+BEGIN
+    -- poll_questions -> polls
+    ALTER TABLE IF EXISTS poll_questions DROP CONSTRAINT IF EXISTS poll_questions_poll_id_fkey;
+    ALTER TABLE IF EXISTS poll_questions ADD CONSTRAINT poll_questions_poll_id_fkey FOREIGN KEY (poll_id) REFERENCES polls(id) ON DELETE CASCADE;
 
+    -- poll_options -> poll_questions
+    ALTER TABLE IF EXISTS poll_options DROP CONSTRAINT IF EXISTS poll_options_question_id_fkey;
+    ALTER TABLE IF EXISTS poll_options ADD CONSTRAINT poll_options_question_id_fkey FOREIGN KEY (question_id) REFERENCES poll_questions(id) ON DELETE CASCADE;
 
+    -- ballots -> polls
+    ALTER TABLE IF EXISTS ballots DROP CONSTRAINT IF EXISTS ballots_poll_id_fkey;
+    ALTER TABLE IF EXISTS ballots ADD CONSTRAINT ballots_poll_id_fkey FOREIGN KEY (poll_id) REFERENCES polls(id) ON DELETE CASCADE;
 
+    -- votes -> polls
+    ALTER TABLE IF EXISTS votes DROP CONSTRAINT IF EXISTS votes_poll_id_fkey;
+    ALTER TABLE IF EXISTS votes ADD CONSTRAINT votes_poll_id_fkey FOREIGN KEY (poll_id) REFERENCES polls(id) ON DELETE CASCADE;
+
+    -- votes -> poll_questions
+    ALTER TABLE IF EXISTS votes DROP CONSTRAINT IF EXISTS votes_question_id_fkey;
+    ALTER TABLE IF EXISTS votes ADD CONSTRAINT votes_question_id_fkey FOREIGN KEY (question_id) REFERENCES poll_questions(id) ON DELETE CASCADE;
+
+    -- votes -> poll_options
+    ALTER TABLE IF EXISTS votes DROP CONSTRAINT IF EXISTS votes_option_id_fkey;
+    ALTER TABLE IF EXISTS votes ADD CONSTRAINT votes_option_id_fkey FOREIGN KEY (option_id) REFERENCES poll_options(id) ON DELETE CASCADE;
+END $$;
