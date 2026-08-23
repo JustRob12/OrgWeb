@@ -21,6 +21,7 @@ import {
 import { cn } from "@/lib/utils";
 import { Button } from "@/app/Components/ui/button";
 import { ConfirmModal } from "@/app/Components/ui/confirm-modal";
+import { ChangePasswordModal } from "@/app/Components/ui/change-password-modal";
 import { createClient } from "@/utils/supabase/client";
 
 const navItems = [
@@ -39,6 +40,7 @@ export default function StudentLayout({ children }: { children: React.ReactNode 
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [isLogoutModalOpen, setIsLogoutModalOpen] = useState(false);
   const [isLoggingOut, setIsLoggingOut] = useState(false);
+  const [isForcedPasswordChangeOpen, setIsForcedPasswordChangeOpen] = useState(false);
   const [user, setUser] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const pathname = usePathname();
@@ -57,7 +59,11 @@ export default function StudentLayout({ children }: { children: React.ReactNode 
         const storedUser = localStorage.getItem("acetrack_user");
         if (storedUser) {
           try {
-            email = JSON.parse(storedUser).email;
+            const parsed = JSON.parse(storedUser);
+            email = parsed.email;
+            if (parsed.must_change_password === true) {
+              setIsForcedPasswordChangeOpen(true);
+            }
           } catch (e) {
             console.error("Layout session parse error:", e);
           }
@@ -82,6 +88,18 @@ export default function StudentLayout({ children }: { children: React.ReactNode 
       }
 
       setUser(data);
+
+      // Verify account forced password change state in database
+      const { data: accData } = await supabase
+        .from("accounts")
+        .select("must_change_password")
+        .eq("user_id", data.id)
+        .single();
+
+      if (accData?.must_change_password === true) {
+        setIsForcedPasswordChangeOpen(true);
+      }
+
       setLoading(false);
     };
     getUserData();
@@ -223,6 +241,19 @@ export default function StudentLayout({ children }: { children: React.ReactNode 
         variant="danger"
         isLoading={isLoggingOut}
       />
+
+      {/* Mandatory Password Change Guard */}
+      {isForcedPasswordChangeOpen && user && (
+        <ChangePasswordModal
+          isOpen={isForcedPasswordChangeOpen}
+          userId={user.id}
+          isForced={true}
+          title="Security Action Required"
+          description="You are using a default password. Please update your password to secure your account."
+          onSuccess={() => setIsForcedPasswordChangeOpen(false)}
+          onClose={handleLogout}
+        />
+      )}
     </div>
   );
 }

@@ -22,6 +22,7 @@ import { useRouter } from "next/navigation"
 import { createClient } from "@/utils/supabase/client"
 import { toast } from 'sonner'
 import { isValidEmail } from "@/lib/utils"
+import { ChangePasswordModal } from "../Components/ui/change-password-modal"
 
 interface AuthUser {
   user_id: string;
@@ -30,6 +31,7 @@ interface AuthUser {
   first_name: string;
   last_name: string;
   email: string;
+  must_change_password?: boolean;
 }
 
 export default function LoginPage() {
@@ -39,6 +41,7 @@ export default function LoginPage() {
   
   // Student Agreement Modal State
   const [showAgreementModal, setShowAgreementModal] = React.useState(false)
+  const [showChangePasswordModal, setShowChangePasswordModal] = React.useState(false)
   const [pendingStudentUser, setPendingStudentUser] = React.useState<AuthUser | null>(null)
   const [hasAgreed, setHasAgreed] = React.useState(false)
 
@@ -102,7 +105,7 @@ export default function LoginPage() {
             last_name,
             email,
             student_id,
-            accounts:accounts(user_id, username, password, role)
+            accounts:accounts(user_id, username, password, role, must_change_password)
           `)
           .or(`email.ilike.${input},student_id.ilike.${input}`)
           .limit(1);
@@ -120,6 +123,7 @@ export default function LoginPage() {
             first_name: userRecord.first_name,
             last_name: userRecord.last_name,
             email: userRecord.email,
+            must_change_password: userAccountData.must_change_password,
           };
         } else {
           // Check username match directly on accounts (e.g. built-in admin)
@@ -130,6 +134,7 @@ export default function LoginPage() {
               username,
               password,
               role,
+              must_change_password,
               users:users(first_name, last_name, email)
             `)
             .ilike("username", input)
@@ -146,6 +151,7 @@ export default function LoginPage() {
               first_name: directUser?.first_name || "Admin",
               last_name: directUser?.last_name || "",
               email: directUser?.email || directAcc.username,
+              must_change_password: directAcc.must_change_password,
             };
           }
         }
@@ -194,9 +200,16 @@ export default function LoginPage() {
 
   const handleAcceptAgreement = () => {
     if (!hasAgreed || !pendingStudentUser) return;
+    setShowAgreementModal(false);
+
+    // If student must change password (default is true), trigger Change Password Modal
+    if (pendingStudentUser.must_change_password !== false) {
+      setShowChangePasswordModal(true);
+      return;
+    }
+
     localStorage.setItem("acetrack_user", JSON.stringify(pendingStudentUser));
     toast.success("Welcome to the Student Portal!");
-    setShowAgreementModal(false);
     router.push("/student");
   };
 
@@ -205,6 +218,23 @@ export default function LoginPage() {
     setPendingStudentUser(null);
     setHasAgreed(false);
     toast.info("You must accept the data privacy agreement to log in.");
+  };
+
+  const handlePasswordChangeSuccess = () => {
+    if (!pendingStudentUser) return;
+    const updatedUser = { ...pendingStudentUser, must_change_password: false };
+    localStorage.setItem("acetrack_user", JSON.stringify(updatedUser));
+    setShowChangePasswordModal(false);
+    setPendingStudentUser(null);
+    toast.success("Password changed successfully! Welcome to the Student Portal.");
+    router.push("/student");
+  };
+
+  const handleCancelPasswordChange = () => {
+    setShowChangePasswordModal(false);
+    setPendingStudentUser(null);
+    setHasAgreed(false);
+    toast.info("Password setup was cancelled. Please log in again.");
   };
 
   return (
@@ -464,6 +494,19 @@ export default function LoginPage() {
             </div>
           </div>
         </div>
+      )}
+
+      {/* Mandatory Change Default Password Modal for Students */}
+      {showChangePasswordModal && pendingStudentUser && (
+        <ChangePasswordModal
+          isOpen={showChangePasswordModal}
+          userId={pendingStudentUser.user_id}
+          isForced={true}
+          title="Setup Your Personal Password"
+          description="For your account security, you must set a new password before entering."
+          onSuccess={handlePasswordChangeSuccess}
+          onClose={handleCancelPasswordChange}
+        />
       )}
     </div>
   )

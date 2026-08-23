@@ -22,7 +22,8 @@ CREATE TABLE IF NOT EXISTS accounts (
     user_id UUID REFERENCES users(id) ON DELETE CASCADE,
     username TEXT UNIQUE NOT NULL, -- This will store the email for login
     password TEXT NOT NULL,
-    role INTEGER DEFAULT 1, -- 0: Admin, 1: Student
+    role INTEGER DEFAULT 1, -- 0: Admin, 1: Student, 2: Scanner, 3: Treasurer
+    must_change_password BOOLEAN DEFAULT TRUE,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
 );
 
@@ -45,8 +46,8 @@ WITH inserted_user AS (
     RETURNING id
 )
 -- Then, create the admin account linked to that user
-INSERT INTO accounts (user_id, username, password, role)
-SELECT id, 'admin', 'admin', 0 FROM inserted_user
+INSERT INTO accounts (user_id, username, password, role, must_change_password)
+SELECT id, 'admin', 'admin', 0, false FROM inserted_user
 ON CONFLICT (username) DO NOTHING;
 
 -- 5. Enable Encryption Extension
@@ -70,6 +71,8 @@ FOR EACH ROW EXECUTE FUNCTION handle_password_hashing();
 
 -- 7. Secure Login RPC Function (Optimized & Fast)
 -- This allows the frontend to verify a password quickly without full-table bcrypt scans.
+DROP FUNCTION IF EXISTS verify_user(text, text);
+
 CREATE OR REPLACE FUNCTION verify_user(u_name text, u_pass text)
 RETURNS TABLE (
     user_id uuid,
@@ -77,7 +80,8 @@ RETURNS TABLE (
     role integer,
     first_name text,
     last_name text,
-    email text
+    email text,
+    must_change_password boolean
 ) AS $$
 DECLARE
     v_user_id uuid;
@@ -87,12 +91,13 @@ DECLARE
     v_last_name text;
     v_email text;
     v_password text;
+    v_must_change boolean;
 BEGIN
     -- 1. Quickly find the candidate account first using indexes
     SELECT 
-        a.user_id, a.username, a.password, a.role, u.first_name, u.last_name, u.email
+        a.user_id, a.username, a.password, a.role, u.first_name, u.last_name, u.email, COALESCE(a.must_change_password, false)
     INTO 
-        v_user_id, v_username, v_password, v_role, v_first_name, v_last_name, v_email
+        v_user_id, v_username, v_password, v_role, v_first_name, v_last_name, v_email, v_must_change
     FROM accounts a
     JOIN users u ON a.user_id = u.id
     WHERE (LOWER(TRIM(a.username)) = LOWER(TRIM(u_name)) 
@@ -109,11 +114,40 @@ BEGIN
             first_name := v_first_name;
             last_name := v_last_name;
             email := v_email;
+            must_change_password := v_must_change;
             RETURN NEXT;
         END IF;
     END IF;
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
+
+GRANT EXECUTE ON FUNCTION verify_user(text, text) TO anon, authenticated, service_role;
+
+-- 7.1 Secure Change Password RPC Function
+DROP FUNCTION IF EXISTS change_student_password(uuid, text);
+
+CREATE OR REPLACE FUNCTION change_student_password(p_user_id uuid, p_new_password text)
+RETURNS boolean AS $$
+BEGIN
+    UPDATE accounts
+    SET password = p_new_password,
+        must_change_password = false
+    WHERE user_id = p_user_id;
+
+    RETURN TRUE;
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+
+GRANT EXECUTE ON FUNCTION change_student_password(uuid, text) TO anon, authenticated, service_role;
+
+-- ==============================================================================
+-- MIGRATION: Execute this if upgrading existing tables in Supabase SQL Editor
+-- ==============================================================================
+-- ALTER TABLE accounts ADD COLUMN IF NOT EXISTS must_change_password BOOLEAN DEFAULT TRUE;
+-- UPDATE accounts SET must_change_password = TRUE WHERE role = 1;
+-- UPDATE accounts SET must_change_password = FALSE WHERE role != 1;
+-- DROP FUNCTION IF EXISTS verify_user(text, text);
+-- ==============================================================================
 
 -- 8. (Optional / Legacy) Send Credentials Tracking Table
 -- CREATE TABLE IF NOT EXISTS send_credentials (

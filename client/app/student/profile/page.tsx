@@ -20,10 +20,12 @@ import {
   LuCheck,
   LuX,
   LuSparkles,
+  LuKeyRound,
 } from "react-icons/lu";
 import { createClient } from "@/utils/supabase/client";
 import { toast } from "sonner";
 import { ImageCropperModal } from "@/app/Components/ui/image-cropper-modal";
+import { ChangePasswordModal } from "@/app/Components/ui/change-password-modal";
 import { Button } from "@/app/Components/ui/button";
 
 export default function StudentProfilePage() {
@@ -32,6 +34,7 @@ export default function StudentProfilePage() {
   const [uploading, setUploading] = useState(false);
   const [cropImageSrc, setCropImageSrc] = useState<string | null>(null);
   const [showCropper, setShowCropper] = useState(false);
+  const [showPasswordModal, setShowPasswordModal] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const supabase = createClient();
 
@@ -336,6 +339,31 @@ export default function StudentProfilePage() {
         </div>
       </div>
 
+      {/* Account Security & Password Card */}
+      <div className="bg-white rounded-3xl border border-slate-200 overflow-hidden shadow-sm p-5 sm:p-6 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+        <div className="flex items-center gap-3.5">
+          <div className="size-12 rounded-2xl bg-orange-50 border border-orange-100 text-primary flex items-center justify-center shadow-xs shrink-0">
+            <LuKeyRound className="size-6 text-primary" />
+          </div>
+          <div>
+            <h3 className="text-base font-black text-slate-900 tracking-tight">
+              Portal Account Password
+            </h3>
+            <p className="text-xs font-medium text-slate-500 mt-0.5">
+              Keep your account secure by maintaining a strong, confidential password.
+            </p>
+          </div>
+        </div>
+        <Button
+          onClick={() => setShowPasswordModal(true)}
+          variant="outline"
+          className="w-full sm:w-auto h-11 px-5 rounded-2xl font-bold text-xs border-slate-200 hover:bg-slate-50 hover:text-primary text-slate-700 shadow-xs shrink-0 cursor-pointer"
+        >
+          <LuLock className="size-4 mr-2" />
+          Change Password
+        </Button>
+      </div>
+
       {/* Notice Banner */}
       <div className="bg-blue-50/80 rounded-2xl border border-blue-200/60 p-5 sm:p-6 flex items-start gap-4 shadow-sm">
         <div className="p-2.5 bg-blue-100/80 rounded-xl text-blue-700 shrink-0">
@@ -423,6 +451,19 @@ export default function StudentProfilePage() {
             </Button>
           </div>
         </div>
+      )}
+
+      {/* Change Password Modal */}
+      {showPasswordModal && user && (
+        <ChangePasswordModal
+          isOpen={showPasswordModal}
+          userId={user.id}
+          isForced={false}
+          title="Change Your Password"
+          description="Update your portal password anytime."
+          onSuccess={() => setShowPasswordModal(false)}
+          onClose={() => setShowPasswordModal(false)}
+        />
       )}
     </div>
   );

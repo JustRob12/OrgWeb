@@ -543,6 +543,7 @@ export default function AddMembersPage() {
               username: member.email.trim(),
               password: defaultPassword,
               role: 1, // Student
+              must_change_password: true,
             }),
             supabase.from("memberships").insert({
               user_id: userData.id,
