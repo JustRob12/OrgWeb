@@ -38,7 +38,7 @@ const TARGET_COURSES = [
   },
   {
     code: "BITM",
-    title: "IT Management",
+    title: "Bachelor of Industrial Technology Management",
     icon: LuLayers,
     badgeBg: "bg-emerald-50 text-emerald-700 border-emerald-200",
     iconBg: "bg-emerald-50 text-emerald-600",
@@ -131,30 +131,30 @@ export default function Hero() {
 
   return (
     <section
-      className="relative min-h-[92vh] flex flex-col justify-between pt-8 sm:pt-16 md:pt-28 pb-16 px-4 sm:px-6 lg:px-8 bg-white text-slate-900 border-b border-slate-200/80"
+      className="relative min-h-[92vh] flex flex-col justify-between pt-16 sm:pt-20 md:pt-28 pb-16 px-4 sm:px-6 lg:px-8 bg-white text-slate-900 border-b border-slate-200/80 overflow-hidden w-full max-w-full"
       id="home"
     >
       {/* Subtle Background Radial Highlights */}
-      <div className="absolute top-1/4 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] bg-primary/5 rounded-full blur-3xl pointer-events-none" />
+      <div className="absolute top-1/4 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[320px] sm:w-[500px] md:w-[600px] aspect-square bg-primary/5 rounded-full blur-3xl pointer-events-none" />
 
       {/* ================= TOP REAL-TIME LIVE CLOCK & DATE PILL ================= */}
       <div className="relative z-10 max-w-5xl mx-auto w-full flex flex-col sm:flex-row items-center justify-between gap-3 pt-2">
         {/* Real-time Clock Pill */}
-        <div className="inline-flex items-center gap-3 px-4 py-2 rounded-2xl bg-white hover:bg-slate-50 border border-slate-200/90 shadow-sm transition-all">
-          <div className="flex items-center gap-2">
-            <span className="relative flex h-2.5 w-2.5">
+        <div className="inline-flex items-center gap-2 sm:gap-3 px-3 sm:px-4 py-2 rounded-2xl bg-white hover:bg-slate-50 border border-slate-200/90 shadow-sm transition-all max-w-full flex-wrap justify-center">
+          <div className="flex items-center gap-1.5 sm:gap-2">
+            <span className="relative flex h-2 w-2 sm:h-2.5 sm:w-2.5">
               <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
-              <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-emerald-500"></span>
+              <span className="relative inline-flex rounded-full h-2 w-2 sm:h-2.5 sm:w-2.5 bg-emerald-500"></span>
             </span>
-            <span className="text-[11px] font-black uppercase tracking-widest text-emerald-600">Live PHT</span>
+            <span className="text-[10px] sm:text-[11px] font-black uppercase tracking-widest text-emerald-600">Live PHT</span>
           </div>
 
-          <div className="h-4 w-px bg-slate-200" />
+          <div className="h-3.5 sm:h-4 w-px bg-slate-200" />
 
           {/* Time */}
           <div className="flex items-center gap-1.5 text-xs font-bold text-slate-800 tracking-wide font-mono">
-            <LuClock className="size-3.5 text-primary" />
-            <span>
+            <LuClock className="size-3.5 text-primary shrink-0" />
+            <span className="tabular-nums">
               {currentTime ? (
                 currentTime.toLocaleTimeString("en-US", {
                   hour: "2-digit",
@@ -172,7 +172,7 @@ export default function Hero() {
 
           {/* Date */}
           <div className="hidden md:flex items-center gap-1.5 text-xs font-semibold text-slate-600">
-            <LuCalendar className="size-3.5 text-primary" />
+            <LuCalendar className="size-3.5 text-primary shrink-0" />
             <span>
               {currentTime
                 ? currentTime.toLocaleDateString("en-US", {
@@ -187,8 +187,8 @@ export default function Hero() {
         </div>
 
         {/* Portal Status Badge */}
-        <div className="inline-flex items-center gap-2 px-4 py-2 rounded-2xl bg-white border border-slate-200/90 text-slate-700 text-xs font-bold shadow-xs">
-          <LuShieldCheck className="size-4 text-primary" />
+        <div className="inline-flex items-center gap-2 px-3.5 sm:px-4 py-2 rounded-2xl bg-white border border-slate-200/90 text-slate-700 text-xs font-bold shadow-xs">
+          <LuShieldCheck className="size-4 text-primary shrink-0" />
           <span>Official ACES Portal</span>
         </div>
       </div>
@@ -196,8 +196,8 @@ export default function Hero() {
       {/* ================= CENTER BIG LOGO & TITLE SECTION ================= */}
       <div className="relative z-10 max-w-4xl mx-auto w-full text-center py-6 sm:py-10 flex flex-col items-center justify-center animate-in fade-in zoom-in-95 duration-700">
         {/* BIG Center Standalone Logo */}
-        <div className="relative group mb-6 flex items-center justify-center">
-          <div className="relative w-56 sm:w-72 md:w-80 lg:w-96 aspect-square transition-transform duration-500 group-hover:scale-105">
+        <div className="relative group mb-4 sm:mb-6 flex items-center justify-center">
+          <div className="relative w-48 sm:w-64 md:w-80 lg:w-96 aspect-square transition-transform duration-500 group-hover:scale-105">
             <Image
               src="/pictures/ACESLOGO.png"
               alt="ACES Logo"
@@ -210,9 +210,9 @@ export default function Hero() {
         </div>
 
         {/* Text Below the Logo */}
-        <div className="space-y-3 max-w-3xl px-4">
-          <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-primary/10 text-primary border border-primary/20 text-xs font-black uppercase tracking-widest">
-            <LuSparkles className="size-3.5 text-primary" />
+        <div className="space-y-2.5 sm:space-y-3 max-w-3xl px-2 sm:px-4 w-full">
+          <div className="inline-flex items-center gap-2 px-3.5 sm:px-4 py-1.5 rounded-full bg-primary/10 text-primary border border-primary/20 text-[11px] sm:text-xs font-black uppercase tracking-widest">
+            <LuSparkles className="size-3.5 text-primary shrink-0" />
             Empowering Future Leaders
           </div>
 
@@ -220,21 +220,21 @@ export default function Hero() {
             ACES
           </h1>
 
-          <p className="text-lg sm:text-2xl md:text-3xl font-extrabold text-slate-800 tracking-tight leading-snug">
+          <p className="text-base sm:text-2xl md:text-3xl font-extrabold text-slate-800 tracking-tight leading-snug break-words">
             Association of Computing and Engineering Students
           </p>
 
-          <p className="text-sm sm:text-base text-slate-500 max-w-xl mx-auto font-medium leading-relaxed">
+          <p className="text-xs sm:text-base text-slate-500 max-w-xl mx-auto font-medium leading-relaxed">
             Uniting students across computing, engineering, and technology disciplines. Innovate, collaborate, and excel
             together.
           </p>
         </div>
 
         {/* Call to Action Buttons */}
-        <div className="mt-8 flex flex-wrap items-center justify-center gap-4">
+        <div className="mt-6 sm:mt-8 flex flex-col sm:flex-row items-center justify-center gap-3 sm:gap-4 w-full max-w-md sm:max-w-none px-4">
           <Button
             size="lg"
-            className="h-12 px-8 rounded-2xl text-sm font-black bg-primary hover:bg-primary/95 text-white shadow-xl shadow-primary/25 transition-all hover:scale-105"
+            className="w-full sm:w-auto h-12 px-8 rounded-2xl text-sm font-black bg-primary hover:bg-primary/95 text-white shadow-xl shadow-primary/25 transition-all hover:scale-105"
             asChild
           >
             <a href="/login">
@@ -244,7 +244,7 @@ export default function Hero() {
           <Button
             variant="outline"
             size="lg"
-            className="h-12 px-7 rounded-2xl text-sm font-bold border-slate-200 bg-white hover:bg-slate-50 text-slate-700 shadow-sm transition-all hover:scale-105"
+            className="w-full sm:w-auto h-12 px-7 rounded-2xl text-sm font-bold border-slate-200 bg-white hover:bg-slate-50 text-slate-700 shadow-sm transition-all hover:scale-105"
             asChild
           >
             <a href="#events">
@@ -256,9 +256,9 @@ export default function Hero() {
 
       {/* ================= BOTTOM COURSE MEMBER COUNTERS (CLEAN WHITE THEME) ================= */}
       <div className="relative z-10 max-w-5xl mx-auto w-full pt-4">
-        <div className="flex items-center justify-between mb-3 px-1">
+        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2 mb-3 px-1">
           <div className="flex items-center gap-2">
-            <LuUsers className="size-4 text-primary" />
+            <LuUsers className="size-4 text-primary shrink-0" />
             <span className="text-xs font-black uppercase tracking-wider text-slate-700">
               Department Members by Course
             </span>
@@ -272,7 +272,7 @@ export default function Hero() {
         </div>
 
         {/* 5 Course Cards Grid */}
-        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-3 sm:gap-4">
+        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-2.5 sm:gap-4 w-full">
           {TARGET_COURSES.map((course) => {
             const Icon = course.icon;
             const count = courseCounts[course.code] || 0;

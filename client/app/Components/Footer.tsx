@@ -45,7 +45,7 @@ export default function Footer() {
   ]
 
   return (
-    <footer className="bg-slate-950 text-slate-50 py-16 md:py-24 relative overflow-hidden">
+    <footer className="bg-slate-950 text-slate-50 py-16 md:py-24 relative overflow-hidden w-full max-w-full">
       {/* Decorative Orbs */}
       <div className="absolute top-0 right-0 h-64 w-64 bg-primary/20 blur-[120px] pointer-events-none" />
       <div className="absolute bottom-0 left-0 h-48 w-48 bg-accent/10 blur-[100px] pointer-events-none" />

@@ -116,9 +116,14 @@
 @layer base {
   * {
     @apply border-border;
+    box-sizing: border-box;
   }
+  html,
   body {
     @apply bg-background text-foreground;
+    overflow-x: hidden;
+    max-width: 100vw;
+    width: 100%;
   }
   html {
     scroll-behavior: smooth;
@@ -127,7 +132,7 @@
 
 /* ── Custom Utilities ── */
 .container {
-  @apply max-w-[1200px] mx-auto px-6;
+  @apply max-w-[1200px] mx-auto px-4 sm:px-6 w-full;
 }
 
 /* Animations from previous design */

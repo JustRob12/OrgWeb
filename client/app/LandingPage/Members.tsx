@@ -123,7 +123,7 @@ export default function Members() {
   );
 
   return (
-    <section className="bg-slate-50/60 py-20 md:py-28 border-t border-slate-200/80" id="members">
+    <section className="bg-slate-50/60 py-20 md:py-28 border-t border-slate-200/80 overflow-hidden w-full max-w-full" id="members">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="mb-14 text-center max-w-2xl mx-auto animate-in fade-in duration-700">
           <Badge

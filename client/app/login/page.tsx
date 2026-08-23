@@ -38,7 +38,7 @@ export default function LoginPage() {
   const [isLoading, setIsLoading] = React.useState(false)
   const [email, setEmail] = React.useState("")
   const [password, setPassword] = React.useState("")
-  
+
   // Student Agreement Modal State
   const [showAgreementModal, setShowAgreementModal] = React.useState(false)
   const [showChangePasswordModal, setShowChangePasswordModal] = React.useState(false)
@@ -70,7 +70,7 @@ export default function LoginPage() {
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault()
-    
+
     if (email.trim().includes("@") && !isValidEmail(email)) {
       toast.error("Please enter a complete email address (e.g. name@gmail.com). Incomplete domains like @gma are not allowed.")
       return
@@ -80,7 +80,7 @@ export default function LoginPage() {
 
     try {
       const supabase = createClient()
-      
+
       // Use the RPC function for secure password verification
       let account: AuthUser | null = null;
 
@@ -111,8 +111,8 @@ export default function LoginPage() {
           .limit(1);
 
         const userRecord = userMatches?.[0];
-        const userAccountData = Array.isArray(userRecord?.accounts) 
-          ? userRecord?.accounts[0] 
+        const userAccountData = Array.isArray(userRecord?.accounts)
+          ? userRecord?.accounts[0]
           : userRecord?.accounts;
 
         if (userRecord && userAccountData && (userAccountData.password === password.trim() || userAccountData.password === input)) {
@@ -312,7 +312,7 @@ export default function LoginPage() {
                       <LuMail className="absolute left-4 top-1/2 -translate-y-1/2 size-4 text-muted-foreground transition-colors group-focus-within:text-primary" />
                       <Input
                         id="email"
-                        placeholder="e.g. 2024-0001 or email@domain.com"
+                        placeholder="e.g. juandelacruz@gmail.com"
                         type="text"
                         required
                         value={email}

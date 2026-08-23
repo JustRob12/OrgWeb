@@ -51,6 +51,7 @@ interface RawMemberData {
 export default function AddMembersPage() {
   const [members, setMembers] = useState<RawMemberData[]>([]);
   const [dbExistingStudentIds, setDbExistingStudentIds] = useState<Set<string>>(new Set());
+  const [dbExistingEmails, setDbExistingEmails] = useState<Set<string>>(new Set());
   const [isUploading, setIsUploading] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [isDragging, setIsDragging] = useState(false);
@@ -93,12 +94,12 @@ export default function AddMembersPage() {
 
   const supabase = useMemo(() => createClient(), []);
 
-  // Fetch all existing student IDs from database
+  // Fetch all existing student IDs and emails from database
   const fetchExistingStudentIds = useCallback(async () => {
     try {
       const { data, error } = await supabase
         .from("users")
-        .select("student_id");
+        .select("student_id, email");
 
       if (error) throw error;
 
@@ -107,10 +108,16 @@ export default function AddMembersPage() {
           .map((u) => String(u.student_id || "").trim().toLowerCase())
           .filter(Boolean)
       );
+      const emailSet = new Set(
+        (data || [])
+          .map((u) => String(u.email || "").trim().toLowerCase())
+          .filter(Boolean)
+      );
       setDbExistingStudentIds(idSet);
+      setDbExistingEmails(emailSet);
       return idSet;
     } catch (err: unknown) {
-      console.error("Error fetching existing student IDs:", err);
+      console.error("Error fetching existing records:", err);
       return new Set<string>();
     }
   }, [supabase]);
@@ -121,7 +128,7 @@ export default function AddMembersPage() {
       try {
         const { data, error } = await supabase
           .from("users")
-          .select("student_id");
+          .select("student_id, email");
 
         if (!error && data && isMounted) {
           const idSet = new Set(
@@ -129,10 +136,16 @@ export default function AddMembersPage() {
               .map((u) => String(u.student_id || "").trim().toLowerCase())
               .filter(Boolean)
           );
+          const emailSet = new Set(
+            data
+              .map((u) => String(u.email || "").trim().toLowerCase())
+              .filter(Boolean)
+          );
           setDbExistingStudentIds(idSet);
+          setDbExistingEmails(emailSet);
         }
       } catch (err: unknown) {
-        console.error("Error loading initial student IDs:", err);
+        console.error("Error loading initial records:", err);
       }
     };
     load();
@@ -537,24 +550,39 @@ export default function AddMembersPage() {
 
           // 2. Concurrently insert Account and Membership for maximum speed
           const defaultPassword = member.student_id ? member.student_id.trim() : "0000-0000";
-          const [accountRes, membershipRes] = await Promise.all([
-            supabase.from("accounts").insert({
-              user_id: userData.id,
-              username: member.email.trim(),
-              password: defaultPassword,
-              role: 1, // Student
-              must_change_password: true,
-            }),
-            supabase.from("memberships").insert({
-              user_id: userData.id,
-              status: member.membership_status,
-              payment: member.payment || 0,
-              receipt: member.receipt?.trim() || null,
-            }),
-          ]);
+          
+          let accountError = null;
+          const { error: accErr } = await supabase.from("accounts").insert({
+            user_id: userData.id,
+            username: member.email.trim(),
+            password: defaultPassword,
+            role: 1, // Student
+            must_change_password: true,
+          });
 
-          if (accountRes.error) throw accountRes.error;
-          if (membershipRes.error) throw membershipRes.error;
+          if (accErr) {
+            if (accErr.message?.includes("must_change_password") || accErr.message?.includes("schema cache")) {
+              const { error: retryAccErr } = await supabase.from("accounts").insert({
+                user_id: userData.id,
+                username: member.email.trim(),
+                password: defaultPassword,
+                role: 1,
+              });
+              if (retryAccErr) accountError = retryAccErr;
+            } else {
+              accountError = accErr;
+            }
+          }
+
+          const { error: memErr } = await supabase.from("memberships").insert({
+            user_id: userData.id,
+            status: member.membership_status,
+            payment: member.payment || 0,
+            receipt: member.receipt?.trim() || null,
+          });
+
+          if (accountError) throw accountError;
+          if (memErr) throw memErr;
 
           successCount++;
           freshExistingStudentIds.add(studentIdKey);
@@ -567,8 +595,8 @@ export default function AddMembersPage() {
 
           // Animate-out: remove the saved student row live from the table list!
           setMembers((prev) => prev.filter((m) => m.student_id !== member.student_id));
-        } catch (error: unknown) {
-          const errorMsg = error instanceof Error ? error.message : String(error);
+        } catch (error: any) {
+          const errorMsg = error?.message || error?.error_description || (error instanceof Error ? error.message : JSON.stringify(error));
           console.error("Error saving member:", member.email, errorMsg);
           errorCount++;
           // Retain failed member on preview list
