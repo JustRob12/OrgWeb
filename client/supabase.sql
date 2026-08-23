@@ -22,6 +22,7 @@ CREATE TABLE IF NOT EXISTS accounts (
     user_id UUID REFERENCES users(id) ON DELETE CASCADE,
     username TEXT UNIQUE NOT NULL, -- This will store the email for login
     password TEXT NOT NULL,
+    encrypted_password TEXT, -- AES-256 reversible encrypted password for Admin vault
     role INTEGER DEFAULT 1, -- 0: Admin, 1: Student, 2: Scanner, 3: Treasurer
     must_change_password BOOLEAN DEFAULT TRUE,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP

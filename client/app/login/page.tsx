@@ -12,6 +12,8 @@ import {
   LuTriangleAlert,
   LuCheck,
   LuX,
+  LuEye,
+  LuEyeOff,
 } from "react-icons/lu"
 import { Button } from "../Components/ui/button"
 import { Input } from "../Components/ui/input"
@@ -38,6 +40,7 @@ export default function LoginPage() {
   const [isLoading, setIsLoading] = React.useState(false)
   const [email, setEmail] = React.useState("")
   const [password, setPassword] = React.useState("")
+  const [showPassword, setShowPassword] = React.useState(false)
 
   // Student Agreement Modal State
   const [showAgreementModal, setShowAgreementModal] = React.useState(false)
@@ -248,11 +251,11 @@ export default function LoginPage() {
         <div className="absolute bottom-[-10%] left-[-10%] aspect-square w-[400px] rounded-full bg-accent/20 blur-[100px] animate-pulse delay-1000" />
 
         <div className="relative z-10">
-          <Link href="/" className="flex items-center gap-2 group mb-12">
-            <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-white/20 backdrop-blur-md border border-white/30 transition-transform group-hover:scale-110">
-              <LuGraduationCap className="size-8" />
+          <Link href="/" className="flex items-center gap-3 group mb-12">
+            <div className="flex size-12 items-center justify-center rounded-2xl bg-white p-1.5 shadow-md transition-transform group-hover:scale-110">
+              <img src="/pictures/ACESLOGO.png" alt="ACES Logo" className="size-full object-contain" />
             </div>
-            <span className="text-2xl font-bold tracking-tight">ACETRACK 3.0</span>
+            <span className="text-2xl font-black tracking-tight">ACETRACK 3.0</span>
           </Link>
 
           <div className="max-w-md space-y-8 animate-in fade-in slide-in-from-left-10 duration-1000">
@@ -291,15 +294,22 @@ export default function LoginPage() {
         <div className="w-full max-w-md space-y-8 animate-in fade-in zoom-in-95 duration-700">
           {/* Mobile Logo Only */}
           <div className="md:hidden flex flex-col items-center mb-8">
-            <div className="h-16 w-16 bg-primary rounded-2xl flex items-center justify-center text-primary-foreground shadow-2xl shadow-primary/20 mb-4 animate-float">
-              <LuGraduationCap className="size-10" />
+            <div className="size-20 rounded-3xl bg-white border border-slate-100 flex items-center justify-center p-2.5 shadow-2xl shadow-primary/20 mb-3 animate-float">
+              <img src="/pictures/ACESLOGO.png" alt="ACES Logo" className="size-full object-contain" />
             </div>
-            <h2 className="text-3xl font-semibold tracking-tight text-primary">ACETRACK 3.0</h2>
+            <h2 className="text-3xl font-black tracking-tight bg-gradient-to-r from-orange-500 via-amber-500 to-orange-600 bg-clip-text text-transparent">
+              ACETRACK 3.0
+            </h2>
           </div>
 
           <div className="text-center md:text-left">
-            <h2 className="text-3xl font-semibold tracking-tight text-foreground sm:text-4xl lg:text-5xl">Welcome back</h2>
-            <p className="mt-2 text-muted-foreground font-normal text-base lg:text-lg">Enter your school credentials to access the dashboard.</p>
+            <h2 className="text-l  font-bold tracking-tight text-foreground sm:text-4xl lg:text-5xl">
+              Welcome to{" "}
+              <span className="bg-gradient-to-r from-orange-500 via-amber-500 to-orange-600 bg-clip-text text-transparent font-black">
+                ACETRACK
+              </span>
+            </h2>
+            <p className="mt-2 text-muted-foreground font-normal text-base lg:text-lg">Enter your ACETRACK credentials to login.</p>
           </div>
 
           <Card className="border-none shadow-none bg-transparent backdrop-blur-none">
@@ -327,13 +337,25 @@ export default function LoginPage() {
                       <LuLock className="absolute left-4 top-1/2 -translate-y-1/2 size-4 text-muted-foreground transition-colors group-focus-within:text-primary" />
                       <Input
                         id="password"
-                        type="password"
+                        type={showPassword ? "text" : "password"}
                         required
                         placeholder="••••••••"
                         value={password}
                         onChange={(e) => setPassword(e.target.value)}
-                        className="pl-12 h-14 bg-slate-50 border-slate-200 focus:bg-white transition-all rounded-xl shadow-sm"
+                        className="pl-12 pr-12 h-14 bg-slate-50 border-slate-200 focus:bg-white transition-all rounded-xl shadow-sm"
                       />
+                      <button
+                        type="button"
+                        onClick={() => setShowPassword(!showPassword)}
+                        className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 hover:text-primary transition-colors cursor-pointer p-1"
+                        aria-label={showPassword ? "Hide password" : "Show password"}
+                      >
+                        {showPassword ? (
+                          <LuEyeOff className="size-5" />
+                        ) : (
+                          <LuEye className="size-5" />
+                        )}
+                      </button>
                     </div>
                   </div>
                 </div>

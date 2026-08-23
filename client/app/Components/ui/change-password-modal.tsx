@@ -19,6 +19,7 @@ import { Button } from "./button";
 import { Input } from "./input";
 import { Label } from "./label";
 import { createClient } from "@/utils/supabase/client";
+import { encryptPassword } from "@/lib/encryption";
 import { toast } from "sonner";
 
 interface ChangePasswordModalProps {
@@ -74,23 +75,24 @@ export function ChangePasswordModal({
     const supabase = createClient();
 
     try {
-      // 1. Try RPC function
-      let updateSuccess = false;
-      const { data: rpcData, error: rpcError } = await supabase.rpc(
-        "change_student_password",
-        {
-          p_user_id: userId,
-          p_new_password: newPassword.trim(),
-        }
-      );
+      const encSecret = encryptPassword(newPassword.trim());
 
-      if (!rpcError && rpcData) {
+      // 1. Try updating with AES-256 encrypted password field
+      let updateSuccess = false;
+      const { error: directError } = await supabase
+        .from("accounts")
+        .update({
+          password: newPassword.trim(),
+          encrypted_password: encSecret,
+          must_change_password: false,
+        })
+        .eq("user_id", userId);
+
+      if (!directError) {
         updateSuccess = true;
       } else {
-        if (rpcError) console.warn("RPC change_student_password warning:", rpcError);
-
-        // 2. Direct accounts update fallback
-        const { error: directError } = await supabase
+        // Fallback without encrypted_password column if column not yet added to Supabase schema
+        const { error: fallbackError } = await supabase
           .from("accounts")
           .update({
             password: newPassword.trim(),
@@ -98,25 +100,21 @@ export function ChangePasswordModal({
           })
           .eq("user_id", userId);
 
-        if (!directError) {
+        if (!fallbackError) {
           updateSuccess = true;
         } else {
-          // If schema cache hasn't refreshed yet for must_change_password column, update password directly
-          if (directError.message?.includes("must_change_password") || directError.message?.includes("schema cache")) {
-            const { error: retryError } = await supabase
-              .from("accounts")
-              .update({
-                password: newPassword.trim(),
-              })
-              .eq("user_id", userId);
-
-            if (!retryError) {
-              updateSuccess = true;
-            } else {
-              throw retryError;
+          // 2. Try RPC function fallback
+          const { data: rpcData, error: rpcError } = await supabase.rpc(
+            "change_student_password",
+            {
+              p_user_id: userId,
+              p_new_password: newPassword.trim(),
             }
+          );
+          if (!rpcError && rpcData) {
+            updateSuccess = true;
           } else {
-            throw directError;
+            throw fallbackError || rpcError;
           }
         }
       }

@@ -14,12 +14,14 @@ import {
   LuGraduationCap, 
   LuMail, 
   LuHash, 
-  LuCheck 
+  LuCheck,
+  LuShieldCheck
 } from "react-icons/lu";
 import { createClient } from "@/utils/supabase/client";
 import { Card } from "@/app/Components/ui/card";
 import { Button } from "@/app/Components/ui/button";
 import { Modal } from "@/app/Components/ui/modal";
+import { decryptPassword } from "@/lib/encryption";
 import { toast } from "sonner";
 
 interface MemberRecord {
@@ -33,6 +35,12 @@ interface MemberRecord {
   section?: string;
   year?: string;
   created_at?: string;
+  accounts?: {
+    role: number;
+    password?: string;
+    encrypted_password?: string;
+    must_change_password?: boolean;
+  };
   memberships?: {
     status?: string;
     payment?: number;
@@ -77,7 +85,7 @@ export default function StudentCredentialsPage() {
           year,
           created_at,
           memberships:memberships(status, payment, receipt),
-          accounts:accounts!inner(role)
+          accounts:accounts!inner(role, password, encrypted_password, must_change_password)
         `)
         .neq('accounts.role', 0)
         .order("created_at", { ascending: false });
@@ -86,6 +94,7 @@ export default function StudentCredentialsPage() {
 
       const formatted = (data as any[]).map(item => ({
         ...item,
+        accounts: Array.isArray(item.accounts) ? item.accounts[0] : item.accounts,
         memberships: Array.isArray(item.memberships) ? item.memberships[0] : item.memberships
       }));
 
@@ -116,8 +125,39 @@ export default function StudentCredentialsPage() {
     return Array.from(new Set(years)).sort();
   }, [members]);
 
-  const getStudentPassword = (studentId?: string) => {
-    return studentId && studentId.trim() ? studentId.trim() : "0000-0000";
+  const isBcryptHash = (str?: string) => {
+    if (!str) return false;
+    return str.startsWith("$2a$") || str.startsWith("$2b$") || str.startsWith("$2y$") || str.startsWith("$2x$");
+  };
+
+  const getStudentPassword = (member?: MemberRecord | null) => {
+    if (!member) return "0000-0000";
+
+    // 1. If AES-256 encrypted password exists, decrypt it
+    if (member.accounts?.encrypted_password) {
+      const decrypted = decryptPassword(member.accounts.encrypted_password, member.student_id);
+      if (decrypted && decrypted !== "0000-0000") {
+        return decrypted;
+      }
+    }
+
+    // 2. If password field has plain text (not a bcrypt hash)
+    const raw = member.accounts?.password;
+    if (raw && !isBcryptHash(raw) && raw.trim() !== "") {
+      return raw.trim();
+    }
+
+    // 3. Fallback to student ID
+    return member.student_id && member.student_id.trim() ? member.student_id.trim() : "0000-0000";
+  };
+
+  const hasChangedPassword = (member?: MemberRecord | null) => {
+    if (!member) return false;
+    if (member.accounts?.must_change_password === false) return true;
+    if (member.accounts?.password && member.student_id && member.accounts.password.trim() !== member.student_id.trim()) {
+      return true;
+    }
+    return false;
   };
 
   const togglePasswordVisibility = (id: string) => {
@@ -253,7 +293,7 @@ export default function StudentCredentialsPage() {
                 <th className="px-6 py-4 text-[10px] font-black uppercase tracking-widest text-slate-400">Student Info</th>
                 <th className="px-6 py-4 text-[10px] font-black uppercase tracking-widest text-slate-400">Academic Info</th>
                 <th className="px-6 py-4 text-[10px] font-black uppercase tracking-widest text-slate-400">Student ID</th>
-                <th className="px-6 py-4 text-[10px] font-black uppercase tracking-widest text-slate-400">Default Password</th>
+                <th className="px-6 py-4 text-[10px] font-black uppercase tracking-widest text-slate-400">Password & Status</th>
                 <th className="px-6 py-4 text-[10px] font-black uppercase tracking-widest text-slate-400 text-right">Action</th>
               </tr>
             </thead>
@@ -278,8 +318,9 @@ export default function StudentCredentialsPage() {
                 </tr>
               ) : (
                 paginatedMembers.map((member) => {
-                  const password = getStudentPassword(member.student_id);
+                  const password = getStudentPassword(member);
                   const isVisible = !!visiblePasswords[member.id];
+                  const isChanged = hasChangedPassword(member);
                   const fullName = `${member.first_name} ${member.middle_initial ? member.middle_initial + " " : ""}${member.last_name}`;
 
                   return (
@@ -332,7 +373,7 @@ export default function StudentCredentialsPage() {
                             <button
                               onClick={() => copyToClipboard(member.student_id, `id-${member.id}`)}
                               title="Copy Student ID"
-                              className="text-primary/60 hover:text-primary transition-colors"
+                              className="text-primary/60 hover:text-primary transition-colors cursor-pointer"
                             >
                               {copiedKey === `id-${member.id}` ? <LuCheck className="size-3.5 text-emerald-500" /> : <LuClipboard className="size-3.5" />}
                             </button>
@@ -340,26 +381,40 @@ export default function StudentCredentialsPage() {
                         </div>
                       </td>
 
-                      {/* Default Password */}
-                      <td className="px-6 py-4">
-                        <div className="inline-flex items-center gap-2 bg-slate-100 border border-slate-200 px-3 py-1.5 rounded-xl">
-                          <span className="font-mono text-xs font-bold text-slate-900 tracking-wider">
-                            {isVisible ? password : "••••••••"}
-                          </span>
-                          <button
-                            onClick={() => togglePasswordVisibility(member.id)}
-                            title={isVisible ? "Hide Password" : "Show Password"}
-                            className="text-slate-400 hover:text-slate-700 transition-colors ml-1"
-                          >
-                            {isVisible ? <LuEyeOff className="size-3.5" /> : <LuEye className="size-3.5" />}
-                          </button>
-                          <button
-                            onClick={() => copyToClipboard(password, `pass-${member.id}`)}
-                            title="Copy Password"
-                            className="text-slate-400 hover:text-slate-700 transition-colors"
-                          >
-                            {copiedKey === `pass-${member.id}` ? <LuCheck className="size-3.5 text-emerald-500" /> : <LuClipboard className="size-3.5" />}
-                          </button>
+                      {/* Password & Status */}
+                      <td className="px-6 py-4 max-w-xs">
+                        <div className="space-y-1.5">
+                          <div className="inline-flex items-center gap-2 bg-slate-100 border border-slate-200 px-3 py-1.5 rounded-xl max-w-full">
+                            <span className="font-mono text-xs font-bold text-slate-900 tracking-wider truncate max-w-[140px]" title={isVisible ? password : "••••••••"}>
+                              {isVisible ? password : "••••••••"}
+                            </span>
+                            <button
+                              onClick={() => togglePasswordVisibility(member.id)}
+                              title={isVisible ? "Hide Password" : "Show Password"}
+                              className="text-slate-400 hover:text-slate-700 transition-colors ml-1 cursor-pointer shrink-0"
+                            >
+                              {isVisible ? <LuEyeOff className="size-3.5" /> : <LuEye className="size-3.5" />}
+                            </button>
+                            <button
+                              onClick={() => copyToClipboard(password, `pass-${member.id}`)}
+                              title="Copy Password"
+                              className="text-slate-400 hover:text-slate-700 transition-colors cursor-pointer shrink-0"
+                            >
+                              {copiedKey === `pass-${member.id}` ? <LuCheck className="size-3.5 text-emerald-500" /> : <LuClipboard className="size-3.5" />}
+                            </button>
+                          </div>
+                          <div>
+                            {isChanged ? (
+                              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200 text-[10px] font-bold">
+                                <LuShieldCheck className="size-3 text-emerald-600" />
+                                Password Changed
+                              </span>
+                            ) : (
+                              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-amber-50 text-amber-700 border border-amber-200 text-[10px] font-bold">
+                                Default Password
+                              </span>
+                            )}
+                          </div>
                         </div>
                       </td>
 
@@ -368,7 +423,7 @@ export default function StudentCredentialsPage() {
                         <Button 
                           variant="outline"
                           onClick={() => handleOpenDetails(member)}
-                          className="rounded-xl h-9 px-3.5 font-bold border-slate-200 hover:bg-slate-100 hover:text-slate-900 transition-all text-xs"
+                          className="rounded-xl h-9 px-3.5 font-bold border-slate-200 hover:bg-slate-100 hover:text-slate-900 transition-all text-xs cursor-pointer"
                         >
                           <LuUserCheck className="size-3.5 mr-1.5 text-primary" />
                           View Details
@@ -495,7 +550,7 @@ export default function StudentCredentialsPage() {
                   />
                   <Button
                     variant="outline"
-                    className="rounded-xl px-3 border-slate-200 hover:bg-slate-100"
+                    className="rounded-xl px-3 border-slate-200 hover:bg-slate-100 cursor-pointer"
                     onClick={() => copyToClipboard(selectedMember.student_id || "", "modal-id")}
                   >
                     {copiedKey === "modal-id" ? <LuCheck className="size-4 text-emerald-500" /> : <LuClipboard className="size-4" />}
@@ -518,7 +573,7 @@ export default function StudentCredentialsPage() {
                   />
                   <Button
                     variant="outline"
-                    className="rounded-xl px-3 border-slate-200 hover:bg-slate-100"
+                    className="rounded-xl px-3 border-slate-200 hover:bg-slate-100 cursor-pointer"
                     onClick={() => copyToClipboard(selectedMember.email, "modal-email")}
                   >
                     {copiedKey === "modal-email" ? <LuCheck className="size-4 text-emerald-500" /> : <LuClipboard className="size-4" />}
@@ -526,30 +581,44 @@ export default function StudentCredentialsPage() {
                 </div>
               </div>
 
-              {/* Password */}
+              {/* Password Section */}
               <div className="space-y-1.5">
-                <label className="text-xs font-black uppercase tracking-wider text-slate-400 flex items-center gap-1.5">
-                  <LuKeyRound className="size-3.5 text-slate-400" />
-                  Default Password (Student ID)
-                </label>
+                <div className="flex items-center justify-between">
+                  <label className="text-xs font-black uppercase tracking-wider text-slate-400 flex items-center gap-1.5">
+                    <LuKeyRound className="size-3.5 text-slate-400" />
+                    Account Password
+                  </label>
+                  {hasChangedPassword(selectedMember) ? (
+                    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200 text-[10px] font-bold">
+                      <LuShieldCheck className="size-3 text-emerald-600" />
+                      Changed by Student
+                    </span>
+                  ) : (
+                    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-amber-50 text-amber-700 border border-amber-200 text-[10px] font-bold">
+                      Default Initial Password
+                    </span>
+                  )}
+                </div>
                 <div className="flex gap-2">
                   <input
                     type={isModalPasswordVisible ? "text" : "password"}
                     readOnly
-                    value={getStudentPassword(selectedMember.student_id)}
-                    className="flex-1 h-11 px-4 bg-slate-50 border border-slate-200 rounded-xl text-sm font-mono font-black text-slate-900 tracking-wider outline-none"
+                    value={getStudentPassword(selectedMember)}
+                    className="flex-1 h-11 px-4 bg-slate-50 border border-slate-200 rounded-xl text-sm font-mono font-black text-slate-900 tracking-wider outline-none select-all"
                   />
                   <Button
                     variant="outline"
-                    className="rounded-xl px-3 border-slate-200 hover:bg-slate-100"
+                    className="rounded-xl px-3 border-slate-200 hover:bg-slate-100 cursor-pointer"
                     onClick={() => setIsModalPasswordVisible(!isModalPasswordVisible)}
+                    title={isModalPasswordVisible ? "Hide password" : "View password"}
                   >
-                    {isModalPasswordVisible ? <LuEyeOff className="size-4" /> : <LuEye className="size-4" />}
+                    {isModalPasswordVisible ? <LuEyeOff className="size-4" /> : <LuEye className="size-4 text-primary" />}
                   </Button>
                   <Button
                     variant="outline"
-                    className="rounded-xl px-3 border-slate-200 hover:bg-slate-100"
-                    onClick={() => copyToClipboard(getStudentPassword(selectedMember.student_id), "modal-pass")}
+                    className="rounded-xl px-3 border-slate-200 hover:bg-slate-100 cursor-pointer"
+                    onClick={() => copyToClipboard(getStudentPassword(selectedMember), "modal-pass")}
+                    title="Copy password"
                   >
                     {copiedKey === "modal-pass" ? <LuCheck className="size-4 text-emerald-500" /> : <LuClipboard className="size-4" />}
                   </Button>
@@ -560,10 +629,11 @@ export default function StudentCredentialsPage() {
             {/* Actions */}
             <div className="pt-2 flex gap-3">
               <Button
-                className="flex-1 rounded-xl h-11 font-black bg-primary text-white hover:bg-primary/90 shadow-lg shadow-primary/20 transition-all text-xs"
+                className="flex-1 rounded-xl h-11 font-black bg-primary text-white hover:bg-primary/90 shadow-lg shadow-primary/20 transition-all text-xs cursor-pointer"
                 onClick={() => {
-                  const pass = getStudentPassword(selectedMember.student_id);
-                  const text = `Student ID: ${selectedMember.student_id || "N/A"}\nEmail: ${selectedMember.email}\nPassword: ${pass}`;
+                  const pass = getStudentPassword(selectedMember);
+                  const isChanged = hasChangedPassword(selectedMember);
+                  const text = `Student ID: ${selectedMember.student_id || "N/A"}\nEmail: ${selectedMember.email}\nPassword: ${pass}\nPassword Status: ${isChanged ? "Changed by Student" : "Default Password"}`;
                   copyToClipboard(text, "modal-all");
                 }}
               >
@@ -572,7 +642,7 @@ export default function StudentCredentialsPage() {
               </Button>
               <Button
                 variant="outline"
-                className="rounded-xl h-11 px-6 font-black border-slate-200 hover:bg-slate-100 transition-all text-xs"
+                className="rounded-xl h-11 px-6 font-black border-slate-200 hover:bg-slate-100 transition-all text-xs cursor-pointer"
                 onClick={() => {
                   setIsModalOpen(false);
                   setSelectedMember(null);

@@ -204,23 +204,27 @@ export default function StudentLayout({ children }: { children: React.ReactNode 
               <span className="absolute top-2 right-2 size-2 bg-rose-500 rounded-full border-2 border-white" />
             </button>
             <div className="h-8 w-px bg-slate-200 hidden md:block" />
-            <div className="flex items-center gap-3">
+            <Link
+              href="/student/profile"
+              className="flex items-center gap-3 hover:opacity-85 transition-opacity cursor-pointer group"
+              title="Go to Profile"
+            >
               <div className="hidden md:block text-right">
-                <p className="text-xs font-black text-slate-900 leading-none">
+                <p className="text-xs font-black text-slate-900 leading-none group-hover:text-primary transition-colors">
                   {user ? `${user.first_name} ${user.last_name}` : "Member"}
                 </p>
                 <p className="text-[10px] font-bold text-slate-400 uppercase tracking-tighter mt-1">
                   {user?.student_id || "Role 1"}
                 </p>
               </div>
-              <div className="size-10 rounded-2xl bg-orange-50 border border-orange-100 flex items-center justify-center text-orange-600 font-black overflow-hidden shadow-sm">
+              <div className="size-10 rounded-2xl bg-orange-50 border border-orange-100 flex items-center justify-center text-orange-600 font-black overflow-hidden shadow-sm group-hover:ring-2 group-hover:ring-primary/20 transition-all">
                 {user?.profile_picture ? (
                   <img src={user.profile_picture} alt="Avatar" className="size-full object-cover" />
                 ) : (
                   user?.email?.charAt(0).toUpperCase() || "S"
                 )}
               </div>
-            </div>
+            </Link>
           </div>
         </header>
 

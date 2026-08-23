@@ -1,17 +1,17 @@
 "use client";
 
 import React, { useEffect, useState, useMemo } from "react";
-import { 
-  LuShieldCheck, 
-  LuUserCheck, 
-  LuClipboardCheck, 
-  LuPhilippinePeso, 
-  LuSearch, 
-  LuUser, 
-  LuUserCog, 
-  LuLoader, 
-  LuInfo, 
-  LuFilter, 
+import {
+  LuShieldCheck,
+  LuUserCheck,
+  LuClipboardCheck,
+  LuPhilippinePeso,
+  LuSearch,
+  LuUser,
+  LuUserCog,
+  LuLoader,
+  LuInfo,
+  LuFilter,
   LuCircleCheck
 } from "react-icons/lu";
 import { createClient } from "@/utils/supabase/client";
@@ -231,9 +231,9 @@ export default function SettingsPage() {
           <div className="flex flex-col sm:flex-row gap-4 items-center justify-between">
             <div className="relative group max-w-md w-full">
               <LuSearch className="absolute left-4 top-1/2 -translate-y-1/2 size-4 text-slate-400 group-focus-within:text-primary transition-colors" />
-              <input 
-                type="text" 
-                placeholder="Search member by name, email, student ID..." 
+              <input
+                type="text"
+                placeholder="Search member by name, email, student ID..."
                 className="w-full h-12 pl-12 pr-4 bg-white border border-slate-200 rounded-2xl text-sm focus:outline-none focus:ring-4 focus:ring-primary/10 transition-all font-medium"
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
@@ -284,8 +284,8 @@ export default function SettingsPage() {
                     <LuInfo className="size-8 text-slate-300 mx-auto mb-3" />
                     <h4 className="text-lg font-black text-slate-900">No Members Found</h4>
                     <p className="text-xs font-medium text-slate-500 mt-1">
-                      {searchQuery.trim() === "" 
-                        ? "Students are hidden by default. Search by name, email, or student ID to find a student." 
+                      {searchQuery.trim() === ""
+                        ? "Students are hidden by default. Search by name, email, or student ID to find a student."
                         : "Try adjusting your search query or role filter."}
                     </p>
                   </td>

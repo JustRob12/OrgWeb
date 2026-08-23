@@ -33,6 +33,7 @@ import { Modal } from "@/app/Components/ui/modal";
 import { ConfirmModal } from "@/app/Components/ui/confirm-modal";
 
 import { isValidEmail } from "@/lib/utils";
+import { encryptPassword } from "@/lib/encryption";
 
 interface RawMemberData {
   student_id: string;
@@ -550,28 +551,26 @@ export default function AddMembersPage() {
 
           // 2. Concurrently insert Account and Membership for maximum speed
           const defaultPassword = member.student_id ? member.student_id.trim() : "0000-0000";
+          const encDefault = encryptPassword(defaultPassword);
           
           let accountError = null;
           const { error: accErr } = await supabase.from("accounts").insert({
             user_id: userData.id,
             username: member.email.trim(),
             password: defaultPassword,
+            encrypted_password: encDefault,
             role: 1, // Student
             must_change_password: true,
           });
 
           if (accErr) {
-            if (accErr.message?.includes("must_change_password") || accErr.message?.includes("schema cache")) {
-              const { error: retryAccErr } = await supabase.from("accounts").insert({
-                user_id: userData.id,
-                username: member.email.trim(),
-                password: defaultPassword,
-                role: 1,
-              });
-              if (retryAccErr) accountError = retryAccErr;
-            } else {
-              accountError = accErr;
-            }
+            const { error: retryAccErr } = await supabase.from("accounts").insert({
+              user_id: userData.id,
+              username: member.email.trim(),
+              password: defaultPassword,
+              role: 1,
+            });
+            if (retryAccErr) accountError = retryAccErr;
           }
 
           const { error: memErr } = await supabase.from("memberships").insert({
