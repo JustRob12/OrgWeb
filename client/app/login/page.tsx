@@ -56,7 +56,7 @@ export default function LoginPage() {
         if (role === 0) {
           router.replace("/admin");
         } else if (role === 1) {
-          router.replace("/student");
+          router.replace("/student/id");
         } else if (role === 2) {
           router.replace("/admin/attendance");
         } else if (role === 3) {
@@ -210,7 +210,7 @@ export default function LoginPage() {
 
     localStorage.setItem("acetrack_user", JSON.stringify(pendingStudentUser));
     toast.success("Welcome to the Student Portal!");
-    router.push("/student");
+    router.push("/student/id");
   };
 
   const handleDeclineAgreement = () => {
@@ -227,7 +227,7 @@ export default function LoginPage() {
     setShowChangePasswordModal(false);
     setPendingStudentUser(null);
     toast.success("Password changed successfully! Welcome to the Student Portal.");
-    router.push("/student");
+    router.push("/student/id");
   };
 
   const handleCancelPasswordChange = () => {

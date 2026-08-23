@@ -11,11 +11,10 @@ export default function Footer() {
     {
       title: "Navigation",
       links: [
-        { label: "Home", href: "#home" },
-        { label: "About Us", href: "#about" },
-        { label: "Features", href: "#features" },
-        { label: "Events", href: "#events" },
-        { label: "Members", href: "#members" },
+        { label: "Home", href: "/#home" },
+        { label: "About ACETRACK", href: "/about" },
+        { label: "Events", href: "/#events" },
+        { label: "Members", href: "/#members" },
       ],
     },
     {

@@ -331,11 +331,11 @@ export default function StudentProfilePage() {
         {/* Read-Only Details List */}
         <div className="divide-y divide-slate-100">
           <ProfileItem icon={LuUser} label="Full Name" value={fullName || "Not set"} />
-          <ProfileItem icon={LuHash} label="Student ID" value={user?.student_id || "Not set"} isLocked />
-          <ProfileItem icon={LuMail} label="Email Address" value={user?.email || "Not set"} isLocked />
-          <ProfileItem icon={LuGraduationCap} label="Course" value={user?.course || "Not set"} isLocked />
-          <ProfileItem icon={LuBookOpen} label="Section" value={user?.section ? `Section ${user.section}` : "Not set"} isLocked />
-          <ProfileItem icon={LuMilestone} label="Year Level" value={user?.year ? `Year ${user.year}` : "Not set"} isLocked />
+          <ProfileItem icon={LuHash} label="Student ID" value={user?.student_id || "Not set"} />
+          <ProfileItem icon={LuMail} label="Email Address" value={user?.email || "Not set"} />
+          <ProfileItem icon={LuGraduationCap} label="Course" value={user?.course || "Not set"} />
+          <ProfileItem icon={LuBookOpen} label="Section" value={user?.section ? `Section ${user.section}` : "Not set"} />
+          <ProfileItem icon={LuMilestone} label="Year Level" value={user?.year ? `Year ${user.year}` : "Not set"} />
         </div>
       </div>
 
@@ -473,12 +473,10 @@ function ProfileItem({
   icon: Icon,
   label,
   value,
-  isLocked = false,
 }: {
   icon: any;
   label: string;
   value: string;
-  isLocked?: boolean;
 }) {
   return (
     <div className="flex items-center justify-between p-5 px-6 hover:bg-slate-50/50 transition-colors">
@@ -491,12 +489,6 @@ function ProfileItem({
           <p className="text-sm font-bold text-slate-800">{value}</p>
         </div>
       </div>
-      {isLocked && (
-        <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-slate-100 text-[10px] font-black uppercase text-slate-400 border border-slate-200/60 tracking-wider">
-          <LuLock className="size-3 text-slate-400" />
-          Locked
-        </span>
-      )}
     </div>
   );
 }

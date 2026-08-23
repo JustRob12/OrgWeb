@@ -17,6 +17,7 @@ import {
   LuVote,
   LuAward,
   LuShieldAlert,
+  LuInfo,
 } from "react-icons/lu";
 import { cn } from "@/lib/utils";
 import { Button } from "@/app/Components/ui/button";
@@ -25,7 +26,6 @@ import { ChangePasswordModal } from "@/app/Components/ui/change-password-modal";
 import { createClient } from "@/utils/supabase/client";
 
 const navItems = [
-  { name: "Dashboard", href: "/student", icon: LuLayoutDashboard },
   { name: "My ID", href: "/student/id", icon: LuIdCard },
   { name: "Attendance", href: "/student/attendance", icon: LuHistory },
   { name: "Events", href: "/student/events", icon: LuCalendar },
@@ -34,6 +34,7 @@ const navItems = [
   { name: "Sanctions", href: "/student/sanctions", icon: LuShieldAlert },
   { name: "Voting", href: "/student/voting", icon: LuVote },
   { name: "Profile", href: "/student/profile", icon: LuUserRound },
+  { name: "About", href: "/student/about", icon: LuInfo },
 ];
 
 export default function StudentLayout({ children }: { children: React.ReactNode }) {

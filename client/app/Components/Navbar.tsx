@@ -1,7 +1,7 @@
 "use client"
 
 import { useState, useEffect } from "react"
-import { LuLogIn, LuMenu, LuX, LuCalendar, LuUsers } from "react-icons/lu"
+import { LuLogIn, LuMenu, LuX, LuCalendar, LuUsers, LuInfo } from "react-icons/lu"
 import { Button } from "./ui/button"
 import { cn } from "@/lib/utils"
 
@@ -27,8 +27,9 @@ export default function Navbar() {
   }, [])
 
   const navLinks = [
-    { href: "#events", label: "Events", icon: LuCalendar },
-    { href: "#members", label: "Members", icon: LuUsers },
+    { href: "/about", label: "About", icon: LuInfo },
+    { href: "/#events", label: "Events", icon: LuCalendar },
+    { href: "/#members", label: "Members", icon: LuUsers },
   ]
 
   return (

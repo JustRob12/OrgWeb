@@ -192,131 +192,31 @@ export default function StudentOfficersPage() {
           </p>
         </div>
       ) : (
-        <div className="space-y-12">
-          {/* ================= 1. ADVISERS (Adviser & Co-Adviser) ================= */}
-          {advisers.length > 0 && (
-            <div className="space-y-4">
-              <div className="flex items-center gap-2 pb-2 border-b border-slate-200/80">
-                <div className="p-1.5 rounded-lg bg-purple-100 text-purple-700">
-                  <LuAward className="size-4" />
-                </div>
-                <h2 className="text-base sm:text-lg font-black text-slate-900 tracking-tight uppercase">
-                  Faculty Advisers
-                </h2>
-              </div>
+        <div className="space-y-4">
+          {/* Mobile swipe hint */}
+          <div className="flex items-center justify-between px-1 sm:hidden pb-1">
+            <span className="text-xs font-bold text-slate-500">
+              {filteredOfficers.length} Officers Listed
+            </span>
+            <span className="text-xs font-black text-primary flex items-center gap-1">
+              Swipe left / right &rarr;
+            </span>
+          </div>
 
-              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-2 lg:grid-cols-2 gap-6 max-w-2xl mx-auto">
-                {advisers.map((officer) => (
-                  <OfficerCard key={officer.id} officer={officer} badgeClass={getPositionBadge(officer.position)} />
-                ))}
-              </div>
-            </div>
-          )}
-
-          {/* ================= 2. EXECUTIVE LEADERSHIP (Governor & Vice-Governor) ================= */}
-          {executives.length > 0 && (
-            <div className="space-y-4">
-              <div className="flex items-center gap-2 pb-2 border-b border-slate-200/80">
-                <div className="p-1.5 rounded-lg bg-amber-100 text-amber-700">
-                  <LuCrown className="size-4" />
-                </div>
-                <h2 className="text-base sm:text-lg font-black text-slate-900 tracking-tight uppercase">
-                  Executive Leadership
-                </h2>
-              </div>
-
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 max-w-2xl mx-auto">
-                {executives.map((officer) => (
-                  <OfficerCard
-                    key={officer.id}
-                    officer={officer}
-                    badgeClass={getPositionBadge(officer.position)}
-                    isExecutive
-                  />
-                ))}
-              </div>
-            </div>
-          )}
-
-          {/* ================= 3. EXECUTIVE OFFICERS (Secretary, Treasurer, Auditor, Business Manager, P.I.O.) ================= */}
-          {staffOfficers.length > 0 && (
-            <div className="space-y-4">
-              <div className="flex items-center gap-2 pb-2 border-b border-slate-200/80">
-                <div className="p-1.5 rounded-lg bg-blue-100 text-blue-700">
-                  <LuBriefcase className="size-4" />
-                </div>
-                <h2 className="text-base sm:text-lg font-black text-slate-900 tracking-tight uppercase">
-                  Executive Board & Officers
-                </h2>
-              </div>
-
-              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-3 xl:grid-cols-5 gap-6">
-                {staffOfficers.map((officer) => (
-                  <OfficerCard key={officer.id} officer={officer} badgeClass={getPositionBadge(officer.position)} />
-                ))}
-              </div>
-            </div>
-          )}
-
-          {/* ================= 4. LEGISLATIVE SENATORS (2 Senators) ================= */}
-          {senators.length > 0 && (
-            <div className="space-y-4">
-              <div className="flex items-center gap-2 pb-2 border-b border-slate-200/80">
-                <div className="p-1.5 rounded-lg bg-emerald-100 text-emerald-700">
-                  <LuGraduationCap className="size-4" />
-                </div>
-                <h2 className="text-base sm:text-lg font-black text-slate-900 tracking-tight uppercase">
-                  Legislative Council (Senators)
-                </h2>
-              </div>
-
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 max-w-2xl mx-auto">
-                {senators.map((officer) => (
-                  <OfficerCard key={officer.id} officer={officer} badgeClass={getPositionBadge(officer.position)} />
-                ))}
-              </div>
-            </div>
-          )}
-
-          {/* ================= 5. ACETRACK DEVELOPER(S) ================= */}
-          {developers.length > 0 && (
-            <div className="space-y-4">
-              <div className="flex items-center gap-2 pb-2 border-b border-slate-200/80">
-                <div className="p-1.5 rounded-lg bg-cyan-100 text-cyan-700">
-                  <LuCode className="size-4" />
-                </div>
-                <h2 className="text-base sm:text-lg font-black text-slate-900 tracking-tight uppercase">
-                  ACETRACK Developer & Engineering
-                </h2>
-              </div>
-
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 max-w-2xl mx-auto">
-                {developers.map((officer) => (
-                  <OfficerCard key={officer.id} officer={officer} badgeClass={getPositionBadge(officer.position)} />
-                ))}
-              </div>
-            </div>
-          )}
-
-          {/* ================= 6. OTHER OFFICERS (if any) ================= */}
-          {otherOfficers.length > 0 && (
-            <div className="space-y-4">
-              <div className="flex items-center gap-2 pb-2 border-b border-slate-200/80">
-                <div className="p-1.5 rounded-lg bg-slate-100 text-slate-700">
-                  <LuUsers className="size-4" />
-                </div>
-                <h2 className="text-base sm:text-lg font-black text-slate-900 tracking-tight uppercase">
-                  Additional Officers
-                </h2>
-              </div>
-
-              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
-                {otherOfficers.map((officer) => (
-                  <OfficerCard key={officer.id} officer={officer} badgeClass={getPositionBadge(officer.position)} />
-                ))}
-              </div>
-            </div>
-          )}
+          {/* Single Unified Carousel on Mobile & Responsive Grid on Desktop */}
+          <div className="flex overflow-x-auto pb-6 pt-2 gap-4 sm:gap-6 snap-x snap-mandatory sm:grid sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 sm:overflow-visible -mx-4 px-4 sm:mx-0 sm:px-0 scrollbar-none">
+            {filteredOfficers.map((officer) => {
+              const isExec = officer.position === "Governor" || officer.position === "Vice-Governor";
+              return (
+                <OfficerCard
+                  key={officer.id}
+                  officer={officer}
+                  badgeClass={getPositionBadge(officer.position)}
+                  isExecutive={isExec}
+                />
+              );
+            })}
+          </div>
         </div>
       )}
     </div>
@@ -334,7 +234,7 @@ function OfficerCard({
 }) {
   return (
     <div
-      className={`group bg-white rounded-3xl border border-slate-200/90 p-4 sm:p-5 flex flex-col items-center text-center shadow-sm hover:shadow-xl hover:border-primary/40 transition-all duration-300 hover:-translate-y-1 ${
+      className={`group bg-white rounded-3xl border border-slate-200/90 p-4 sm:p-5 flex flex-col items-center text-center shadow-sm hover:shadow-xl hover:border-primary/40 transition-all duration-300 hover:-translate-y-1 w-[250px] sm:w-auto shrink-0 snap-start ${
         isExecutive
           ? "ring-1 ring-amber-500/20 bg-gradient-to-b from-amber-500/[0.04] to-white"
           : ""

@@ -405,7 +405,7 @@ export default function StudentSanctionsPage() {
                 </div>
               )}
 
-              {/* Sanctions List */}
+              {/* Sanctions List or Coming Soon Notice */}
               <div className="space-y-4">
                 <div className="flex items-center justify-between pb-2 border-b border-slate-200/80">
                   <h3 className="text-base font-black text-slate-900 uppercase tracking-wider">
@@ -413,90 +413,116 @@ export default function StudentSanctionsPage() {
                   </h3>
                 </div>
 
-                {sanctions.map((s) => {
-                  const badge = getStatusBadge(s.status);
-                  const BadgeIcon = badge.icon;
-
-                  return (
-                    <div
-                      key={s.id}
-                      className="bg-white rounded-3xl border border-slate-200/90 p-5 sm:p-6 shadow-xs hover:border-primary/40 transition-all space-y-4"
-                    >
-                      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-slate-100">
-                        <div className="flex items-center gap-3">
-                          <div className="p-3 rounded-2xl bg-orange-50 text-primary border border-orange-100/80 shrink-0">
-                            <LuShieldAlert className="size-5" />
-                          </div>
-                          <div>
-                            <h3 className="text-base sm:text-lg font-black text-slate-900 leading-snug">
-                              {s.title}
-                            </h3>
-                            <p className="text-xs font-semibold text-slate-400 mt-0.5">
-                              Type: <span className="text-slate-600">{s.sanction_type}</span> • Assigned by:{" "}
-                              <span className="text-slate-600">{s.issued_by}</span>
-                            </p>
-                          </div>
-                        </div>
-
-                        <span
-                          className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-black uppercase tracking-wider border self-start sm:self-auto shrink-0 ${badge.bg}`}
-                        >
-                          <BadgeIcon className="size-3.5" />
-                          {badge.label}
-                        </span>
-                      </div>
-
-                      {/* Details */}
-                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-xs sm:text-sm">
-                        {s.penalty_details && (
-                          <div className="p-3.5 rounded-2xl bg-slate-50 border border-slate-100 space-y-0.5">
-                            <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">
-                              Penalty / Obligation
-                            </p>
-                            <p className="font-bold text-slate-800 text-sm">{s.penalty_details}</p>
-                          </div>
-                        )}
-
-                        <div className="p-3.5 rounded-2xl bg-slate-50 border border-slate-100 space-y-0.5">
-                          <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">
-                            Due Date / Deadline
-                          </p>
-                          <p className="font-bold text-slate-800 text-sm flex items-center gap-1.5">
-                            <LuCalendar className="size-3.5 text-slate-400" />
-                            {s.due_date ? s.due_date : "No explicit deadline specified"}
-                          </p>
-                        </div>
-                      </div>
-
-                      {s.description && (
-                        <div className="p-4 rounded-2xl bg-orange-50/50 border border-orange-100/60 text-xs sm:text-sm">
-                          <p className="font-bold text-orange-950 mb-1 uppercase tracking-wider text-[10px]">
-                            Details & Compliance Instructions:
-                          </p>
-                          <p className="text-slate-600 font-medium leading-relaxed">{s.description}</p>
-                        </div>
-                      )}
-
-                      {s.notes && (
-                        <div className="p-4 rounded-2xl bg-slate-50 border border-slate-100 text-xs sm:text-sm">
-                          <p className="font-bold text-slate-800 mb-1 uppercase tracking-wider text-[10px]">
-                            Officer Notes:
-                          </p>
-                          <p className="text-slate-600 font-medium leading-relaxed">{s.notes}</p>
-                        </div>
-                      )}
-
-                      <div className="flex items-center justify-between text-[11px] font-bold text-slate-400 pt-1">
-                        <span>Recorded: {new Date(s.created_at).toLocaleDateString()}</span>
-                        {s.cleared_at && (
-                          <span className="text-emerald-600">
-                            Cleared on: {new Date(s.cleared_at).toLocaleDateString()}
-                          </span>
-                        )}
-                      </div>
+                {sanctions.length === 0 ? (
+                  <div className="bg-white rounded-3xl border border-slate-200/90 p-8 sm:p-12 text-center shadow-xs flex flex-col items-center justify-center space-y-4 animate-in fade-in zoom-in-95 duration-500">
+                    <div className="size-16 sm:size-20 rounded-3xl bg-amber-50 border border-amber-200/80 flex items-center justify-center text-amber-600 shadow-inner">
+                      <LuClock className="size-8 sm:size-10" />
                     </div>
-                  );
-                })}
+
+                    <span className="inline-block px-3.5 py-1 rounded-full bg-amber-50 text-amber-700 border border-amber-200 text-xs font-black uppercase tracking-wider">
+                      Policy Notice
+                    </span>
+
+                    <h3 className="text-xl sm:text-2xl font-black text-slate-900 tracking-tight">
+                      Sanctions Will Be Coming Soon
+                    </h3>
+
+                    <p className="text-sm sm:text-base text-slate-500 font-medium max-w-md mx-auto leading-relaxed">
+                      You currently have <span className="font-bold text-rose-600">{absentCount} recorded absence{absentCount > 1 ? "s" : ""}</span>. The organization has not yet configured or finalized the sanction penalty rules for these absences. The specific requirements and community duties will be announced soon.
+                    </p>
+
+                    <div className="pt-3 border-t border-slate-100 w-full max-w-sm text-xs font-semibold text-slate-400">
+                      Please stay updated with your ACES officers for upcoming guidelines.
+                    </div>
+                  </div>
+                ) : (
+                  <div className="space-y-4">
+                    {sanctions.map((s) => {
+                      const badge = getStatusBadge(s.status);
+                      const BadgeIcon = badge.icon;
+
+                      return (
+                        <div
+                          key={s.id}
+                          className="bg-white rounded-3xl border border-slate-200/90 p-5 sm:p-6 shadow-xs hover:border-primary/40 transition-all space-y-4"
+                        >
+                          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-slate-100">
+                            <div className="flex items-center gap-3">
+                              <div className="p-3 rounded-2xl bg-orange-50 text-primary border border-orange-100/80 shrink-0">
+                                <LuShieldAlert className="size-5" />
+                              </div>
+                              <div>
+                                <h3 className="text-base sm:text-lg font-black text-slate-900 leading-snug">
+                                  {s.title}
+                                </h3>
+                                <p className="text-xs font-semibold text-slate-400 mt-0.5">
+                                  Type: <span className="text-slate-600">{s.sanction_type}</span> • Assigned by:{" "}
+                                  <span className="text-slate-600">{s.issued_by}</span>
+                                </p>
+                              </div>
+                            </div>
+
+                            <span
+                              className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-black uppercase tracking-wider border self-start sm:self-auto shrink-0 ${badge.bg}`}
+                            >
+                              <BadgeIcon className="size-3.5" />
+                              {badge.label}
+                            </span>
+                          </div>
+
+                          {/* Details */}
+                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-xs sm:text-sm">
+                            {s.penalty_details && (
+                              <div className="p-3.5 rounded-2xl bg-slate-50 border border-slate-100 space-y-0.5">
+                                <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">
+                                  Penalty / Obligation
+                                </p>
+                                <p className="font-bold text-slate-800 text-sm">{s.penalty_details}</p>
+                              </div>
+                            )}
+
+                            <div className="p-3.5 rounded-2xl bg-slate-50 border border-slate-100 space-y-0.5">
+                              <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">
+                                Due Date / Deadline
+                              </p>
+                              <p className="font-bold text-slate-800 text-sm flex items-center gap-1.5">
+                                <LuCalendar className="size-3.5 text-slate-400" />
+                                {s.due_date ? s.due_date : "No explicit deadline specified"}
+                              </p>
+                            </div>
+                          </div>
+
+                          {s.description && (
+                            <div className="p-4 rounded-2xl bg-orange-50/50 border border-orange-100/60 text-xs sm:text-sm">
+                              <p className="font-bold text-orange-950 mb-1 uppercase tracking-wider text-[10px]">
+                                Details & Compliance Instructions:
+                              </p>
+                              <p className="text-slate-600 font-medium leading-relaxed">{s.description}</p>
+                            </div>
+                          )}
+
+                          {s.notes && (
+                            <div className="p-4 rounded-2xl bg-slate-50 border border-slate-100 text-xs sm:text-sm">
+                              <p className="font-bold text-slate-800 mb-1 uppercase tracking-wider text-[10px]">
+                                Officer Notes:
+                              </p>
+                              <p className="text-slate-600 font-medium leading-relaxed">{s.notes}</p>
+                            </div>
+                          )}
+
+                          <div className="flex items-center justify-between text-[11px] font-bold text-slate-400 pt-1">
+                            <span>Recorded: {new Date(s.created_at).toLocaleDateString()}</span>
+                            {s.cleared_at && (
+                              <span className="text-emerald-600">
+                                Cleared on: {new Date(s.cleared_at).toLocaleDateString()}
+                              </span>
+                            )}
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
               </div>
             </div>
           )}

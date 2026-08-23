@@ -21,7 +21,8 @@ import {
   LuUser,
   LuChevronDown,
   LuLogOut,
-  LuShieldAlert
+  LuShieldAlert,
+  LuInfo
 } from "react-icons/lu"
 import { cn } from "@/lib/utils"
 import { Button } from "../Components/ui/button"
@@ -29,7 +30,14 @@ import { useRouter } from "next/navigation"
 import { ConfirmModal } from "../Components/ui/confirm-modal"
 import { createClient } from "@/utils/supabase/client"
 
-const menuItems = [
+interface MenuItem {
+  name: string;
+  icon: any;
+  href: string;
+  subItems?: { name: string; href: string }[];
+}
+
+const menuItems: MenuItem[] = [
   { name: "Dashboard", icon: LuLayoutDashboard, href: "/admin" },
   {
     name: "Members",
@@ -67,6 +75,7 @@ const menuItems = [
   { name: "Documents", icon: LuFiles, href: "/admin/documents" },
   { name: "Voting", icon: LuVote, href: "/admin/voting" },
   { name: "Roles", icon: LuUserCog, href: "/admin/settings" },
+  { name: "About System", icon: LuInfo, href: "/admin/about" },
 ]
 
 export default function AdminLayout({ children }: { children: React.ReactNode }) {
@@ -96,21 +105,21 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
 
         // Role 1 is student only -> redirect to student portal
         if (role === 1) {
-          router.replace("/student");
+          router.replace("/student/id");
           return;
         }
 
-        // Role 2 (Attendance Scanner) can ONLY access Attendance routes
+        // Role 2 (Attendance Scanner) can access Attendance routes and About System
         if (role === 2) {
-          if (!pathname.startsWith("/admin/attendance")) {
+          if (!pathname.startsWith("/admin/attendance") && pathname !== "/admin/about") {
             router.replace("/admin/attendance");
             return;
           }
         }
 
-        // Role 3 (Treasurer) can ONLY access Finance routes
+        // Role 3 (Treasurer) can access Finance routes and About System
         if (role === 3) {
-          if (!pathname.startsWith("/admin/finance")) {
+          if (!pathname.startsWith("/admin/finance") && pathname !== "/admin/about") {
             router.replace("/admin/finance");
             return;
           }
@@ -135,12 +144,12 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
     }
   }
 
-  const visibleMenuItems = React.useMemo(() => {
+  const visibleMenuItems = React.useMemo<MenuItem[]>(() => {
     if (userRole === 2) {
-      return menuItems.filter(item => item.name === "Attendance");
+      return menuItems.filter(item => item.name === "Attendance" || item.name === "About System");
     }
     if (userRole === 3) {
-      return menuItems.filter(item => item.name === "Finance");
+      return menuItems.filter(item => item.name === "Finance" || item.name === "About System");
     }
     return menuItems;
   }, [userRole]);
