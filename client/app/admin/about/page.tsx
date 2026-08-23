@@ -212,7 +212,7 @@ export default function AdminAboutPage() {
               </div>
 
               <p className="text-xs text-slate-400 leading-relaxed font-normal">
-                ACETRACK was conceptualized, engineered, and developed by Roberto Jr M. Prisoris — with his beloved girlfriend as his greatest inspiration and driving force — to provide an institutional-grade platform ensuring transparency, efficiency, and high performance for student leadership and organization stakeholders.
+                He learned and mastered full-stack development through the mentorship of <strong className="text-slate-200 font-semibold">Kaarlo Sasiang</strong> and <strong className="text-slate-200 font-semibold">Clarence Japinan</strong> (both BSIT Class of 2025 graduates). ACETRACK was conceptualized, engineered, and developed by Roberto Jr M. Prisoris — with his beloved girlfriend as his greatest inspiration and driving force — to provide an institutional-grade platform ensuring transparency, efficiency, and high performance for student leadership and organization stakeholders.
               </p>
             </div>
           </div>
