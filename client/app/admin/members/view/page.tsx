@@ -6,6 +6,7 @@ import {
   LuPencil, 
   LuTrash2, 
   LuUserPlus,
+  LuPlus,
   LuChevronLeft,
   LuChevronRight,
   LuCircleCheck,
@@ -50,6 +51,7 @@ export default function ViewMembersPage() {
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState("All");
+  const [yearFilter, setYearFilter] = useState("All");
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
   const [memberToDelete, setMemberToDelete] = useState<string | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
@@ -327,15 +329,58 @@ export default function ViewMembersPage() {
 
 
 
+  const yearCounts = useMemo(() => {
+    let y1 = 0, y2 = 0, y3 = 0, y4 = 0;
+    members.forEach((m) => {
+      const y = (m.year || "").toLowerCase().trim();
+      if (y === "1" || y.startsWith("1") || y.includes("1st") || y.includes("first")) {
+        y1++;
+      } else if (y === "2" || y.startsWith("2") || y.includes("2nd") || y.includes("second")) {
+        y2++;
+      } else if (y === "3" || y.startsWith("3") || y.includes("3rd") || y.includes("third")) {
+        y3++;
+      } else if (y === "4" || y.startsWith("4") || y.includes("4th") || y.includes("fourth")) {
+        y4++;
+      }
+    });
+    return { y1, y2, y3, y4, total: members.length };
+  }, [members]);
+
   const filteredMembers = members.filter(member => {
+    const query = searchQuery.toLowerCase().trim();
+    const fullName = `${member.first_name || ""} ${member.middle_initial || ""} ${member.last_name || ""}`.toLowerCase();
+    const studentId = (member.student_id || "").toLowerCase();
+    const email = (member.email || "").toLowerCase();
+    const course = (member.course || "").toLowerCase();
+    const section = (member.section || "").toLowerCase();
+
     const matchesSearch = 
-      `${member.first_name || ""} ${member.last_name || ""}`.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      (member.student_id || "").toLowerCase().includes(searchQuery.toLowerCase()) ||
-      (member.email || "").toLowerCase().includes(searchQuery.toLowerCase());
+      !query ||
+      fullName.includes(query) ||
+      studentId.includes(query) ||
+      email.includes(query) ||
+      course.includes(query) ||
+      section.includes(query);
     
     const matchesStatus = statusFilter === "All" || member.memberships?.status === statusFilter;
 
-    return matchesSearch && matchesStatus;
+    let matchesYear = true;
+    if (yearFilter !== "All") {
+      const y = (member.year || "").toLowerCase().trim();
+      if (yearFilter === "1") {
+        matchesYear = y === "1" || y.startsWith("1") || y.includes("1st") || y.includes("first");
+      } else if (yearFilter === "2") {
+        matchesYear = y === "2" || y.startsWith("2") || y.includes("2nd") || y.includes("second");
+      } else if (yearFilter === "3") {
+        matchesYear = y === "3" || y.startsWith("3") || y.includes("3rd") || y.includes("third");
+      } else if (yearFilter === "4") {
+        matchesYear = y === "4" || y.startsWith("4") || y.includes("4th") || y.includes("fourth");
+      } else {
+        matchesYear = y === yearFilter.toLowerCase();
+      }
+    }
+
+    return matchesSearch && matchesStatus && matchesYear;
   });
 
   const totalPages = Math.max(1, Math.ceil(filteredMembers.length / itemsPerPage));
@@ -353,82 +398,186 @@ export default function ViewMembersPage() {
           <p className="text-slate-500 mt-1">Manage, edit, and track registered students and their membership status.</p>
         </div>
         
-        <div className="flex items-center gap-3">
-          <Link href="/admin/members/add">
-            <Button className="rounded-xl gradient-primary shadow-lg shadow-primary/20 transition-all hover:scale-[1.02] cursor-pointer h-10 px-4">
-              <LuUserPlus className="mr-2 size-4" /> Bulk Add Members
+        <div className="flex gap-2 w-full md:w-auto">
+          <Link href="/admin/members/add" className="flex-1 md:flex-initial">
+            <Button className="w-full h-12 px-6 rounded-2xl font-bold bg-primary hover:bg-primary/90 text-white shadow-lg shadow-primary/20 hover:scale-105 active:scale-95 transition-all cursor-pointer">
+              <LuPlus className="size-5 mr-2" /> Add Members
             </Button>
           </Link>
         </div>
       </div>
 
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
-        {/* Stats Cards */}
+      {/* Top Year Level Distribution & Total Summary Cards */}
+      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3.5 sm:gap-4">
+        {/* 1st Year Card */}
+        <Card 
+          onClick={() => { setYearFilter(yearFilter === "1" ? "All" : "1"); setCurrentPage(1); }}
+          className={`cursor-pointer transition-all hover:scale-[1.02] active:scale-[0.98] rounded-3xl overflow-hidden ${
+            yearFilter === "1" ? "ring-2 ring-indigo-500 bg-indigo-50/80 border-indigo-200 shadow-sm" : "bg-white border-slate-200 hover:border-indigo-200 shadow-xs"
+          }`}
+        >
+          <CardContent className="p-4 sm:p-5">
+            <div className="flex items-center justify-between">
+              <div className="size-10 rounded-2xl bg-indigo-50 text-indigo-600 flex items-center justify-center font-black text-sm border border-indigo-100 shadow-xs">
+                1st
+              </div>
+              <span className="text-[10px] font-black uppercase tracking-wider text-indigo-600 bg-indigo-100/70 px-2.5 py-0.5 rounded-full">
+                Freshmen
+              </span>
+            </div>
+            <div className="mt-3">
+              <p className="text-2xl sm:text-3xl font-black text-slate-900">{yearCounts.y1}</p>
+              <p className="text-xs font-bold text-slate-400 mt-0.5">1st Year Students</p>
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* 2nd Year Card */}
+        <Card 
+          onClick={() => { setYearFilter(yearFilter === "2" ? "All" : "2"); setCurrentPage(1); }}
+          className={`cursor-pointer transition-all hover:scale-[1.02] active:scale-[0.98] rounded-3xl overflow-hidden ${
+            yearFilter === "2" ? "ring-2 ring-sky-500 bg-sky-50/80 border-sky-200 shadow-sm" : "bg-white border-slate-200 hover:border-sky-200 shadow-xs"
+          }`}
+        >
+          <CardContent className="p-4 sm:p-5">
+            <div className="flex items-center justify-between">
+              <div className="size-10 rounded-2xl bg-sky-50 text-sky-600 flex items-center justify-center font-black text-sm border border-sky-100 shadow-xs">
+                2nd
+              </div>
+              <span className="text-[10px] font-black uppercase tracking-wider text-sky-600 bg-sky-100/70 px-2.5 py-0.5 rounded-full">
+                Sophomore
+              </span>
+            </div>
+            <div className="mt-3">
+              <p className="text-2xl sm:text-3xl font-black text-slate-900">{yearCounts.y2}</p>
+              <p className="text-xs font-bold text-slate-400 mt-0.5">2nd Year Students</p>
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* 3rd Year Card */}
+        <Card 
+          onClick={() => { setYearFilter(yearFilter === "3" ? "All" : "3"); setCurrentPage(1); }}
+          className={`cursor-pointer transition-all hover:scale-[1.02] active:scale-[0.98] rounded-3xl overflow-hidden ${
+            yearFilter === "3" ? "ring-2 ring-purple-500 bg-purple-50/80 border-purple-200 shadow-sm" : "bg-white border-slate-200 hover:border-purple-200 shadow-xs"
+          }`}
+        >
+          <CardContent className="p-4 sm:p-5">
+            <div className="flex items-center justify-between">
+              <div className="size-10 rounded-2xl bg-purple-50 text-purple-600 flex items-center justify-center font-black text-sm border border-purple-100 shadow-xs">
+                3rd
+              </div>
+              <span className="text-[10px] font-black uppercase tracking-wider text-purple-600 bg-purple-100/70 px-2.5 py-0.5 rounded-full">
+                Junior
+              </span>
+            </div>
+            <div className="mt-3">
+              <p className="text-2xl sm:text-3xl font-black text-slate-900">{yearCounts.y3}</p>
+              <p className="text-xs font-bold text-slate-400 mt-0.5">3rd Year Students</p>
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* 4th Year Card */}
+        <Card 
+          onClick={() => { setYearFilter(yearFilter === "4" ? "All" : "4"); setCurrentPage(1); }}
+          className={`cursor-pointer transition-all hover:scale-[1.02] active:scale-[0.98] rounded-3xl overflow-hidden ${
+            yearFilter === "4" ? "ring-2 ring-emerald-500 bg-emerald-50/80 border-emerald-200 shadow-sm" : "bg-white border-slate-200 hover:border-emerald-200 shadow-xs"
+          }`}
+        >
+          <CardContent className="p-4 sm:p-5">
+            <div className="flex items-center justify-between">
+              <div className="size-10 rounded-2xl bg-emerald-50 text-emerald-600 flex items-center justify-center font-black text-sm border border-emerald-100 shadow-xs">
+                4th
+              </div>
+              <span className="text-[10px] font-black uppercase tracking-wider text-emerald-600 bg-emerald-100/70 px-2.5 py-0.5 rounded-full">
+                Senior
+              </span>
+            </div>
+            <div className="mt-3">
+              <p className="text-2xl sm:text-3xl font-black text-slate-900">{yearCounts.y4}</p>
+              <p className="text-xs font-bold text-slate-400 mt-0.5">4th Year Students</p>
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Total Members Card */}
+        <Card 
+          onClick={() => { setYearFilter("All"); setCurrentPage(1); }}
+          className={`col-span-2 sm:col-span-1 cursor-pointer transition-all hover:scale-[1.02] active:scale-[0.98] rounded-3xl overflow-hidden ${
+            yearFilter === "All" ? "ring-2 ring-primary bg-orange-50/70 border-orange-200 shadow-sm" : "bg-white border-slate-200 hover:border-orange-200 shadow-xs"
+          }`}
+        >
+          <CardContent className="p-4 sm:p-5">
+            <div className="flex items-center justify-between">
+              <div className="size-10 rounded-2xl bg-primary/10 text-primary flex items-center justify-center border border-primary/20 shadow-xs">
+                <LuUsers className="size-5" />
+              </div>
+              <span className="text-[10px] font-black uppercase tracking-wider text-primary bg-primary/10 px-2.5 py-0.5 rounded-full">
+                All Years
+              </span>
+            </div>
+            <div className="mt-3">
+              <p className="text-2xl sm:text-3xl font-black text-slate-900">{yearCounts.total}</p>
+              <p className="text-xs font-bold text-slate-400 mt-0.5">Total Members</p>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        {/* Payment Stats Cards */}
         <Card className="bg-emerald-50/50 border-emerald-100 rounded-3xl overflow-hidden group">
-          <CardContent className="p-6">
-            <div className="flex items-center gap-4">
-              <div className="size-12 bg-emerald-500 rounded-2xl flex items-center justify-center text-white shadow-lg shadow-emerald-200 group-hover:scale-110 transition-transform">
-                <LuCircleCheck className="size-6" />
+          <CardContent className="p-5">
+            <div className="flex items-center gap-3.5">
+              <div className="size-11 bg-emerald-500 rounded-2xl flex items-center justify-center text-white shadow-lg shadow-emerald-200 group-hover:scale-110 transition-transform">
+                <LuCircleCheck className="size-5" />
               </div>
               <div>
                 <p className="text-xs font-bold text-emerald-600 uppercase tracking-wider">Fully Paid</p>
-                <p className="text-3xl font-black text-emerald-950">{members.filter(m => m.memberships?.status === 'Fully Paid').length}</p>
+                <p className="text-2xl font-black text-emerald-950">{members.filter(m => m.memberships?.status === 'Fully Paid').length}</p>
               </div>
             </div>
           </CardContent>
         </Card>
 
         <Card className="bg-blue-50/50 border-blue-100 rounded-3xl overflow-hidden group">
-          <CardContent className="p-6">
-            <div className="flex items-center gap-4">
-              <div className="size-12 bg-blue-500 rounded-2xl flex items-center justify-center text-white shadow-lg shadow-blue-200 group-hover:scale-110 transition-transform">
-                <LuClock className="size-6" />
+          <CardContent className="p-5">
+            <div className="flex items-center gap-3.5">
+              <div className="size-11 bg-blue-500 rounded-2xl flex items-center justify-center text-white shadow-lg shadow-blue-200 group-hover:scale-110 transition-transform">
+                <LuClock className="size-5" />
               </div>
               <div>
                 <p className="text-xs font-bold text-blue-600 uppercase tracking-wider">Half Sem Paid</p>
-                <p className="text-3xl font-black text-blue-950">{members.filter(m => m.memberships?.status === 'Half Semester Paid').length}</p>
+                <p className="text-2xl font-black text-blue-950">{members.filter(m => m.memberships?.status === 'Half Semester Paid').length}</p>
               </div>
             </div>
           </CardContent>
         </Card>
 
         <Card className="bg-amber-50/50 border-amber-100 rounded-3xl overflow-hidden group">
-          <CardContent className="p-6">
-            <div className="flex items-center gap-4">
-              <div className="size-12 bg-amber-500 rounded-2xl flex items-center justify-center text-white shadow-lg shadow-amber-200 group-hover:scale-110 transition-transform">
-                <LuClock className="size-6" />
+          <CardContent className="p-5">
+            <div className="flex items-center gap-3.5">
+              <div className="size-11 bg-amber-500 rounded-2xl flex items-center justify-center text-white shadow-lg shadow-amber-200 group-hover:scale-110 transition-transform">
+                <LuClock className="size-5" />
               </div>
               <div>
                 <p className="text-xs font-bold text-amber-600 uppercase tracking-wider">Partial</p>
-                <p className="text-3xl font-black text-amber-950">{members.filter(m => m.memberships?.status === 'Partial').length}</p>
+                <p className="text-2xl font-black text-amber-950">{members.filter(m => m.memberships?.status === 'Partial').length}</p>
               </div>
             </div>
           </CardContent>
         </Card>
 
         <Card className="bg-rose-50/50 border-rose-100 rounded-3xl overflow-hidden group">
-          <CardContent className="p-6">
-            <div className="flex items-center gap-4">
-              <div className="size-12 bg-rose-500 rounded-2xl flex items-center justify-center text-white shadow-lg shadow-rose-200 group-hover:scale-110 transition-transform">
-                <LuCircleAlert className="size-6" />
+          <CardContent className="p-5">
+            <div className="flex items-center gap-3.5">
+              <div className="size-11 bg-rose-500 rounded-2xl flex items-center justify-center text-white shadow-lg shadow-rose-200 group-hover:scale-110 transition-transform">
+                <LuCircleAlert className="size-5" />
               </div>
               <div>
                 <p className="text-xs font-bold text-rose-600 uppercase tracking-wider">Unpaid</p>
-                <p className="text-3xl font-black text-rose-950">{members.filter(m => !m.memberships || m.memberships?.status === 'Not Paid').length}</p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card className="bg-primary/5 border-primary/10 rounded-3xl overflow-hidden group">
-          <CardContent className="p-6">
-            <div className="flex items-center gap-4">
-              <div className="size-12 bg-primary rounded-2xl flex items-center justify-center text-white shadow-lg shadow-primary/20 group-hover:scale-110 transition-transform">
-                <LuUsers className="size-6" />
-              </div>
-              <div>
-                <p className="text-xs font-bold text-primary/80 uppercase tracking-wider">Total Members</p>
-                <p className="text-3xl font-black text-slate-900">{members.length}</p>
+                <p className="text-2xl font-black text-rose-950">{members.filter(m => !m.memberships || m.memberships?.status === 'Not Paid').length}</p>
               </div>
             </div>
           </CardContent>
@@ -437,12 +586,12 @@ export default function ViewMembersPage() {
 
       <Card className="border-slate-200 shadow-sm rounded-3xl bg-white">
         <div className="p-6 border-b border-slate-100 space-y-4">
-          <div className="flex flex-col md:flex-row justify-between items-center gap-4">
-            <div className="relative w-full md:w-96 group">
+          <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-4">
+            <div className="relative w-full lg:w-80 group">
               <LuSearch className="absolute left-4 top-1/2 -translate-y-1/2 size-4 text-slate-400 group-focus-within:text-primary transition-colors" />
               <input 
                 type="text" 
-                placeholder="Search by name, ID, or email..." 
+                placeholder="Search name, ID, email, sec..." 
                 className="w-full h-12 pl-12 pr-4 bg-slate-50 border border-slate-200 rounded-2xl text-sm focus:bg-white focus:outline-none focus:ring-4 focus:ring-primary/10 transition-all font-medium"
                 value={searchQuery}
                 onChange={(e) => {
@@ -452,7 +601,40 @@ export default function ViewMembersPage() {
               />
             </div>
             
-            <div className="flex items-center gap-2 w-full md:w-auto">
+            <div className="flex flex-wrap items-center gap-3 w-full lg:w-auto">
+              {/* Year Filter */}
+              <div className="flex items-center bg-slate-100 p-1 rounded-2xl flex-wrap">
+                <span className="text-[10px] font-black uppercase text-slate-400 px-2.5">Year:</span>
+                {[
+                  { label: "All", value: "All", count: yearCounts.total },
+                  { label: "1st", value: "1", count: yearCounts.y1 },
+                  { label: "2nd", value: "2", count: yearCounts.y2 },
+                  { label: "3rd", value: "3", count: yearCounts.y3 },
+                  { label: "4th", value: "4", count: yearCounts.y4 },
+                ].map((yr) => (
+                  <button
+                    key={yr.value}
+                    onClick={() => {
+                      setYearFilter(yr.value);
+                      setCurrentPage(1);
+                    }}
+                    className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5 ${
+                      yearFilter === yr.value 
+                        ? "bg-white text-primary shadow-sm" 
+                        : "text-slate-500 hover:text-slate-700 hover:bg-white/50"
+                    }`}
+                  >
+                    <span>{yr.label}</span>
+                    <span className={`text-[10px] px-1.5 py-0.5 rounded-full font-black ${
+                      yearFilter === yr.value ? "bg-primary/10 text-primary" : "bg-slate-200/80 text-slate-600"
+                    }`}>
+                      {yr.count}
+                    </span>
+                  </button>
+                ))}
+              </div>
+
+              {/* Status Filter */}
               <div className="flex bg-slate-100 p-1 rounded-2xl flex-wrap">
                 {["All", "Fully Paid", "Half Semester Paid", "Partial", "Not Paid"].map((status) => (
                   <button
@@ -461,7 +643,7 @@ export default function ViewMembersPage() {
                       setStatusFilter(status);
                       setCurrentPage(1);
                     }}
-                    className={`px-4 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer ${
+                    className={`px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
                       statusFilter === status 
                         ? "bg-white text-primary shadow-sm" 
                         : "text-slate-500 hover:text-slate-700 hover:bg-white/50"

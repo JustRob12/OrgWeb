@@ -1265,30 +1265,44 @@ export default function AddMembersPage() {
                 />
               </div>
             </div>
-            <div className="space-y-2">
-              <Label className="text-xs font-bold uppercase tracking-wider text-slate-500">Course *</Label>
-              <select
-                value={manualMember.course}
-                onChange={(e) => setManualMember({ ...manualMember, course: e.target.value })}
-                required
-                className="w-full h-11 px-3 bg-white border border-slate-200 rounded-xl text-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20 transition-all font-medium text-slate-800"
-              >
-                <option value="">Select Course</option>
-                <option value="BSIT">BSIT</option>
-                <option value="BSCE">BSCE</option>
-                <option value="BITM">BITM</option>
-                <option value="BSM">BSM</option>
-                <option value="BSMRS">BSMRS</option>
-              </select>
-            </div>
-            <div className="space-y-2">
-              <Label className="text-xs font-bold uppercase tracking-wider text-slate-500">Year Level</Label>
-              <Input
-                placeholder="1, 2, 3 or 4"
-                value={manualMember.year}
-                onChange={(e) => setManualMember({ ...manualMember, year: e.target.value })}
-                className="rounded-xl h-11"
-              />
+            <div className="md:col-span-2 grid grid-cols-1 sm:grid-cols-3 gap-4">
+              <div className="space-y-2">
+                <Label className="text-xs font-bold uppercase tracking-wider text-slate-500">Course *</Label>
+                <select
+                  value={manualMember.course}
+                  onChange={(e) => setManualMember({ ...manualMember, course: e.target.value })}
+                  required
+                  className="w-full h-11 px-3 bg-white border border-slate-200 rounded-xl text-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20 transition-all font-medium text-slate-800"
+                >
+                  <option value="">Select Course</option>
+                  <option value="BSIT">BSIT</option>
+                  <option value="BSCE">BSCE</option>
+                  <option value="BITM">BITM</option>
+                  <option value="BSM">BSM</option>
+                  <option value="BSMRS">BSMRS</option>
+                  {manualMember.course && !["BSIT", "BSCE", "BITM", "BSM", "BSMRS"].includes(manualMember.course) && (
+                    <option value={manualMember.course}>{manualMember.course}</option>
+                  )}
+                </select>
+              </div>
+              <div className="space-y-2">
+                <Label className="text-xs font-bold uppercase tracking-wider text-slate-500">Section</Label>
+                <Input
+                  placeholder="e.g. A, B, C, 1, 2"
+                  value={manualMember.section || ""}
+                  onChange={(e) => setManualMember({ ...manualMember, section: e.target.value })}
+                  className="rounded-xl h-11"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label className="text-xs font-bold uppercase tracking-wider text-slate-500">Year Level</Label>
+                <Input
+                  placeholder="1, 2, 3 or 4"
+                  value={manualMember.year || ""}
+                  onChange={(e) => setManualMember({ ...manualMember, year: e.target.value })}
+                  className="rounded-xl h-11"
+                />
+              </div>
             </div>
             <div className="md:col-span-2 space-y-2">
               <Label className="text-xs font-bold uppercase tracking-wider text-slate-500">Email Address *</Label>
