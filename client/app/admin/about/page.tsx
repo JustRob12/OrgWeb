@@ -183,10 +183,6 @@ export default function AdminAboutPage() {
                   className="size-full object-cover"
                 />
               </div>
-              <span className="inline-flex items-center gap-1 mt-2.5 px-2 py-0.5 rounded-full bg-amber-400/20 text-amber-300 border border-amber-400/30 text-[9px] font-black uppercase tracking-wider">
-                <LuAward className="size-3 text-amber-400" />
-                Cum Laude • Top 6
-              </span>
             </div>
 
             {/* Developer Details */}
