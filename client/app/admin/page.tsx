@@ -13,7 +13,8 @@ import {
   LuCircleCheck,
   LuClock,
   LuCircleAlert,
-  LuCircleX
+  LuCircleX,
+  LuIdCard
 } from "react-icons/lu";
 import { createClient } from "@/utils/supabase/client";
 
@@ -155,7 +156,7 @@ export default function AdminDashboard() {
     async function fetchStatsAndCharts() {
       setLoading(true);
       try {
-        // Fetch all student members, their courses, year, membership status/payment details
+        // Fetch all student members, their courses, year, profile picture, and membership status/payment details
         const { data, error } = await supabase
           .from("users")
           .select(`
@@ -163,6 +164,7 @@ export default function AdminDashboard() {
             course,
             year,
             section,
+            profile_picture,
             memberships:memberships(status, payment, created_at),
             accounts:accounts!inner(role)
           `)
@@ -192,21 +194,34 @@ export default function AdminDashboard() {
   }, []);
 
   // -------------------------------------------------------------
+  // Profile Picture Stats
+  // -------------------------------------------------------------
+  const profilePicCount = useMemo(() => {
+    return membersData.filter(m => Boolean(m.profile_picture && m.profile_picture.trim() !== "")).length;
+  }, [membersData]);
+
+  // -------------------------------------------------------------
   // Year Level Data Processing
   // -------------------------------------------------------------
   const yearStats = useMemo(() => {
     let y1 = 0, y2 = 0, y3 = 0, y4 = 0;
+    let y1Photos = 0, y2Photos = 0, y3Photos = 0, y4Photos = 0;
     
     membersData.forEach(member => {
+      const hasPhoto = Boolean(member.profile_picture && member.profile_picture.trim() !== "");
       const y = (member.year || "").toLowerCase().trim();
       if (y === "1" || y.startsWith("1") || y.includes("1st") || y.includes("first")) {
         y1++;
+        if (hasPhoto) y1Photos++;
       } else if (y === "2" || y.startsWith("2") || y.includes("2nd") || y.includes("second")) {
         y2++;
+        if (hasPhoto) y2Photos++;
       } else if (y === "3" || y.startsWith("3") || y.includes("3rd") || y.includes("third")) {
         y3++;
+        if (hasPhoto) y3Photos++;
       } else if (y === "4" || y.startsWith("4") || y.includes("4th") || y.includes("fourth")) {
         y4++;
+        if (hasPhoto) y4Photos++;
       }
     });
 
@@ -217,6 +232,7 @@ export default function AdminDashboard() {
         year: "1st Year",
         subtitle: "Freshmen",
         count: y1,
+        photoCount: y1Photos,
         percentage: (y1 / total) * 100,
         gradient: "from-indigo-500 to-blue-600",
         bgLight: "bg-indigo-50",
@@ -228,6 +244,7 @@ export default function AdminDashboard() {
         year: "2nd Year",
         subtitle: "Sophomore",
         count: y2,
+        photoCount: y2Photos,
         percentage: (y2 / total) * 100,
         gradient: "from-sky-500 to-teal-600",
         bgLight: "bg-sky-50",
@@ -239,6 +256,7 @@ export default function AdminDashboard() {
         year: "3rd Year",
         subtitle: "Junior",
         count: y3,
+        photoCount: y3Photos,
         percentage: (y3 / total) * 100,
         gradient: "from-purple-500 to-fuchsia-600",
         bgLight: "bg-purple-50",
@@ -250,6 +268,7 @@ export default function AdminDashboard() {
         year: "4th Year",
         subtitle: "Senior",
         count: y4,
+        photoCount: y4Photos,
         percentage: (y4 / total) * 100,
         gradient: "from-emerald-500 to-teal-600",
         bgLight: "bg-emerald-50",
@@ -269,6 +288,7 @@ export default function AdminDashboard() {
     const grouped: Record<string, {
       course: string;
       students: number;
+      photoCount: number;
       funds: number;
       fullyPaid: number;
       halfPaid: number;
@@ -282,6 +302,7 @@ export default function AdminDashboard() {
         grouped[course] = {
           course,
           students: 0,
+          photoCount: 0,
           funds: 0,
           fullyPaid: 0,
           halfPaid: 0,
@@ -291,6 +312,9 @@ export default function AdminDashboard() {
       }
 
       grouped[course].students += 1;
+      if (member.profile_picture && member.profile_picture.trim() !== "") {
+        grouped[course].photoCount += 1;
+      }
 
       const ms = getMembership(member);
       if (ms) {
@@ -329,7 +353,7 @@ export default function AdminDashboard() {
 
   return (
     <div className="space-y-8 animate-in fade-in duration-500 pb-16">
-      {/* Dashboard Top Header with Total & Funds badges */}
+      {/* Dashboard Top Header with Total, Photos, & Funds badges */}
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
         <div>
           <h1 className="text-4xl font-black text-slate-900 tracking-tight leading-none mb-2">Dashboard Overview</h1>
@@ -347,6 +371,25 @@ export default function AdminDashboard() {
               <p className="text-lg font-black text-slate-900 tracking-tight leading-none mt-1">
                 {loading ? "..." : (memberCount?.toString() || "0")}
               </p>
+            </div>
+          </div>
+
+          <div className="flex items-center gap-3 bg-white px-5 py-3 rounded-2xl border border-slate-200/80 shadow-xs">
+            <div className="p-2 rounded-xl bg-emerald-50 text-emerald-600 border border-emerald-100 flex items-center justify-center">
+              <LuIdCard className="size-4" />
+            </div>
+            <div>
+              <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest leading-none">Digital IDs</p>
+              <div className="flex items-baseline gap-1.5 mt-1">
+                <p className="text-lg font-black text-slate-900 tracking-tight leading-none">
+                  {loading ? "..." : profilePicCount}
+                </p>
+                {!loading && memberCount ? (
+                  <span className="text-xs font-bold text-emerald-600">
+                    ({Math.round((profilePicCount / memberCount) * 100)}%)
+                  </span>
+                ) : null}
+              </div>
             </div>
           </div>
 
@@ -400,10 +443,22 @@ export default function AdminDashboard() {
                   className={`h-full rounded-full bg-gradient-to-r ${item.gradient}`}
                 />
               </div>
+
+              {/* Digital ID Ready Info */}
+              <div className="flex items-center justify-between text-[11px] font-bold text-slate-500 mt-3 pt-2.5 border-t border-slate-100">
+                <span className="flex items-center gap-1 text-slate-400">
+                  <LuIdCard className="size-3 text-emerald-500" /> Digital ID Ready
+                </span>
+                <span className="text-emerald-600 font-black">
+                  {item.photoCount} ({item.count > 0 ? Math.round((item.photoCount / item.count) * 100) : 0}%)
+                </span>
+              </div>
             </div>
           ))}
         </div>
-      </div>      {/* Course / Program Demographics with BIG Course Titles */}
+      </div>
+
+      {/* Course / Program Demographics with BIG Course Titles */}
       <div className="space-y-4">
         <div className="flex items-center justify-between">
           <div>
@@ -453,9 +508,12 @@ export default function AdminDashboard() {
                   <span className="text-xs font-bold text-slate-400 uppercase tracking-wider">{item.students === 1 ? "Student" : "Students"}</span>
                 </div>
 
-                {/* Course Financial Metric */}
+                {/* Course Financial Metric & Digital ID Stats */}
                 <div className="bg-slate-50 p-2.5 rounded-2xl border border-slate-100 mt-4 mb-3 flex items-center justify-between">
-                  <span className="text-[10px] font-black uppercase tracking-wider text-slate-400">Funds</span>
+                  <div className="flex items-center gap-1 text-[10px] font-bold text-slate-500">
+                    <LuIdCard className="size-3 text-emerald-500" />
+                    <span>{item.photoCount} IDs Ready</span>
+                  </div>
                   <span className="text-xs font-black text-slate-900">₱{item.funds.toLocaleString()}</span>
                 </div>
 

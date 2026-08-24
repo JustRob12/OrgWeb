@@ -206,12 +206,12 @@ export default function StudentAboutPage() {
                   🏆 Top 6 of the Class of 2026
                 </span>
                 <span className="px-2.5 py-1 rounded-xl bg-pink-500/10 text-pink-300 border border-pink-500/20 text-[10px] font-bold flex items-center gap-1">
-                  💖 Inspired by his girlfriend
+                  💖 Inspired by his girlfriend, Lady Marianne
                 </span>
               </div>
 
               <p className="text-xs text-slate-400 leading-relaxed font-normal">
-                He learned and mastered full-stack development through the mentorship of <strong className="text-slate-200 font-semibold">Kaarlo Sasiang</strong> and <strong className="text-slate-200 font-semibold">Clarence Japinan</strong> (both BSIT Class of 2025 graduates). ACETRACK was conceptualized, designed, and engineered by Roberto Jr M. Prisoris — with his beloved girlfriend as his greatest inspiration and driving force — to provide an institutional-grade platform dedicated to the students, faculty, and leadership of the ACES organization.
+                He learned and mastered full-stack development through the mentorship of <strong className="text-slate-200 font-semibold">Kaarlo Sasiang</strong> and <strong className="text-slate-200 font-semibold">Clarence Japinan</strong> (both BSIT Class of 2025 graduates). ACETRACK was conceptualized, designed, and engineered by Roberto Jr M. Prisoris — with his beloved girlfriend, Lady Marianne, as his greatest inspiration and driving force — to provide an institutional-grade platform dedicated to the students, faculty, and leadership of the ACES organization.
               </p>
             </div>
           </div>

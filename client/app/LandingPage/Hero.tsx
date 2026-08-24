@@ -15,6 +15,7 @@ import {
   LuActivity,
   LuLogIn,
   LuShieldCheck,
+  LuIdCard,
 } from "react-icons/lu";
 import { Button } from "../Components/ui/button";
 import { createClient } from "@/utils/supabase/client";
@@ -72,7 +73,15 @@ export default function Hero() {
     BSM: 0,
     BSMRS: 0,
   });
+  const [coursePhotoCounts, setCoursePhotoCounts] = useState<Record<string, number>>({
+    BSIT: 0,
+    BSCE: 0,
+    BITM: 0,
+    BSM: 0,
+    BSMRS: 0,
+  });
   const [totalMembers, setTotalMembers] = useState(0);
+  const [totalProfilePics, setTotalProfilePics] = useState(0);
   const [loadingMembers, setLoadingMembers] = useState(true);
 
   // Live real-time clock ticker
@@ -84,7 +93,7 @@ export default function Hero() {
     return () => clearInterval(interval);
   }, []);
 
-  // Fetch real-time member count per course from Supabase (excluding admins)
+  // Fetch real-time member count and profile picture counts per course from Supabase (excluding admins)
   useEffect(() => {
     const fetchMemberCounts = async () => {
       try {
@@ -93,6 +102,7 @@ export default function Hero() {
           .from("users")
           .select(`
             course,
+            profile_picture,
             accounts:accounts!inner(role)
           `)
           .eq("accounts.role", 1);
@@ -105,20 +115,39 @@ export default function Hero() {
             BSM: 0,
             BSMRS: 0,
           };
+          const photoCounts: Record<string, number> = {
+            BSIT: 0,
+            BSCE: 0,
+            BITM: 0,
+            BSM: 0,
+            BSMRS: 0,
+          };
 
           let total = 0;
-          data.forEach((user: { course?: string | null }) => {
+          let profilePicTotal = 0;
+
+          data.forEach((user: { course?: string | null; profile_picture?: string | null }) => {
+            const hasPhoto = Boolean(user.profile_picture && user.profile_picture.trim() !== "");
+            if (hasPhoto) {
+              profilePicTotal += 1;
+            }
+
             if (user.course) {
               const formattedCourse = user.course.trim().toUpperCase();
               if (counts[formattedCourse] !== undefined) {
                 counts[formattedCourse] += 1;
+                if (hasPhoto) {
+                  photoCounts[formattedCourse] += 1;
+                }
               }
               total += 1;
             }
           });
 
           setCourseCounts(counts);
+          setCoursePhotoCounts(photoCounts);
           setTotalMembers(total);
+          setTotalProfilePics(profilePicTotal);
         }
       } catch (err) {
         console.error("Failed to load member course stats:", err);
@@ -260,19 +289,30 @@ export default function Hero() {
 
       {/* ================= BOTTOM COURSE MEMBER COUNTERS (CLEAN WHITE THEME) ================= */}
       <div className="relative z-10 max-w-5xl mx-auto w-full pt-4">
-        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2 mb-3 px-1">
+        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2.5 mb-3.5 px-1">
           <div className="flex items-center gap-2">
             <LuUsers className="size-4 text-primary shrink-0" />
             <span className="text-xs font-black uppercase tracking-wider text-slate-700">
               Department Members by Course
             </span>
           </div>
-          <span className="text-xs font-bold text-slate-500">
-            Total Members:{" "}
-            <span className="text-primary font-black bg-primary/10 border border-primary/20 px-2.5 py-0.5 rounded-lg">
-              {loadingMembers ? "..." : totalMembers}
+
+          <div className="flex items-center gap-2.5 flex-wrap">
+            <span className="text-xs font-bold text-slate-500 flex items-center gap-1.5">
+              Total Members:{" "}
+              <span className="text-primary font-black bg-primary/10 border border-primary/20 px-2.5 py-0.5 rounded-lg text-xs">
+                {loadingMembers ? "..." : totalMembers}
+              </span>
             </span>
-          </span>
+
+            <span className="text-xs font-bold text-slate-500 flex items-center gap-1.5">
+              Digital IDs:{" "}
+              <span className="text-emerald-700 font-black bg-emerald-50 border border-emerald-200 px-2.5 py-0.5 rounded-lg inline-flex items-center gap-1 text-xs shadow-xs">
+                <LuIdCard className="size-3 text-emerald-600 shrink-0" />
+                {loadingMembers ? "..." : `${totalProfilePics} (${totalMembers > 0 ? Math.round((totalProfilePics / totalMembers) * 100) : 0}%)`}
+              </span>
+            </span>
+          </div>
         </div>
 
         {/* 5 Course Cards Grid */}
@@ -280,6 +320,8 @@ export default function Hero() {
           {TARGET_COURSES.map((course) => {
             const Icon = course.icon;
             const count = courseCounts[course.code] || 0;
+            const photos = coursePhotoCounts[course.code] || 0;
+            const photoPercent = count > 0 ? Math.round((photos / count) * 100) : 0;
 
             return (
               <div
@@ -304,9 +346,19 @@ export default function Hero() {
                   </div>
                 </div>
 
-                <div className="mt-3 pt-2.5 border-t border-slate-100 text-[10px] font-semibold text-slate-400 flex items-center justify-between">
-                  <span>Enrolled</span>
-                  <span className="text-slate-700 font-bold">{count > 0 ? "Active" : "0"}</span>
+                <div className="mt-3 pt-2.5 border-t border-slate-100 space-y-1.5">
+                  <div className="text-[10px] font-semibold text-slate-400 flex items-center justify-between">
+                    <span>Enrolled</span>
+                    <span className="text-slate-700 font-bold">{count > 0 ? "Active" : "0"}</span>
+                  </div>
+                  <div className="text-[10px] font-semibold text-slate-400 flex items-center justify-between">
+                    <span className="flex items-center gap-1">
+                      <LuIdCard className="size-2.5 text-emerald-500" /> ID Ready
+                    </span>
+                    <span className="text-emerald-600 font-bold">
+                      {loadingMembers ? "0" : `${photos} (${photoPercent}%)`}
+                    </span>
+                  </div>
                 </div>
               </div>
             );

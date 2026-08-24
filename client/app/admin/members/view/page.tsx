@@ -15,7 +15,13 @@ import {
   LuMail,
   LuGraduationCap,
   LuLayers,
-  LuUsers
+  LuUsers,
+  LuEye,
+  LuExternalLink,
+  LuUser,
+  LuIdCard,
+  LuCalendar,
+  LuPhilippinePeso
 } from "react-icons/lu";
 import { Button } from "@/app/Components/ui/button";
 import { Card, CardContent } from "@/app/Components/ui/card";
@@ -52,12 +58,22 @@ export default function ViewMembersPage() {
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState("All");
   const [yearFilter, setYearFilter] = useState("All");
+  const [photoFilter, setPhotoFilter] = useState("All");
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
   const [memberToDelete, setMemberToDelete] = useState<string | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 5;
   const supabase = useMemo(() => createClient(), []);
+
+  // View Profile Modal State
+  const [isViewProfileModalOpen, setIsViewProfileModalOpen] = useState(false);
+  const [selectedMemberForView, setSelectedMemberForView] = useState<MemberWithStatus | null>(null);
+
+  const handleViewProfileClick = (member: MemberWithStatus) => {
+    setSelectedMemberForView(member);
+    setIsViewProfileModalOpen(true);
+  };
 
   // Edit Member Modal States
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
@@ -346,6 +362,19 @@ export default function ViewMembersPage() {
     return { y1, y2, y3, y4, total: members.length };
   }, [members]);
 
+  const photoCounts = useMemo(() => {
+    let withPhoto = 0;
+    let noPhoto = 0;
+    members.forEach((m) => {
+      if (m.profile_picture && m.profile_picture.trim() !== "") {
+        withPhoto++;
+      } else {
+        noPhoto++;
+      }
+    });
+    return { withPhoto, noPhoto, total: members.length };
+  }, [members]);
+
   const filteredMembers = members.filter(member => {
     const query = searchQuery.toLowerCase().trim();
     const fullName = `${member.first_name || ""} ${member.middle_initial || ""} ${member.last_name || ""}`.toLowerCase();
@@ -380,7 +409,15 @@ export default function ViewMembersPage() {
       }
     }
 
-    return matchesSearch && matchesStatus && matchesYear;
+    let matchesPhoto = true;
+    const hasPhoto = Boolean(member.profile_picture && member.profile_picture.trim() !== "");
+    if (photoFilter === "With Profile") {
+      matchesPhoto = hasPhoto;
+    } else if (photoFilter === "Without Profile") {
+      matchesPhoto = !hasPhoto;
+    }
+
+    return matchesSearch && matchesStatus && matchesYear && matchesPhoto;
   });
 
   const totalPages = Math.max(1, Math.ceil(filteredMembers.length / itemsPerPage));
@@ -634,6 +671,36 @@ export default function ViewMembersPage() {
                 ))}
               </div>
 
+              {/* Profile Filter */}
+              <div className="flex items-center bg-slate-100 p-1 rounded-2xl flex-wrap">
+                <span className="text-[10px] font-black uppercase text-slate-400 px-2.5">Profile:</span>
+                {[
+                  { label: "All", value: "All", count: photoCounts.total },
+                  { label: "With Profile", value: "With Profile", count: photoCounts.withPhoto },
+                  { label: "Without Profile", value: "Without Profile", count: photoCounts.noPhoto },
+                ].map((pf) => (
+                  <button
+                    key={pf.value}
+                    onClick={() => {
+                      setPhotoFilter(pf.value);
+                      setCurrentPage(1);
+                    }}
+                    className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5 ${
+                      photoFilter === pf.value 
+                        ? "bg-white text-primary shadow-sm" 
+                        : "text-slate-500 hover:text-slate-700 hover:bg-white/50"
+                    }`}
+                  >
+                    <span>{pf.label}</span>
+                    <span className={`text-[10px] px-1.5 py-0.5 rounded-full font-black ${
+                      photoFilter === pf.value ? "bg-primary/10 text-primary" : "bg-slate-200/80 text-slate-600"
+                    }`}>
+                      {pf.count}
+                    </span>
+                  </button>
+                ))}
+              </div>
+
               {/* Status Filter */}
               <div className="flex bg-slate-100 p-1 rounded-2xl flex-wrap">
                 {["All", "Fully Paid", "Half Semester Paid", "Partial", "Not Paid"].map((status) => (
@@ -692,28 +759,42 @@ export default function ViewMembersPage() {
                   <tr key={member.id} className="hover:bg-slate-50/50 transition-colors group">
                     <td className="px-6 py-5">
                       <div className="flex items-center gap-3">
-                        <div className="size-12 rounded-2xl bg-gradient-to-br from-slate-100 to-slate-200 flex items-center justify-center text-slate-500 font-black shadow-inner overflow-hidden border border-slate-200/80 shrink-0">
+                        <button
+                          type="button"
+                          onClick={() => handleViewProfileClick(member)}
+                          title="Click to view profile & photo"
+                          className="relative size-12 rounded-2xl bg-gradient-to-br from-slate-100 to-slate-200 flex items-center justify-center text-slate-500 font-black shadow-inner overflow-hidden border border-slate-200/80 shrink-0 cursor-pointer hover:ring-2 hover:ring-primary/40 hover:scale-105 transition-all group/avatar"
+                        >
                           {member.profile_picture ? (
-                            <img
-                              src={member.profile_picture}
-                              alt={`${member.first_name} ${member.last_name}`}
-                              className="size-full object-cover"
-                              onError={(e) => {
-                                (e.target as HTMLImageElement).style.display = "none";
-                              }}
-                            />
+                            <>
+                              <img
+                                src={member.profile_picture}
+                                alt={`${member.first_name} ${member.last_name}`}
+                                className="size-full object-cover"
+                                onError={(e) => {
+                                  (e.target as HTMLImageElement).style.display = "none";
+                                }}
+                              />
+                              <div className="absolute inset-0 bg-slate-900/20 opacity-0 group-hover/avatar:opacity-100 transition-opacity flex items-center justify-center text-white">
+                                <LuEye className="size-4 drop-shadow-sm" />
+                              </div>
+                            </>
                           ) : (
                             <span className="text-xs font-bold text-slate-500">
                               {(member.first_name?.[0] || "").toUpperCase()}
                               {(member.last_name?.[0] || "").toUpperCase()}
                             </span>
                           )}
-                        </div>
+                        </button>
                         <div>
-                          <div className="font-black text-slate-900">
+                          <button
+                            type="button"
+                            onClick={() => handleViewProfileClick(member)}
+                            className="font-black text-slate-900 text-left hover:text-primary transition-colors cursor-pointer block leading-tight"
+                          >
                             {member.first_name} {member.middle_initial ? member.middle_initial + " " : ""}{member.last_name}
-                          </div>
-                          <div className="text-xs font-bold text-primary tracking-tight">ID: {member.student_id || 'NOT SET'}</div>
+                          </button>
+                          <div className="text-xs font-bold text-primary tracking-tight mt-0.5">ID: {member.student_id || 'NOT SET'}</div>
                         </div>
                       </div>
                     </td>
@@ -782,12 +863,22 @@ export default function ViewMembersPage() {
                       </div>
                     </td>
                     <td className="px-6 py-5 text-right">
-                      <div className="flex justify-end gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                      <div className="flex justify-end gap-1.5 opacity-0 group-hover:opacity-100 transition-opacity">
+                        <Button 
+                          variant="outline" 
+                          size="sm" 
+                          onClick={() => handleViewProfileClick(member)}
+                          title="View Profile"
+                          className="size-9 p-0 rounded-xl hover:bg-slate-100 text-slate-600 hover:text-slate-900 transition-all cursor-pointer"
+                        >
+                          <LuEye className="size-4" />
+                        </Button>
                         <Button 
                           variant="outline" 
                           size="sm" 
                           onClick={() => handleEditClick(member)}
-                          className="size-9 p-0 rounded-xl hover:bg-primary hover:text-white hover:border-primary transition-all"
+                          title="Edit Details"
+                          className="size-9 p-0 rounded-xl hover:bg-primary hover:text-white hover:border-primary transition-all cursor-pointer"
                         >
                           <LuPencil className="size-4" />
                         </Button>
@@ -795,7 +886,8 @@ export default function ViewMembersPage() {
                           variant="outline" 
                           size="sm" 
                           onClick={() => handleDeleteClick(member.id)}
-                          className="size-9 p-0 rounded-xl hover:bg-rose-500 hover:text-white hover:border-rose-500 transition-all"
+                          title="Delete Member"
+                          className="size-9 p-0 rounded-xl hover:bg-rose-500 hover:text-white hover:border-rose-500 transition-all cursor-pointer"
                         >
                           <LuTrash2 className="size-4" />
                         </Button>
@@ -858,6 +950,169 @@ export default function ViewMembersPage() {
           </div>
         </div>
       </Card>
+
+      {/* View Profile Modal */}
+      <Modal
+        isOpen={isViewProfileModalOpen}
+        onClose={() => {
+          setIsViewProfileModalOpen(false);
+          setSelectedMemberForView(null);
+        }}
+        title="Member Profile"
+        className="max-w-xl"
+      >
+        {selectedMemberForView && (
+          <div className="space-y-6">
+            {/* Top Avatar Banner */}
+            <div className="flex flex-col items-center justify-center text-center p-6 bg-gradient-to-b from-slate-50 to-white rounded-3xl border border-slate-100 shadow-xs relative">
+              {/* Profile Image Display */}
+              <div className="relative group/pic mb-4">
+                <div className="size-36 sm:size-44 rounded-3xl bg-slate-100 border-4 border-white shadow-xl overflow-hidden flex items-center justify-center text-slate-400 font-black text-3xl ring-1 ring-slate-200/80">
+                  {selectedMemberForView.profile_picture ? (
+                    <img
+                      src={selectedMemberForView.profile_picture}
+                      alt={`${selectedMemberForView.first_name} ${selectedMemberForView.last_name}`}
+                      className="size-full object-cover"
+                    />
+                  ) : (
+                    <div className="flex flex-col items-center justify-center gap-2">
+                      <LuUser className="size-16 text-slate-300" />
+                      <span className="text-sm font-bold text-slate-400">No Photo</span>
+                    </div>
+                  )}
+                </div>
+
+                {selectedMemberForView.profile_picture && (
+                  <a
+                    href={selectedMemberForView.profile_picture}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="absolute -bottom-2 -right-2 p-2.5 rounded-2xl bg-white border border-slate-200 text-slate-700 shadow-md hover:bg-primary hover:text-white hover:border-primary transition-all text-xs font-bold flex items-center gap-1"
+                    title="Open Full Image in New Tab"
+                  >
+                    <LuExternalLink className="size-3.5" />
+                  </a>
+                )}
+              </div>
+
+              {/* Name and Student ID */}
+              <h3 className="text-xl sm:text-2xl font-black text-slate-900 tracking-tight leading-snug">
+                {selectedMemberForView.first_name} {selectedMemberForView.middle_initial ? selectedMemberForView.middle_initial + " " : ""}{selectedMemberForView.last_name}
+              </h3>
+              <p className="text-xs font-extrabold text-primary tracking-wider uppercase mt-1">
+                Student ID: {selectedMemberForView.student_id || "NOT SET"}
+              </p>
+
+              {/* Photo Status Pill */}
+              <div className="mt-3">
+                {selectedMemberForView.profile_picture ? (
+                  <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-emerald-50 text-emerald-700 border border-emerald-200">
+                    <LuCircleCheck className="size-3.5 text-emerald-600" />
+                    Digital ID Photo Active
+                  </span>
+                ) : (
+                  <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-amber-50 text-amber-700 border border-amber-200">
+                    <LuCircleAlert className="size-3.5 text-amber-600" />
+                    No Profile Picture Uploaded
+                  </span>
+                )}
+              </div>
+            </div>
+
+            {/* Member Detailed Information Grid */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
+              <div className="p-4 bg-slate-50/80 rounded-2xl border border-slate-100">
+                <p className="text-[10px] font-black uppercase tracking-widest text-slate-400 flex items-center gap-1.5">
+                  <LuGraduationCap className="size-3.5 text-primary" /> Program & Course
+                </p>
+                <p className="text-sm font-black text-slate-900 mt-1">{selectedMemberForView.course || "Not Set"}</p>
+                <p className="text-xs text-slate-500 font-semibold mt-0.5">
+                  Year {selectedMemberForView.year || "—"} • Section {selectedMemberForView.section || "—"}
+                </p>
+              </div>
+
+              <div className="p-4 bg-slate-50/80 rounded-2xl border border-slate-100">
+                <p className="text-[10px] font-black uppercase tracking-widest text-slate-400 flex items-center gap-1.5">
+                  <LuMail className="size-3.5 text-primary" /> Email Address
+                </p>
+                <p className="text-sm font-black text-slate-900 mt-1 truncate" title={selectedMemberForView.email}>
+                  {selectedMemberForView.email || "Not Set"}
+                </p>
+                <a
+                  href={`mailto:${selectedMemberForView.email}`}
+                  className="text-xs text-primary font-bold hover:underline inline-block mt-0.5"
+                >
+                  Send Email &rarr;
+                </a>
+              </div>
+
+              <div className="p-4 bg-slate-50/80 rounded-2xl border border-slate-100">
+                <p className="text-[10px] font-black uppercase tracking-widest text-slate-400 flex items-center gap-1.5">
+                  <LuPhilippinePeso className="size-3.5 text-primary" /> Membership Payment
+                </p>
+                <div className="flex items-center gap-2 mt-1">
+                  <span className="text-sm font-black text-slate-900">
+                    ₱{Number(selectedMemberForView.memberships?.payment || 0).toLocaleString()}
+                  </span>
+                  <span className={`text-[10px] font-bold px-2 py-0.5 rounded-md ${
+                    selectedMemberForView.memberships?.status === 'Fully Paid' ? 'bg-emerald-100 text-emerald-700' :
+                    selectedMemberForView.memberships?.status === 'Half Semester Paid' ? 'bg-blue-100 text-blue-700' :
+                    selectedMemberForView.memberships?.status === 'Partial' ? 'bg-amber-100 text-amber-700' :
+                    'bg-rose-100 text-rose-700'
+                  }`}>
+                    {selectedMemberForView.memberships?.status || 'Not Paid'}
+                  </span>
+                </div>
+              </div>
+
+              <div className="p-4 bg-slate-50/80 rounded-2xl border border-slate-100">
+                <p className="text-[10px] font-black uppercase tracking-widest text-slate-400 flex items-center gap-1.5">
+                  <LuCalendar className="size-3.5 text-primary" /> Date Registered
+                </p>
+                <p className="text-sm font-black text-slate-900 mt-1">
+                  {selectedMemberForView.created_at
+                    ? new Date(selectedMemberForView.created_at).toLocaleDateString("en-US", {
+                        month: "short",
+                        day: "numeric",
+                        year: "numeric",
+                      })
+                    : "—"}
+                </p>
+                {selectedMemberForView.memberships?.receipt && (
+                  <p className="text-xs text-slate-400 truncate mt-0.5">
+                    Receipt: {selectedMemberForView.memberships.receipt}
+                  </p>
+                )}
+              </div>
+            </div>
+
+            {/* Modal Actions */}
+            <div className="flex items-center justify-end gap-3 pt-2">
+              <Button
+                variant="outline"
+                onClick={() => {
+                  setIsViewProfileModalOpen(false);
+                  setSelectedMemberForView(null);
+                }}
+                className="rounded-2xl px-5 h-11 border-slate-200 hover:bg-slate-50 font-bold"
+              >
+                Close
+              </Button>
+              <Button
+                onClick={() => {
+                  const m = selectedMemberForView;
+                  setIsViewProfileModalOpen(false);
+                  setSelectedMemberForView(null);
+                  if (m) handleEditClick(m);
+                }}
+                className="rounded-2xl px-5 h-11 bg-primary hover:bg-primary/90 text-white font-bold shadow-md shadow-primary/20"
+              >
+                <LuPencil className="size-4 mr-2" /> Edit Member
+              </Button>
+            </div>
+          </div>
+        )}
+      </Modal>
 
       <ConfirmModal
         isOpen={isDeleteModalOpen}
