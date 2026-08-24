@@ -311,11 +311,43 @@ export default function AttendanceScannerPage() {
         payload.time_out = now;
       }
 
-      const { error } = await supabase
+      // Check if an attendance record already exists for this student & event
+      const { data: existingRecord } = await supabase
         .from("attendance")
-        .upsert(payload, { onConflict: 'event_id, student_id' });
+        .select("id, time_in, time_out")
+        .eq("event_id", selectedEventId)
+        .eq("student_id", scannedStudent.student_id)
+        .maybeSingle();
 
-      if (error) throw error;
+      if (existingRecord?.id) {
+        // Update existing record
+        const updatePayload: Record<string, unknown> = {
+          full_name: payload.full_name,
+          email: payload.email,
+          course: payload.course,
+          section: payload.section,
+          year: payload.year,
+        };
+        if (scanMode === "time_in") {
+          updatePayload.time_in = now;
+        } else {
+          updatePayload.time_out = now;
+        }
+
+        const { error } = await supabase
+          .from("attendance")
+          .update(updatePayload)
+          .eq("id", existingRecord.id);
+
+        if (error) throw error;
+      } else {
+        // Insert new attendance record
+        const { error } = await supabase
+          .from("attendance")
+          .insert([payload]);
+
+        if (error) throw error;
+      }
 
       toast.success(`${scanMode === "time_in" ? "CHECKED IN" : "CHECKED OUT"}: ${payload.full_name}`);
       fetchAttendanceCount(selectedEventId);
