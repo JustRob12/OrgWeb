@@ -251,7 +251,7 @@ export default function StudentRegistrationChecker() {
                 <span className="font-mono font-bold text-amber-900 bg-amber-100/60 px-1.5 py-0.5 rounded">
                   &quot;{searchedId}&quot;
                 </span>{" "}
-                is not yet recorded in the database. Please be patient while the organization admin or officers record your account, and always check back here to see if you are registered.
+                is not yet recorded in the database. If you have already filled up the form, please just wait for the officers to process your record—thank you so much for your patience! Always check back here to see if you are registered.
               </p>
 
               {/* Google Form Link Callout */}
@@ -276,7 +276,7 @@ export default function StudentRegistrationChecker() {
                     </a>
                   </Button>
                   <span className="text-[11px] text-amber-800 font-medium">
-                    (Please be patient and check back later as registration takes some time)
+                    (If you already submitted, please wait and always check back here!)
                   </span>
                 </div>
               </div>
