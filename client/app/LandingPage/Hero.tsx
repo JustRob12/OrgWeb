@@ -18,6 +18,7 @@ import {
 } from "react-icons/lu";
 import { Button } from "../Components/ui/button";
 import { createClient } from "@/utils/supabase/client";
+import StudentRegistrationChecker from "./StudentRegistrationChecker";
 
 const TARGET_COURSES = [
   {
@@ -229,6 +230,9 @@ export default function Hero() {
             together.
           </p>
         </div>
+
+        {/* Student Registration Search Check */}
+        <StudentRegistrationChecker />
 
         {/* Call to Action Buttons */}
         <div className="mt-6 sm:mt-8 flex flex-col sm:flex-row items-center justify-center gap-3 sm:gap-4 w-full max-w-md sm:max-w-none px-4">
