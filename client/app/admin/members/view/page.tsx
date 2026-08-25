@@ -21,7 +21,12 @@ import {
   LuUser,
   LuIdCard,
   LuCalendar,
-  LuPhilippinePeso
+  LuPhilippinePeso,
+  LuTriangleAlert,
+  LuWrench,
+  LuSparkles,
+  LuRefreshCw,
+  LuCopy
 } from "react-icons/lu";
 import { Button } from "@/app/Components/ui/button";
 import { Card, CardContent } from "@/app/Components/ui/card";
@@ -29,6 +34,7 @@ import { toast } from "sonner";
 import { createClient } from "@/utils/supabase/client";
 import Link from "next/link";
 import { isValidEmail, isValidStudentId, formatStudentIdInput, normalizeStudentId } from "@/lib/utils";
+import { encryptPassword } from "@/lib/encryption";
 import { ConfirmModal } from "@/app/Components/ui/confirm-modal";
 import { Modal } from "@/app/Components/ui/modal";
 
@@ -50,6 +56,11 @@ interface MemberWithStatus {
     receipt?: string | null;
     created_at?: string;
   } | null;
+  accounts?: {
+    role: number;
+    username?: string;
+  } | null;
+  hasAccountError?: boolean;
 }
 
 export default function ViewMembersPage() {
@@ -59,6 +70,11 @@ export default function ViewMembersPage() {
   const [statusFilter, setStatusFilter] = useState("All");
   const [yearFilter, setYearFilter] = useState("All");
   const [photoFilter, setPhotoFilter] = useState("All");
+  const [idFormatFilter, setIdFormatFilter] = useState<"All" | "Valid" | "Invalid">("All");
+  const [accountFilter, setAccountFilter] = useState<"All" | "Active" | "Missing">("All");
+  const [duplicateFilter, setDuplicateFilter] = useState<"All" | "AllDuplicates" | "DuplicateName" | "DuplicateEmail" | "DuplicateId">("All");
+  const [isFixingBatch, setIsFixingBatch] = useState(false);
+  const [isCreatingAccounts, setIsCreatingAccounts] = useState(false);
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
   const [memberToDelete, setMemberToDelete] = useState<string | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
@@ -96,7 +112,7 @@ export default function ViewMembersPage() {
     setEditFirstName(member.first_name || "");
     setEditMiddleInitial(member.middle_initial || "");
     setEditLastName(member.last_name || "");
-    setEditStudentId(member.student_id || "");
+    setEditStudentId(normalizeStudentId(member.student_id || ""));
     setEditCourse(member.course || "");
     setEditSection(member.section || "");
     setEditYear(member.year || "");
@@ -115,11 +131,6 @@ export default function ViewMembersPage() {
 
     if (!sId) {
       toast.error("Please enter a Student ID.");
-      return;
-    }
-
-    if (!isValidStudentId(sId)) {
-      toast.error("Student ID must be complete and formatted as 0000-0000 (e.g. 2022-2703). Incomplete IDs are not allowed.");
       return;
     }
 
@@ -180,6 +191,26 @@ export default function ViewMembersPage() {
         if (membershipError) throw membershipError;
       }
 
+      // 3. Ensure account record exists or insert if missing
+      const { data: existingAccount } = await supabase
+        .from("accounts")
+        .select("id")
+        .eq("user_id", selectedMemberForEdit.id)
+        .maybeSingle();
+
+      if (!existingAccount) {
+        const defaultPassword = sId || "0000-0000";
+        const encDefault = encryptPassword(defaultPassword);
+        await supabase.from("accounts").insert({
+          user_id: selectedMemberForEdit.id,
+          username: editEmail.trim(),
+          password: defaultPassword,
+          encrypted_password: encDefault,
+          role: 1,
+          must_change_password: true,
+        });
+      }
+
       toast.success("Member details updated successfully.");
       
       // Update local state
@@ -196,6 +227,8 @@ export default function ViewMembersPage() {
                 section: editSection.trim(),
                 year: editYear.trim(),
                 email: editEmail.trim(),
+                accounts: m.accounts || { role: 1, username: editEmail.trim() },
+                hasAccountError: false,
                 memberships: {
                   status: editStatus,
                   payment: editPayment,
@@ -220,27 +253,55 @@ export default function ViewMembersPage() {
   const fetchMembers = useCallback(async () => {
     setLoading(true);
     try {
-      const { data, error } = await supabase
-        .from("users")
-        .select(`
-          *,
-          memberships:memberships(status, payment, receipt, created_at),
-          accounts:accounts!inner(role)
-        `)
-        .neq('accounts.role', 0)
-        .order('created_at', { ascending: false });
+      let allUsers: MemberWithStatus[] = [];
+      let from = 0;
+      const step = 1000;
+      let hasMore = true;
 
-      if (error) throw error;
-      
-      const flattenedData = (data as unknown[]).map(item => {
-        const row = item as Record<string, unknown>;
-        return {
-          ...row,
-          memberships: Array.isArray(row.memberships) ? row.memberships[0] : row.memberships
-        } as unknown as MemberWithStatus;
-      });
+      while (hasMore) {
+        // Fetch users with LEFT JOIN on memberships and accounts (without !inner so users missing accounts are preserved)
+        const { data, error } = await supabase
+          .from("users")
+          .select(`
+            *,
+            memberships:memberships(status, payment, receipt, created_at),
+            accounts:accounts(role, username)
+          `)
+          .order('created_at', { ascending: false })
+          .range(from, from + step - 1);
 
-      setMembers(flattenedData);
+        if (error) throw error;
+
+        if (data && data.length > 0) {
+          const flattenedData = (data as unknown[]).map((item) => {
+            const row = item as Record<string, unknown>;
+            const rawAccounts = Array.isArray(row.accounts) ? row.accounts[0] : row.accounts;
+            const rawMemberships = Array.isArray(row.memberships) ? row.memberships[0] : row.memberships;
+            const hasAccountError = !rawAccounts || !rawAccounts.username;
+
+            return {
+              ...row,
+              memberships: rawMemberships || null,
+              accounts: rawAccounts || null,
+              hasAccountError,
+            } as unknown as MemberWithStatus;
+          });
+
+          // Keep all non-admins (role !== 0) and users with missing accounts
+          const studentAndUnassignedUsers = flattenedData.filter((u) => u.accounts?.role !== 0);
+          allUsers = allUsers.concat(studentAndUnassignedUsers);
+
+          if (data.length < step) {
+            hasMore = false;
+          } else {
+            from += step;
+          }
+        } else {
+          hasMore = false;
+        }
+      }
+
+      setMembers(allUsers);
     } catch (error: unknown) {
       const errMsg = error instanceof Error ? error.message : String(error);
       console.error("Error fetching members:", errMsg);
@@ -253,41 +314,15 @@ export default function ViewMembersPage() {
   useEffect(() => {
     let isMounted = true;
     const load = async () => {
-      setLoading(true);
-      try {
-        const { data, error } = await supabase
-          .from("users")
-          .select(`
-            *,
-            memberships:memberships(status, payment, receipt, created_at),
-            accounts:accounts!inner(role)
-          `)
-          .neq('accounts.role', 0)
-          .order('created_at', { ascending: false });
-
-        if (error) throw error;
-        
-        if (isMounted && data) {
-          const flattenedData = (data as unknown[]).map(item => {
-            const row = item as Record<string, unknown>;
-            return {
-              ...row,
-              memberships: Array.isArray(row.memberships) ? row.memberships[0] : row.memberships
-            } as unknown as MemberWithStatus;
-          });
-          setMembers(flattenedData);
-        }
-      } catch (err: unknown) {
-        console.error("Error loading members:", err);
-      } finally {
-        if (isMounted) setLoading(false);
+      if (isMounted) {
+        await fetchMembers();
       }
     };
     load();
     return () => {
       isMounted = false;
     };
-  }, [supabase]);
+  }, [fetchMembers]);
 
   const handleDeleteClick = (userId: string) => {
     setMemberToDelete(userId);
@@ -387,6 +422,183 @@ export default function ViewMembersPage() {
     return { withPhoto, noPhoto, total: members.length };
   }, [members]);
 
+  const idFormatCounts = useMemo(() => {
+    let valid = 0;
+    let invalid = 0;
+    let fixable = 0;
+    members.forEach((m) => {
+      const raw = (m.student_id || "").trim();
+      if (isValidStudentId(raw)) {
+        valid++;
+      } else {
+        invalid++;
+        if (/^\d{8}$/.test(raw)) {
+          fixable++;
+        }
+      }
+    });
+    return { valid, invalid, fixable, total: members.length };
+  }, [members]);
+
+  const accountErrorCounts = useMemo(() => {
+    let active = 0;
+    let missing = 0;
+    members.forEach((m) => {
+      if (m.hasAccountError || !m.accounts) {
+        missing++;
+      } else {
+        active++;
+      }
+    });
+    return { active, missing, total: members.length };
+  }, [members]);
+
+  // Calculate duplicate sets for names, emails, and student IDs
+  const duplicateMetadata = useMemo(() => {
+    const nameCounts = new Map<string, number>();
+    const emailCounts = new Map<string, number>();
+    const idCounts = new Map<string, number>();
+
+    members.forEach((m) => {
+      const nameKey = `${m.first_name || ""} ${m.last_name || ""}`.trim().toLowerCase();
+      if (nameKey) {
+        nameCounts.set(nameKey, (nameCounts.get(nameKey) || 0) + 1);
+      }
+
+      const emailKey = (m.email || "").trim().toLowerCase();
+      if (emailKey) {
+        emailCounts.set(emailKey, (emailCounts.get(emailKey) || 0) + 1);
+      }
+
+      const idKey = normalizeStudentId(m.student_id || "").toLowerCase();
+      if (idKey) {
+        idCounts.set(idKey, (idCounts.get(idKey) || 0) + 1);
+      }
+    });
+
+    let duplicateNamesCount = 0;
+    let duplicateEmailsCount = 0;
+    let duplicateIdsCount = 0;
+    let totalDuplicatesCount = 0;
+
+    members.forEach((m) => {
+      const nameKey = `${m.first_name || ""} ${m.last_name || ""}`.trim().toLowerCase();
+      const emailKey = (m.email || "").trim().toLowerCase();
+      const idKey = normalizeStudentId(m.student_id || "").toLowerCase();
+
+      const isDupName = Boolean(nameKey && (nameCounts.get(nameKey) || 0) > 1);
+      const isDupEmail = Boolean(emailKey && (emailCounts.get(emailKey) || 0) > 1);
+      const isDupId = Boolean(idKey && (idCounts.get(idKey) || 0) > 1);
+
+      if (isDupName) duplicateNamesCount++;
+      if (isDupEmail) duplicateEmailsCount++;
+      if (isDupId) duplicateIdsCount++;
+      if (isDupName || isDupEmail || isDupId) totalDuplicatesCount++;
+    });
+
+    return {
+      nameCounts,
+      emailCounts,
+      idCounts,
+      duplicateNamesCount,
+      duplicateEmailsCount,
+      duplicateIdsCount,
+      totalDuplicatesCount,
+    };
+  }, [members]);
+
+  // Batch 1-click helper to generate login accounts for users missing accounts
+  const handleGenerateMissingAccounts = async () => {
+    const missingMembers = members.filter((m) => m.hasAccountError || !m.accounts);
+    if (missingMembers.length === 0) {
+      toast.info("All members already have active login accounts.");
+      return;
+    }
+
+    setIsCreatingAccounts(true);
+    let createdCount = 0;
+    try {
+      for (const m of missingMembers) {
+        const defaultPassword = m.student_id ? m.student_id.trim() : "0000-0000";
+        const encDefault = encryptPassword(defaultPassword);
+
+        const { error } = await supabase.from("accounts").insert({
+          user_id: m.id,
+          username: m.email.trim(),
+          password: defaultPassword,
+          encrypted_password: encDefault,
+          role: 1, // Student
+          must_change_password: true,
+        });
+
+        if (!error) {
+          createdCount++;
+          setMembers((prev) =>
+            prev.map((item) =>
+              item.id === m.id
+                ? {
+                    ...item,
+                    accounts: { role: 1, username: m.email.trim() },
+                    hasAccountError: false,
+                  }
+                : item
+            )
+          );
+        }
+      }
+      toast.success(`Successfully created login accounts for ${createdCount} member(s)!`);
+      if (accountFilter === "Missing") {
+        setAccountFilter("All");
+      }
+    } catch (err) {
+      console.error("Generate accounts error:", err);
+      toast.error("An error occurred while creating missing accounts.");
+    } finally {
+      setIsCreatingAccounts(false);
+    }
+  };
+
+  // Batch 1-click helper to auto-format unhyphenated 8-digit IDs (e.g. 20222703 -> 2022-2703)
+  const handleAutoFormatFixableIds = async () => {
+    const fixableMembers = members.filter((m) => {
+      const raw = (m.student_id || "").trim();
+      return !isValidStudentId(raw) && /^\d{8}$/.test(raw);
+    });
+
+    if (fixableMembers.length === 0) {
+      toast.info("No 8-digit unhyphenated student IDs found to auto-format.");
+      return;
+    }
+
+    setIsFixingBatch(true);
+    let updatedCount = 0;
+    try {
+      for (const m of fixableMembers) {
+        const newId = normalizeStudentId(m.student_id);
+        const { error } = await supabase
+          .from("users")
+          .update({ student_id: newId })
+          .eq("id", m.id);
+
+        if (!error) {
+          updatedCount++;
+          setMembers((prev) =>
+            prev.map((item) => (item.id === m.id ? { ...item, student_id: newId } : item))
+          );
+        }
+      }
+      toast.success(`Successfully auto-formatted ${updatedCount} Student ID(s) to 0000-0000 format!`);
+      if (idFormatFilter === "Invalid" && updatedCount === fixableMembers.length) {
+        setIdFormatFilter("All");
+      }
+    } catch (err) {
+      console.error("Auto-format error:", err);
+      toast.error("An error occurred while auto-formatting IDs.");
+    } finally {
+      setIsFixingBatch(false);
+    }
+  };
+
   const filteredMembers = members.filter(member => {
     const query = searchQuery.toLowerCase().trim();
     const fullName = `${member.first_name || ""} ${member.middle_initial || ""} ${member.last_name || ""}`.toLowerCase();
@@ -429,7 +641,51 @@ export default function ViewMembersPage() {
       matchesPhoto = !hasPhoto;
     }
 
-    return matchesSearch && matchesStatus && matchesYear && matchesPhoto;
+    let matchesIdFormat = true;
+    const isValidId = isValidStudentId(member.student_id);
+    if (idFormatFilter === "Valid") {
+      matchesIdFormat = isValidId;
+    } else if (idFormatFilter === "Invalid") {
+      matchesIdFormat = !isValidId;
+    }
+
+    let matchesAccount = true;
+    const isMissingAccount = member.hasAccountError || !member.accounts;
+    if (accountFilter === "Active") {
+      matchesAccount = !isMissingAccount;
+    } else if (accountFilter === "Missing") {
+      matchesAccount = isMissingAccount;
+    }
+
+    let matchesDuplicate = true;
+    const memberNameKey = `${member.first_name || ""} ${member.last_name || ""}`.trim().toLowerCase();
+    const memberEmailKey = (member.email || "").trim().toLowerCase();
+    const memberIdKey = normalizeStudentId(member.student_id || "").toLowerCase();
+
+    const isDupName = Boolean(memberNameKey && (duplicateMetadata.nameCounts.get(memberNameKey) || 0) > 1);
+    const isDupEmail = Boolean(memberEmailKey && (duplicateMetadata.emailCounts.get(memberEmailKey) || 0) > 1);
+    const isDupId = Boolean(memberIdKey && (duplicateMetadata.idCounts.get(memberIdKey) || 0) > 1);
+    const isAnyDup = isDupName || isDupEmail || isDupId;
+
+    if (duplicateFilter === "AllDuplicates") {
+      matchesDuplicate = isAnyDup;
+    } else if (duplicateFilter === "DuplicateName") {
+      matchesDuplicate = isDupName;
+    } else if (duplicateFilter === "DuplicateEmail") {
+      matchesDuplicate = isDupEmail;
+    } else if (duplicateFilter === "DuplicateId") {
+      matchesDuplicate = isDupId;
+    }
+
+    return (
+      matchesSearch &&
+      matchesStatus &&
+      matchesYear &&
+      matchesPhoto &&
+      matchesIdFormat &&
+      matchesAccount &&
+      matchesDuplicate
+    );
   });
 
   const totalPages = Math.max(1, Math.ceil(filteredMembers.length / itemsPerPage));
@@ -633,6 +889,211 @@ export default function ViewMembersPage() {
         </Card>
       </div>
 
+      {/* Duplicate Records Alert Banner */}
+      {duplicateMetadata.totalDuplicatesCount > 0 && (
+        <div className="bg-gradient-to-r from-purple-50 via-indigo-50/80 to-purple-50 border border-purple-200 rounded-3xl p-5 shadow-sm animate-in fade-in slide-in-from-top-2 duration-300">
+          <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+            <div className="flex items-start sm:items-center gap-3.5">
+              <div className="size-11 rounded-2xl bg-purple-600 text-white flex items-center justify-center font-bold shadow-md shadow-purple-300/40 shrink-0">
+                <LuCopy className="size-5.5" />
+              </div>
+              <div>
+                <h4 className="text-sm sm:text-base font-black text-purple-950 flex items-center gap-2">
+                  <span>⚠️ Detected {duplicateMetadata.totalDuplicatesCount} Duplicate Member Record(s) in Database</span>
+                </h4>
+                <div className="flex flex-wrap items-center gap-2 mt-1.5 text-xs">
+                  {duplicateMetadata.duplicateNamesCount > 0 && (
+                    <span className="bg-purple-100 border border-purple-300 px-2.5 py-0.5 rounded-full text-purple-950 font-bold">
+                      👥 {duplicateMetadata.duplicateNamesCount} Sharing Same Name
+                    </span>
+                  )}
+                  {duplicateMetadata.duplicateEmailsCount > 0 && (
+                    <span className="bg-rose-100 border border-rose-300 px-2.5 py-0.5 rounded-full text-rose-950 font-bold">
+                      ✉️ {duplicateMetadata.duplicateEmailsCount} Sharing Same Email
+                    </span>
+                  )}
+                  {duplicateMetadata.duplicateIdsCount > 0 && (
+                    <span className="bg-amber-100 border border-amber-300 px-2.5 py-0.5 rounded-full text-amber-950 font-bold">
+                      🪪 {duplicateMetadata.duplicateIdsCount} Sharing Same ID
+                    </span>
+                  )}
+                </div>
+              </div>
+            </div>
+
+            <div className="flex flex-wrap items-center gap-2 shrink-0 self-end md:self-center">
+              {duplicateMetadata.duplicateNamesCount > 0 && (
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={() => {
+                    setDuplicateFilter(duplicateFilter === "DuplicateName" ? "All" : "DuplicateName");
+                    setCurrentPage(1);
+                  }}
+                  className={`rounded-xl h-9 text-xs font-bold border-purple-300 shadow-xs cursor-pointer ${
+                    duplicateFilter === "DuplicateName"
+                      ? "bg-purple-700 text-white hover:bg-purple-800"
+                      : "bg-white hover:bg-purple-50 text-purple-950"
+                  }`}
+                >
+                  <LuUsers className="size-3.5 mr-1" />
+                  {duplicateFilter === "DuplicateName" ? "Showing Duplicate Names" : `Filter Duplicate Names (${duplicateMetadata.duplicateNamesCount})`}
+                </Button>
+              )}
+              {duplicateMetadata.duplicateEmailsCount > 0 && (
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={() => {
+                    setDuplicateFilter(duplicateFilter === "DuplicateEmail" ? "All" : "DuplicateEmail");
+                    setCurrentPage(1);
+                  }}
+                  className={`rounded-xl h-9 text-xs font-bold border-rose-300 shadow-xs cursor-pointer ${
+                    duplicateFilter === "DuplicateEmail"
+                      ? "bg-rose-700 text-white hover:bg-rose-800"
+                      : "bg-white hover:bg-rose-50 text-rose-950"
+                  }`}
+                >
+                  <LuMail className="size-3.5 mr-1" />
+                  {duplicateFilter === "DuplicateEmail" ? "Showing Duplicate Emails" : `Filter Duplicate Emails (${duplicateMetadata.duplicateEmailsCount})`}
+                </Button>
+              )}
+              <Button
+                size="sm"
+                onClick={() => {
+                  setDuplicateFilter(duplicateFilter === "AllDuplicates" ? "All" : "AllDuplicates");
+                  setCurrentPage(1);
+                }}
+                className={`rounded-xl h-9 text-xs font-bold shadow-xs cursor-pointer ${
+                  duplicateFilter === "AllDuplicates"
+                    ? "bg-slate-900 text-white hover:bg-black"
+                    : "bg-purple-600 hover:bg-purple-700 text-white"
+                }`}
+              >
+                {duplicateFilter === "AllDuplicates" ? "Clear Duplicate Filter" : `View All Duplicates (${duplicateMetadata.totalDuplicatesCount})`}
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Missing Login Accounts Alert Banner */}
+      {accountErrorCounts.missing > 0 && (
+        <div className="bg-gradient-to-r from-rose-50 via-red-50/80 to-rose-50 border border-rose-200 rounded-3xl p-5 shadow-sm animate-in fade-in slide-in-from-top-2 duration-300">
+          <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+            <div className="flex items-start sm:items-center gap-3.5">
+              <div className="size-11 rounded-2xl bg-rose-500 text-white flex items-center justify-center font-bold shadow-md shadow-rose-300/40 shrink-0">
+                <LuCircleAlert className="size-5.5" />
+              </div>
+              <div>
+                <h4 className="text-sm sm:text-base font-black text-rose-950 flex items-center gap-2">
+                  <span>⚠️ {accountErrorCounts.missing} Registered Member(s) Missing Login Accounts</span>
+                </h4>
+                <p className="text-xs text-rose-800/80 font-medium mt-0.5">
+                  These records exist in the students database but are missing a corresponding login account. Click below to generate login credentials for them.
+                </p>
+              </div>
+            </div>
+
+            <div className="flex flex-wrap items-center gap-2 shrink-0 self-end md:self-center">
+              <Button
+                size="sm"
+                disabled={isCreatingAccounts}
+                onClick={handleGenerateMissingAccounts}
+                className="rounded-xl h-9 text-xs font-bold bg-rose-600 hover:bg-rose-700 text-white shadow-sm cursor-pointer"
+              >
+                {isCreatingAccounts ? (
+                  <>
+                    <LuRefreshCw className="size-3.5 mr-1.5 animate-spin" /> Generating Accounts...
+                  </>
+                ) : (
+                  <>
+                    <LuUserPlus className="size-3.5 mr-1.5" /> Generate {accountErrorCounts.missing} Account(s)
+                  </>
+                )}
+              </Button>
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={() => {
+                  setAccountFilter(accountFilter === "Missing" ? "All" : "Missing");
+                  setCurrentPage(1);
+                }}
+                className={`rounded-xl h-9 text-xs font-bold border-rose-300 shadow-xs cursor-pointer ${
+                  accountFilter === "Missing"
+                    ? "bg-rose-600 text-white hover:bg-rose-700"
+                    : "bg-white hover:bg-rose-50 text-rose-900"
+                }`}
+              >
+                {accountFilter === "Missing" ? "Show All Members" : `Filter Missing (${accountErrorCounts.missing})`}
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Outdated Student ID Format Correction Banner */}
+      {idFormatCounts.invalid > 0 && (
+        <div className="bg-gradient-to-r from-amber-50 via-orange-50/80 to-amber-50 border border-amber-200 rounded-3xl p-5 shadow-sm animate-in fade-in slide-in-from-top-2 duration-300">
+          <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+            <div className="flex items-start sm:items-center gap-3.5">
+              <div className="size-11 rounded-2xl bg-amber-500 text-white flex items-center justify-center font-bold shadow-md shadow-amber-300/40 shrink-0">
+                <LuTriangleAlert className="size-5.5" />
+              </div>
+              <div>
+                <h4 className="text-sm sm:text-base font-black text-amber-950 flex items-center gap-2">
+                  <span>⚠️ {idFormatCounts.invalid} Member(s) Have Unformatted / Outdated Student IDs</span>
+                  {idFormatCounts.fixable > 0 && (
+                    <span className="text-[10px] font-black px-2 py-0.5 rounded-full bg-amber-200/80 text-amber-900 border border-amber-300">
+                      {idFormatCounts.fixable} Auto-Fixable
+                    </span>
+                  )}
+                </h4>
+                <p className="text-xs text-amber-800/80 font-medium mt-0.5">
+                  These records do not follow the strict <strong>0000-0000</strong> format (e.g. unhyphenated 8 digits like <em>20222703</em> or missing characters).
+                </p>
+              </div>
+            </div>
+
+            <div className="flex flex-wrap items-center gap-2 shrink-0 self-end md:self-center">
+              {idFormatCounts.fixable > 0 && (
+                <Button
+                  size="sm"
+                  disabled={isFixingBatch}
+                  onClick={handleAutoFormatFixableIds}
+                  className="rounded-xl h-9 text-xs font-bold bg-emerald-600 hover:bg-emerald-700 text-white shadow-sm cursor-pointer"
+                >
+                  {isFixingBatch ? (
+                    <>
+                      <LuRefreshCw className="size-3.5 mr-1.5 animate-spin" /> Auto-Fixing...
+                    </>
+                  ) : (
+                    <>
+                      <LuSparkles className="size-3.5 mr-1.5" /> Auto-Format {idFormatCounts.fixable} ID(s)
+                    </>
+                  )}
+                </Button>
+              )}
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={() => {
+                  setIdFormatFilter(idFormatFilter === "Invalid" ? "All" : "Invalid");
+                  setCurrentPage(1);
+                }}
+                className={`rounded-xl h-9 text-xs font-bold border-amber-300 shadow-xs cursor-pointer ${
+                  idFormatFilter === "Invalid"
+                    ? "bg-amber-600 text-white hover:bg-amber-700"
+                    : "bg-white hover:bg-amber-50 text-amber-900"
+                }`}
+              >
+                {idFormatFilter === "Invalid" ? "Show All Members" : `Filter Needs Fix (${idFormatCounts.invalid})`}
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
+
       <Card className="border-slate-200 shadow-sm rounded-3xl bg-white">
         <div className="p-6 border-b border-slate-100 space-y-4">
           <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-4">
@@ -708,6 +1169,124 @@ export default function ViewMembersPage() {
                       photoFilter === pf.value ? "bg-primary/10 text-primary" : "bg-slate-200/80 text-slate-600"
                     }`}>
                       {pf.count}
+                    </span>
+                  </button>
+                ))}
+              </div>
+
+              {/* ID Format Filter */}
+              <div className="flex items-center bg-slate-100 p-1 rounded-2xl flex-wrap">
+                <span className="text-[10px] font-black uppercase text-slate-400 px-2.5">ID Format:</span>
+                {[
+                  { label: "All IDs", value: "All" as const, count: idFormatCounts.total, isWarning: false },
+                  { label: "Valid Format", value: "Valid" as const, count: idFormatCounts.valid, isWarning: false },
+                  { label: "Needs Fix", value: "Invalid" as const, count: idFormatCounts.invalid, isWarning: true },
+                ].map((fmt) => (
+                  <button
+                    key={fmt.value}
+                    onClick={() => {
+                      setIdFormatFilter(fmt.value);
+                      setCurrentPage(1);
+                    }}
+                    className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5 ${
+                      idFormatFilter === fmt.value 
+                        ? fmt.isWarning && fmt.count > 0
+                          ? "bg-amber-500 text-white shadow-sm"
+                          : "bg-white text-primary shadow-sm" 
+                        : fmt.isWarning && fmt.count > 0
+                        ? "text-amber-700 hover:bg-amber-100/60 font-black"
+                        : "text-slate-500 hover:text-slate-700 hover:bg-white/50"
+                    }`}
+                  >
+                    {fmt.isWarning && fmt.count > 0 && <LuTriangleAlert className="size-3 text-amber-500" />}
+                    <span>{fmt.label}</span>
+                    <span className={`text-[10px] px-1.5 py-0.5 rounded-full font-black ${
+                      idFormatFilter === fmt.value 
+                        ? "bg-black/15 text-white"
+                        : fmt.isWarning && fmt.count > 0
+                        ? "bg-amber-200 text-amber-900"
+                        : "bg-slate-200/80 text-slate-600"
+                    }`}>
+                      {fmt.count}
+                    </span>
+                  </button>
+                ))}
+              </div>
+
+              {/* Account Status Filter */}
+              <div className="flex items-center bg-slate-100 p-1 rounded-2xl flex-wrap">
+                <span className="text-[10px] font-black uppercase text-slate-400 px-2.5">Account:</span>
+                {[
+                  { label: "All", value: "All" as const, count: accountErrorCounts.total, isError: false },
+                  { label: "Active", value: "Active" as const, count: accountErrorCounts.active, isError: false },
+                  { label: "Missing Account", value: "Missing" as const, count: accountErrorCounts.missing, isError: true },
+                ].map((acc) => (
+                  <button
+                    key={acc.value}
+                    onClick={() => {
+                      setAccountFilter(acc.value);
+                      setCurrentPage(1);
+                    }}
+                    className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5 ${
+                      accountFilter === acc.value 
+                        ? acc.isError && acc.count > 0
+                          ? "bg-rose-500 text-white shadow-sm"
+                          : "bg-white text-primary shadow-sm" 
+                        : acc.isError && acc.count > 0
+                        ? "text-rose-700 hover:bg-rose-100/60 font-black"
+                        : "text-slate-500 hover:text-slate-700 hover:bg-white/50"
+                    }`}
+                  >
+                    {acc.isError && acc.count > 0 && <LuCircleAlert className="size-3 text-rose-500" />}
+                    <span>{acc.label}</span>
+                    <span className={`text-[10px] px-1.5 py-0.5 rounded-full font-black ${
+                      accountFilter === acc.value 
+                        ? "bg-black/15 text-white"
+                        : acc.isError && acc.count > 0
+                        ? "bg-rose-200 text-rose-900"
+                        : "bg-slate-200/80 text-slate-600"
+                    }`}>
+                      {acc.count}
+                    </span>
+                  </button>
+                ))}
+              </div>
+
+              {/* Duplicates Filter */}
+              <div className="flex items-center bg-slate-100 p-1 rounded-2xl flex-wrap">
+                <span className="text-[10px] font-black uppercase text-slate-400 px-2.5">Duplicates:</span>
+                {[
+                  { label: "All", value: "All" as const, count: members.length, isWarning: false },
+                  { label: "All Duplicates", value: "AllDuplicates" as const, count: duplicateMetadata.totalDuplicatesCount, isWarning: true },
+                  { label: "Dup Names", value: "DuplicateName" as const, count: duplicateMetadata.duplicateNamesCount, isWarning: true },
+                  { label: "Dup Emails", value: "DuplicateEmail" as const, count: duplicateMetadata.duplicateEmailsCount, isWarning: true },
+                ].map((dup) => (
+                  <button
+                    key={dup.value}
+                    onClick={() => {
+                      setDuplicateFilter(dup.value);
+                      setCurrentPage(1);
+                    }}
+                    className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5 ${
+                      duplicateFilter === dup.value 
+                        ? dup.isWarning && dup.count > 0
+                          ? "bg-purple-600 text-white shadow-sm"
+                          : "bg-white text-primary shadow-sm" 
+                        : dup.isWarning && dup.count > 0
+                        ? "text-purple-800 hover:bg-purple-100/60 font-black"
+                        : "text-slate-500 hover:text-slate-700 hover:bg-white/50"
+                    }`}
+                  >
+                    {dup.isWarning && dup.count > 0 && <LuCopy className="size-3 text-purple-600" />}
+                    <span>{dup.label}</span>
+                    <span className={`text-[10px] px-1.5 py-0.5 rounded-full font-black ${
+                      duplicateFilter === dup.value 
+                        ? "bg-black/15 text-white"
+                        : dup.isWarning && dup.count > 0
+                        ? "bg-purple-200 text-purple-950"
+                        : "bg-slate-200/80 text-slate-600"
+                    }`}>
+                      {dup.count}
                     </span>
                   </button>
                 ))}
@@ -806,7 +1385,53 @@ export default function ViewMembersPage() {
                           >
                             {member.first_name} {member.middle_initial ? member.middle_initial + " " : ""}{member.last_name}
                           </button>
-                          <div className="text-xs font-bold text-primary tracking-tight mt-0.5">ID: {member.student_id || 'NOT SET'}</div>
+                          <div className="flex flex-wrap items-center gap-1.5 mt-0.5">
+                            <span className={`text-xs font-bold font-mono ${!isValidStudentId(member.student_id) ? 'text-amber-800' : 'text-primary'}`}>
+                              ID: {member.student_id || 'NOT SET'}
+                            </span>
+                            {!isValidStudentId(member.student_id) ? (
+                              <button
+                                type="button"
+                                onClick={() => handleEditClick(member)}
+                                title="This Student ID does not follow 0000-0000 format. Click to fix."
+                                className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md text-[9px] font-black uppercase tracking-wider bg-amber-100 text-amber-900 border border-amber-300 hover:bg-amber-200 transition-colors cursor-pointer"
+                              >
+                                <LuTriangleAlert className="size-2.5 text-amber-700" /> Needs Fix
+                              </button>
+                            ) : null}
+                            {(() => {
+                              const nameK = `${member.first_name || ""} ${member.last_name || ""}`.trim().toLowerCase();
+                              const isDupN = Boolean(nameK && (duplicateMetadata.nameCounts.get(nameK) || 0) > 1);
+                              return isDupN ? (
+                                <span 
+                                  title={`Duplicate Name: ${duplicateMetadata.nameCounts.get(nameK)} students share the name "${member.first_name} ${member.last_name}"`}
+                                  className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md text-[9px] font-black uppercase tracking-wider bg-purple-100 text-purple-900 border border-purple-300"
+                                >
+                                  <LuCopy className="size-2.5 text-purple-700" /> Dup Name ({duplicateMetadata.nameCounts.get(nameK)})
+                                </span>
+                              ) : null;
+                            })()}
+                            {(() => {
+                              const idK = normalizeStudentId(member.student_id || "").toLowerCase();
+                              const isDupI = Boolean(idK && (duplicateMetadata.idCounts.get(idK) || 0) > 1);
+                              return isDupI ? (
+                                <span 
+                                  title={`Duplicate ID: ${duplicateMetadata.idCounts.get(idK)} records share the ID "${member.student_id}"`}
+                                  className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md text-[9px] font-black uppercase tracking-wider bg-amber-100 text-amber-900 border border-amber-300"
+                                >
+                                  <LuCopy className="size-2.5 text-amber-700" /> Dup ID ({duplicateMetadata.idCounts.get(idK)})
+                                </span>
+                              ) : null;
+                            })()}
+                            {member.hasAccountError || !member.accounts ? (
+                              <span 
+                                title="This user record is missing a login account in the accounts table. Use the Generate Account button above or click edit to create one."
+                                className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md text-[9px] font-black uppercase tracking-wider bg-rose-100 text-rose-900 border border-rose-300"
+                              >
+                                <LuCircleAlert className="size-2.5 text-rose-700" /> No Account
+                              </span>
+                            ) : null}
+                          </div>
                         </div>
                       </div>
                     </td>
@@ -823,9 +1448,23 @@ export default function ViewMembersPage() {
                       </div>
                     </td>
                     <td className="px-6 py-5">
-                      <div className="flex items-center gap-2 text-sm font-medium text-slate-600">
-                        <LuMail className="size-4 text-slate-300" />
-                        {member.email}
+                      <div className="space-y-1">
+                        <div className="flex items-center gap-2 text-sm font-medium text-slate-600">
+                          <LuMail className="size-4 text-slate-300 shrink-0" />
+                          <span className="truncate max-w-[200px]">{member.email}</span>
+                        </div>
+                        {(() => {
+                          const emailK = (member.email || "").trim().toLowerCase();
+                          const isDupE = Boolean(emailK && (duplicateMetadata.emailCounts.get(emailK) || 0) > 1);
+                          return isDupE ? (
+                            <span 
+                              title={`Duplicate Email: ${duplicateMetadata.emailCounts.get(emailK)} records share the email "${member.email}"`}
+                              className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md text-[9px] font-black uppercase tracking-wider bg-rose-100 text-rose-900 border border-rose-300"
+                            >
+                              <LuCopy className="size-2.5 text-rose-700" /> Dup Email ({duplicateMetadata.emailCounts.get(emailK)})
+                            </span>
+                          ) : null;
+                        })()}
                       </div>
                     </td>
                     <td className="px-6 py-5">

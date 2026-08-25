@@ -21,7 +21,9 @@ import {
   LuSparkles,
   LuTriangleAlert,
   LuRefreshCw,
-  LuCheck
+  LuCheck,
+  LuExternalLink,
+  LuFileSpreadsheet
 } from "react-icons/lu";
 import { Button } from "@/app/Components/ui/button";
 import { Card, CardContent } from "@/app/Components/ui/card";
@@ -73,6 +75,14 @@ export default function AddMembersPage() {
   const [saveReport, setSaveReport] = useState<PostSaveReport | null>(null);
   const [memberErrors, setMemberErrors] = useState<Record<string, string>>({});
   const [editingIndex, setEditingIndex] = useState<number | null>(null);
+
+  // Google Sheet Link and Live Sync States
+  const DEFAULT_GOOGLE_SHEET_URL = "https://docs.google.com/spreadsheets/d/1ddZMsmpNXSCF1BmsWf_ethCaTD_4DAyVf9ERvPgPias/edit?gid=258554365#gid=258554365";
+  const [googleSheetUrl, setGoogleSheetUrl] = useState(DEFAULT_GOOGLE_SHEET_URL);
+  const [isFetchingSheet, setIsFetchingSheet] = useState(false);
+  const [autoFetchSheet, setAutoFetchSheet] = useState(false);
+  const [isSheetUrlModalOpen, setIsSheetUrlModalOpen] = useState(false);
+  const [customSheetUrlInput, setCustomSheetUrlInput] = useState(DEFAULT_GOOGLE_SHEET_URL);
 
   // Table filtering and pagination states
   const [filterStatus, setFilterStatus] = useState<"all" | "new" | "existing">("all");
@@ -187,6 +197,123 @@ export default function AddMembersPage() {
     };
   }, [fetchAllExistingRecords]);
 
+  // Google Sheet Live Fetcher
+  const handleFetchFromGoogleSheet = async (customUrl?: string) => {
+    const targetUrl = customUrl || googleSheetUrl;
+    setIsFetchingSheet(true);
+    setErrorMessage(null);
+    try {
+      const response = await fetch("/api/sheets/fetch", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ url: targetUrl }),
+      });
+
+      const resData = await response.json();
+
+      if (!response.ok || !resData.success) {
+        throw new Error(resData.error || "Failed to fetch data from Google Sheet.");
+      }
+
+      const rows: Record<string, unknown>[] = resData.data || [];
+      if (rows.length === 0) {
+        toast.warning("Google Sheet was fetched, but contains 0 rows.");
+        return;
+      }
+
+      let invalidCount = 0;
+      const validatedData: RawMemberData[] = [];
+
+      rows.forEach((row) => {
+        const rawStudentId = String(row.student_id || row["Student ID"] || row["ID"] || row["id"] || "").trim();
+        const studentId = normalizeStudentId(rawStudentId) || rawStudentId;
+        const firstName = String(row.first_name || row["First Name"] || row["Firstname"] || row["firstname"] || "").trim();
+        const lastName = String(row.last_name || row["Last Name"] || row["Lastname"] || row["lastname"] || "").trim();
+        const email = String(row.email || row["Email"] || row["Email Address"] || "").trim().toLowerCase();
+
+        if (!studentId || !firstName || !lastName || !email || !isValidEmail(email)) {
+          invalidCount++;
+          return;
+        }
+
+        const rawStatus = String(row.membership_status || row["Membership Status"] || row["Status"] || row["status"] || "Not Paid").trim();
+        const validStatuses = ["Partial", "Fully Paid", "Not Paid", "Half Semester Paid"] as const;
+        const membershipStatus = (validStatuses.includes(rawStatus as typeof validStatuses[number])
+          ? rawStatus
+          : "Not Paid") as RawMemberData["membership_status"];
+
+        validatedData.push({
+          student_id: studentId,
+          first_name: firstName,
+          middle_initial: String(row.middle_initial || row["Middle Initial"] || row["MI"] || row["M.I."] || "").trim(),
+          last_name: lastName,
+          course: String(row.course || row["Course"] || row["program"] || "").trim(),
+          section: String(row.section || row["Section"] || row["sec"] || "").trim(),
+          year: String(row.year || row["Year"] || row["yr"] || "").trim(),
+          email: email,
+          membership_status: membershipStatus,
+          payment: Number(row.payment || row["Payment"] || row["Amount"] || row["amount"] || 0) || 0,
+          receipt: String(row.receipt || row["Receipt"] || row["Receipt Number"] || row["Receipt No"] || "").trim(),
+        });
+      });
+
+      setMembers(validatedData);
+      setCurrentPage(1);
+
+      const { idSet: existingDbSet, emailSet: existingEmailSet } = await fetchAllExistingRecords();
+      const seenInFile = new Set<string>();
+      const seenEmailsInFile = new Set<string>();
+      let inDbCount = 0;
+      let inBatchDuplicateCount = 0;
+      let newMemberCount = 0;
+
+      validatedData.forEach((m) => {
+        const sKey = String(m.student_id || "").trim().toLowerCase();
+        const emailKey = String(m.email || "").trim().toLowerCase();
+
+        const inDb = isIdInSet(sKey, existingDbSet) || (emailKey && existingEmailSet.has(emailKey));
+        const seenInBatch = isIdInSet(sKey, seenInFile) || (emailKey && seenEmailsInFile.has(emailKey));
+
+        if (inDb) {
+          inDbCount++;
+        } else if (seenInBatch) {
+          inBatchDuplicateCount++;
+        } else {
+          newMemberCount++;
+        }
+
+        if (sKey) addIdVariations(sKey, seenInFile);
+        if (emailKey) seenEmailsInFile.add(emailKey);
+      });
+
+      toast.success(`Fetched ${validatedData.length} rows from Google Sheet (${newMemberCount} new to save, ${inDbCount} already in database).`);
+
+      if (invalidCount > 0) {
+        setErrorMessage({
+          type: "warning",
+          text: `Skipped ${invalidCount} row(s) due to missing Student ID, missing name, or invalid email address.`,
+        });
+      }
+    } catch (err: any) {
+      console.error("Google sheet sync error:", err);
+      toast.error(err.message || "Failed to fetch from Google Sheet.");
+      setErrorMessage({
+        type: "error",
+        text: err.message || "Failed to fetch Google Sheet data. Please check permissions.",
+      });
+    } finally {
+      setIsFetchingSheet(false);
+    }
+  };
+
+  useEffect(() => {
+    const savedAuto = typeof window !== "undefined" && localStorage.getItem("acetrack_autofetch_add") === "true";
+    setAutoFetchSheet(savedAuto);
+    if (savedAuto) {
+      handleFetchFromGoogleSheet();
+    }
+  }, []);
+
   const processFile = async (file: File) => {
     setIsUploading(true);
     setErrorMessage(null);
@@ -216,7 +343,7 @@ export default function AddMembersPage() {
           const lastName = String(row.last_name || row["Last Name"] || "").trim();
           const email = String(row.email || row["Email"] || "").trim().toLowerCase();
 
-          if (!studentId || !isValidStudentId(studentId) || !firstName || !lastName || !email || !isValidEmail(email)) {
+          if (!studentId || !firstName || !lastName || !email || !isValidEmail(email)) {
             invalidCount++;
             return;
           }
@@ -302,7 +429,7 @@ export default function AddMembersPage() {
         if (invalidCount > 0) {
           setErrorMessage({
             type: "warning",
-            text: `Skipped ${invalidCount} row(s) due to incomplete or invalid Student ID (format must strictly be 0000-0000, e.g. 2022-2703), incomplete email address, or missing required fields.`
+            text: `Skipped ${invalidCount} row(s) due to missing Student ID, missing name, or invalid email address.`
           });
         }
       } catch (error) {
@@ -327,14 +454,9 @@ export default function AddMembersPage() {
 
     const sId = normalizeStudentId(manualMember.student_id.trim());
 
-    // Strict validation
+    // Basic required fields validation
     if (!sId || !manualMember.first_name || !manualMember.last_name || !manualMember.email) {
       toast.error("Please fill in all required fields.");
-      return;
-    }
-
-    if (!isValidStudentId(sId)) {
-      toast.error("Student ID must be complete and formatted as 0000-0000 (e.g. 2022-2703). Incomplete IDs are not allowed.");
       return;
     }
 
@@ -397,11 +519,6 @@ export default function AddMembersPage() {
 
     if (!sId || !manualMember.first_name || !manualMember.last_name || !manualMember.email) {
       toast.error("Please fill in all required fields.");
-      return;
-    }
-
-    if (!isValidStudentId(sId)) {
-      toast.error("Student ID must be complete and formatted as 0000-0000 (e.g. 2022-2703). Incomplete IDs are not allowed.");
       return;
     }
 
@@ -565,12 +682,6 @@ export default function AddMembersPage() {
       for (const m of members) {
         const sKey = String(m.student_id || "").trim().toLowerCase();
         const eKey = String(m.email || "").trim().toLowerCase();
-
-        if (!isValidStudentId(m.student_id)) {
-          toast.error(`Cannot save: Member ${m.first_name} ${m.last_name} has an invalid or incomplete Student ID "${m.student_id}". Must be 0000-0000 (e.g. 2022-2703).`);
-          setIsSaving(false);
-          return;
-        }
 
         const inDb = isIdInSet(sKey, freshExistingStudentIds) || (eKey && freshExistingEmails.has(eKey));
         const inBatch = isIdInSet(sKey, seenInBatch) || (eKey && seenEmailsInBatch.has(eKey));
@@ -1064,6 +1175,67 @@ export default function AddMembersPage() {
         </div>
       )}
 
+      {/* Connected Google Sheet Sync Banner */}
+      <div className="bg-gradient-to-r from-emerald-50 via-teal-50/70 to-emerald-50 border border-emerald-200 rounded-3xl p-5 shadow-xs flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+        <div className="flex items-center gap-3.5">
+          <div className="size-11 rounded-2xl bg-emerald-600 text-white flex items-center justify-center font-bold shadow-md shadow-emerald-200 shrink-0">
+            <LuFileSpreadsheet className="size-6" />
+          </div>
+          <div>
+            <div className="flex items-center gap-2 flex-wrap">
+              <h4 className="text-sm font-black text-emerald-950">Linked Google Sheet</h4>
+              <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-black bg-emerald-100 text-emerald-800">
+                Live Source Connected
+              </span>
+            </div>
+            <p className="text-xs text-emerald-800/80 font-medium mt-0.5 truncate max-w-xl">
+              {googleSheetUrl}
+            </p>
+          </div>
+        </div>
+
+        <div className="flex flex-wrap items-center gap-2.5 shrink-0 self-end md:self-center">
+          <a
+            href={googleSheetUrl}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-bold bg-white text-emerald-900 border border-emerald-300 hover:bg-emerald-100/60 transition-colors shadow-xs"
+          >
+            <LuExternalLink className="size-3.5" /> Open Sheet ↗
+          </a>
+
+          <Button
+            size="sm"
+            disabled={isFetchingSheet}
+            onClick={() => handleFetchFromGoogleSheet()}
+            className="rounded-xl h-9 text-xs font-bold bg-emerald-600 hover:bg-emerald-700 text-white shadow-xs cursor-pointer"
+          >
+            <LuRefreshCw className={`size-3.5 mr-1.5 ${isFetchingSheet ? "animate-spin" : ""}`} />
+            {isFetchingSheet ? "Fetching Live..." : "Fetch from Google Sheet"}
+          </Button>
+
+          <button
+            type="button"
+            onClick={() => {
+              const next = !autoFetchSheet;
+              setAutoFetchSheet(next);
+              if (typeof window !== "undefined") {
+                localStorage.setItem("acetrack_autofetch_add", String(next));
+              }
+              toast.info(next ? "Auto-fetch on page open enabled." : "Auto-fetch disabled.");
+            }}
+            title="Automatically fetch latest Google Sheet rows when you open this page"
+            className={`px-3 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer border ${
+              autoFetchSheet
+                ? "bg-emerald-700 text-white border-emerald-700"
+                : "bg-white text-slate-600 border-slate-200 hover:bg-slate-50"
+            }`}
+          >
+            Auto-Sync: {autoFetchSheet ? "ON" : "OFF"}
+          </button>
+        </div>
+      </div>
+
       {members.length === 0 ? (
         <Card
           onDragOver={handleDragOver}
@@ -1083,7 +1255,7 @@ export default function AddMembersPage() {
               {isDragging ? "Drop your file here" : "Upload Members List"}
             </h3>
             <p className="text-slate-500 max-w-sm mx-auto mb-8">
-              Drop your .xlsx, .xls, or .csv file here. Make sure it has a <strong>Student ID</strong> column with <strong>0000-0000</strong> format (e.g. <strong>2022-2703</strong>).
+              Drop your .xlsx, .xls, or .csv file here. Existing students in the database will be preserved and won&apos;t be overwritten.
             </p>
             <div className="relative inline-block">
               <input
@@ -1513,8 +1685,8 @@ export default function AddMembersPage() {
                 {manualMember.student_id && (
                   <div className="flex items-center gap-2">
                     {!isValidStudentId(manualMember.student_id) ? (
-                      <span className="text-xs font-bold text-rose-500 flex items-center gap-1">
-                        <LuCircleAlert className="size-3.5" /> Must be 0000-0000 (e.g. 2022-2703)
+                      <span className="text-xs font-semibold text-amber-600 flex items-center gap-1">
+                        <LuTriangleAlert className="size-3.5" /> Recommended: 0000-0000 format
                       </span>
                     ) : dbExistingStudentIds.has(manualMember.student_id.trim().toLowerCase()) ? (
                       <span className="text-xs font-bold text-amber-600 flex items-center gap-1">

@@ -149,17 +149,58 @@ export default function AdminSanctionsPage() {
         .order("created_at", { ascending: false });
       setEvents(eventsData || []);
 
-      // 2. Fetch Students
-      const { data: studentsData } = await supabase
-        .from("users")
-        .select("id, first_name, last_name, student_id, email, course, section, year")
-        .not("student_id", "is", null)
-        .order("last_name", { ascending: true });
-      setStudents(studentsData || []);
+      // 2. Fetch ALL Students without 1000 limit
+      let allStudents: any[] = [];
+      let studentFrom = 0;
+      const step = 1000;
+      let hasMoreStudents = true;
 
-      // 3. Fetch Attendance
-      const { data: attData } = await supabase.from("attendance").select("event_id, student_id, status");
-      setAttendanceRecords(attData || []);
+      while (hasMoreStudents) {
+        const { data: studentsData, error: sErr } = await supabase
+          .from("users")
+          .select("id, first_name, last_name, student_id, email, course, section, year")
+          .not("student_id", "is", null)
+          .order("last_name", { ascending: true })
+          .range(studentFrom, studentFrom + step - 1);
+
+        if (sErr) throw sErr;
+        if (studentsData && studentsData.length > 0) {
+          allStudents = allStudents.concat(studentsData);
+          if (studentsData.length < step) {
+            hasMoreStudents = false;
+          } else {
+            studentFrom += step;
+          }
+        } else {
+          hasMoreStudents = false;
+        }
+      }
+      setStudents(allStudents);
+
+      // 3. Fetch ALL Attendance records without 1000 limit
+      let allAtt: any[] = [];
+      let attFrom = 0;
+      let hasMoreAtt = true;
+
+      while (hasMoreAtt) {
+        const { data: attData, error: aErr } = await supabase
+          .from("attendance")
+          .select("event_id, student_id, status")
+          .range(attFrom, attFrom + step - 1);
+
+        if (aErr) throw aErr;
+        if (attData && attData.length > 0) {
+          allAtt = allAtt.concat(attData);
+          if (attData.length < step) {
+            hasMoreAtt = false;
+          } else {
+            attFrom += step;
+          }
+        } else {
+          hasMoreAtt = false;
+        }
+      }
+      setAttendanceRecords(allAtt);
 
       // 4. Fetch Sanction Rules
       const { data: rulesData } = await supabase

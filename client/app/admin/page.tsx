@@ -156,28 +156,48 @@ export default function AdminDashboard() {
     async function fetchStatsAndCharts() {
       setLoading(true);
       try {
-        // Fetch all student members, their courses, year, profile picture, and membership status/payment details
-        const { data, error } = await supabase
-          .from("users")
-          .select(`
-            id,
-            course,
-            year,
-            section,
-            profile_picture,
-            memberships:memberships(status, payment, created_at),
-            accounts:accounts!inner(role)
-          `)
-          .eq("accounts.role", 1);
+        let allRecords: any[] = [];
+        let from = 0;
+        const step = 1000;
+        let hasMore = true;
 
-        if (error) throw error;
+        while (hasMore) {
+          const { data, error } = await supabase
+            .from("users")
+            .select(`
+              id,
+              course,
+              year,
+              section,
+              profile_picture,
+              memberships:memberships(status, payment, created_at),
+              accounts:accounts(role)
+            `)
+            .range(from, from + step - 1);
 
-        const records = data || [];
-        setMembersData(records);
-        setMemberCount(records.length);
+          if (error) throw error;
+
+          if (data && data.length > 0) {
+            const nonAdmins = (data as any[]).filter((item) => {
+              const acc = Array.isArray(item.accounts) ? item.accounts[0] : item.accounts;
+              return acc?.role !== 0;
+            });
+            allRecords = allRecords.concat(nonAdmins);
+            if (data.length < step) {
+              hasMore = false;
+            } else {
+              from += step;
+            }
+          } else {
+            hasMore = false;
+          }
+        }
+
+        setMembersData(allRecords);
+        setMemberCount(allRecords.length);
 
         // Sum payments
-        const sum = records.reduce((acc, curr) => {
+        const sum = allRecords.reduce((acc, curr) => {
           const ms = getMembership(curr);
           return acc + (Number(ms?.payment) || 0);
         }, 0);

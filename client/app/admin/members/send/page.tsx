@@ -71,34 +71,52 @@ export default function StudentCredentialsPage() {
   const fetchMembers = async () => {
     setLoading(true);
     try {
-      const { data, error } = await supabase
-        .from("users")
-        .select(`
-          id,
-          student_id,
-          first_name,
-          middle_initial,
-          last_name,
-          email,
-          course,
-          section,
-          year,
-          created_at,
-          memberships:memberships(status, payment, receipt),
-          accounts:accounts!inner(role, password, encrypted_password, must_change_password)
-        `)
-        .neq('accounts.role', 0)
-        .order("created_at", { ascending: false });
+      let allUsers: any[] = [];
+      let from = 0;
+      const step = 1000;
+      let hasMore = true;
 
-      if (error) throw error;
+      while (hasMore) {
+        const { data, error } = await supabase
+          .from("users")
+          .select(`
+            id,
+            student_id,
+            first_name,
+            middle_initial,
+            last_name,
+            email,
+            course,
+            section,
+            year,
+            created_at,
+            memberships:memberships(status, payment, receipt),
+            accounts:accounts!inner(role, password, encrypted_password, must_change_password)
+          `)
+          .neq('accounts.role', 0)
+          .order("created_at", { ascending: false })
+          .range(from, from + step - 1);
 
-      const formatted = (data as any[]).map(item => ({
-        ...item,
-        accounts: Array.isArray(item.accounts) ? item.accounts[0] : item.accounts,
-        memberships: Array.isArray(item.memberships) ? item.memberships[0] : item.memberships
-      }));
+        if (error) throw error;
 
-      setMembers(formatted);
+        if (data && data.length > 0) {
+          const formatted = (data as any[]).map((item) => ({
+            ...item,
+            accounts: Array.isArray(item.accounts) ? item.accounts[0] : item.accounts,
+            memberships: Array.isArray(item.memberships) ? item.memberships[0] : item.memberships,
+          }));
+          allUsers = allUsers.concat(formatted);
+          if (data.length < step) {
+            hasMore = false;
+          } else {
+            from += step;
+          }
+        } else {
+          hasMore = false;
+        }
+      }
+
+      setMembers(allUsers);
     } catch (error: any) {
       toast.error(`Failed to load student credentials: ${error.message}`);
     } finally {

@@ -47,6 +47,7 @@ const menuItems: MenuItem[] = [
       { name: "View Members", href: "/admin/members/view" },
       { name: "Add Members", href: "/admin/members/add" },
       { name: "Student Credentials", href: "/admin/members/send" },
+      { name: "Data Comparison", href: "/admin/members/compare" },
     ]
   },
   { name: "Officers", icon: LuAward, href: "/admin/officers" },
