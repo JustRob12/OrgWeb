@@ -28,7 +28,7 @@ import { Card, CardContent } from "@/app/Components/ui/card";
 import { toast } from "sonner";
 import { createClient } from "@/utils/supabase/client";
 import Link from "next/link";
-import { isValidEmail } from "@/lib/utils";
+import { isValidEmail, isValidStudentId, formatStudentIdInput, normalizeStudentId } from "@/lib/utils";
 import { ConfirmModal } from "@/app/Components/ui/confirm-modal";
 import { Modal } from "@/app/Components/ui/modal";
 
@@ -111,6 +111,18 @@ export default function ViewMembersPage() {
     e.preventDefault();
     if (!selectedMemberForEdit) return;
 
+    const sId = normalizeStudentId(editStudentId.trim());
+
+    if (!sId) {
+      toast.error("Please enter a Student ID.");
+      return;
+    }
+
+    if (!isValidStudentId(sId)) {
+      toast.error("Student ID must be complete and formatted as 0000-0000 (e.g. 2022-2703). Incomplete IDs are not allowed.");
+      return;
+    }
+
     if (!isValidEmail(editEmail)) {
       toast.error("Please enter a complete email address (e.g. name@gmail.com). Incomplete domains like @gma are not allowed.");
       return;
@@ -125,7 +137,7 @@ export default function ViewMembersPage() {
           first_name: editFirstName.trim(),
           middle_initial: editMiddleInitial.trim() || null,
           last_name: editLastName.trim(),
-          student_id: editStudentId.trim(),
+          student_id: sId,
           course: editCourse.trim(),
           section: editSection.trim(),
           year: editYear.trim(),
@@ -179,7 +191,7 @@ export default function ViewMembersPage() {
                 first_name: editFirstName.trim(),
                 middle_initial: editMiddleInitial.trim(),
                 last_name: editLastName.trim(),
-                student_id: editStudentId.trim(),
+                student_id: sId,
                 course: editCourse.trim(),
                 section: editSection.trim(),
                 year: editYear.trim(),
@@ -1195,13 +1207,28 @@ export default function ViewMembersPage() {
               />
             </div>
             <div className="space-y-1 col-span-2">
-              <label className="text-xs font-bold text-slate-500 uppercase">Student ID</label>
+              <div className="flex items-center justify-between">
+                <label className="text-xs font-bold text-slate-500 uppercase">Student ID *</label>
+                {editStudentId && (
+                  !isValidStudentId(editStudentId) ? (
+                    <span className="text-[10px] font-bold text-rose-500">Format: 0000-0000</span>
+                  ) : (
+                    <span className="text-[10px] font-bold text-emerald-600">Valid Format</span>
+                  )
+                )}
+              </div>
               <input
                 type="text"
                 required
+                maxLength={9}
+                placeholder="2022-2703"
                 value={editStudentId}
-                onChange={(e) => setEditStudentId(e.target.value)}
-                className="w-full h-11 px-3 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:bg-white focus:outline-none focus:ring-4 focus:ring-primary/10 transition-all font-medium"
+                onChange={(e) => setEditStudentId(formatStudentIdInput(e.target.value))}
+                className={`w-full h-11 px-3 bg-slate-50 border rounded-xl text-sm font-mono focus:bg-white focus:outline-none focus:ring-4 transition-all font-medium ${
+                  editStudentId && !isValidStudentId(editStudentId)
+                    ? "border-rose-300 focus:border-rose-500 focus:ring-rose-500/10"
+                    : "border-slate-200 focus:ring-primary/10"
+                }`}
               />
             </div>
           </div>

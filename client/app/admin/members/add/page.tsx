@@ -32,7 +32,7 @@ import { createClient } from "@/utils/supabase/client";
 import { Modal } from "@/app/Components/ui/modal";
 import { ConfirmModal } from "@/app/Components/ui/confirm-modal";
 
-import { isValidEmail } from "@/lib/utils";
+import { isValidEmail, isValidStudentId, formatStudentIdInput, normalizeStudentId } from "@/lib/utils";
 import { encryptPassword } from "@/lib/encryption";
 
 interface RawMemberData {
@@ -49,6 +49,15 @@ interface RawMemberData {
   receipt?: string;
 }
 
+interface PostSaveReport {
+  savedCount: number;
+  remainingCount: number;
+  inDbCount: number;
+  duplicateInListCount: number;
+  failedCount: number;
+  failedDetails: { name: string; student_id: string; reason: string }[];
+}
+
 export default function AddMembersPage() {
   const [members, setMembers] = useState<RawMemberData[]>([]);
   const [dbExistingStudentIds, setDbExistingStudentIds] = useState<Set<string>>(new Set());
@@ -61,6 +70,8 @@ export default function AddMembersPage() {
   const [isClearModalOpen, setIsClearModalOpen] = useState(false);
   const [isRemoveDuplicatesModalOpen, setIsRemoveDuplicatesModalOpen] = useState(false);
   const [errorMessage, setErrorMessage] = useState<{ type: "error" | "warning" | "success"; text: string } | null>(null);
+  const [saveReport, setSaveReport] = useState<PostSaveReport | null>(null);
+  const [memberErrors, setMemberErrors] = useState<Record<string, string>>({});
   const [editingIndex, setEditingIndex] = useState<number | null>(null);
 
   // Table filtering and pagination states
@@ -95,72 +106,95 @@ export default function AddMembersPage() {
 
   const supabase = useMemo(() => createClient(), []);
 
-  // Fetch all existing student IDs and emails from database
-  const fetchExistingStudentIds = useCallback(async () => {
+  // Helper to add all possible format variations of a student ID to a lookup set
+  const addIdVariations = (id: string, targetSet: Set<string>) => {
+    const clean = String(id || "").trim().toLowerCase();
+    if (!clean) return;
+    targetSet.add(clean);
+    targetSet.add(clean.replace(/[^a-z0-9]/g, ""));
+    const normalized = normalizeStudentId(clean).toLowerCase();
+    if (normalized) {
+      targetSet.add(normalized);
+      targetSet.add(normalized.replace(/[^a-z0-9]/g, ""));
+    }
+  };
+
+  // Helper to test if a student ID matches any variation in a lookup set
+  const isIdInSet = (id: string, targetSet: Set<string>): boolean => {
+    const clean = String(id || "").trim().toLowerCase();
+    if (!clean) return false;
+    if (targetSet.has(clean)) return true;
+    if (targetSet.has(clean.replace(/[^a-z0-9]/g, ""))) return true;
+    const normalized = normalizeStudentId(clean).toLowerCase();
+    if (normalized && (targetSet.has(normalized) || targetSet.has(normalized.replace(/[^a-z0-9]/g, "")))) return true;
+    return false;
+  };
+
+  // Fetch ALL existing student IDs and emails from database with pagination (handles >1000 rows)
+  const fetchAllExistingRecords = useCallback(async () => {
     try {
-      const { data, error } = await supabase
-        .from("users")
-        .select("student_id, email");
+      let allUsers: { student_id?: string | null; email?: string | null }[] = [];
+      let from = 0;
+      const step = 1000;
+      let hasMore = true;
 
-      if (error) throw error;
+      while (hasMore) {
+        const { data, error } = await supabase
+          .from("users")
+          .select("student_id, email")
+          .range(from, from + step - 1);
 
-      const idSet = new Set(
-        (data || [])
-          .map((u) => String(u.student_id || "").trim().toLowerCase())
-          .filter(Boolean)
-      );
-      const emailSet = new Set(
-        (data || [])
-          .map((u) => String(u.email || "").trim().toLowerCase())
-          .filter(Boolean)
-      );
+        if (error) throw error;
+        if (data && data.length > 0) {
+          allUsers = allUsers.concat(data);
+          if (data.length < step) {
+            hasMore = false;
+          } else {
+            from += step;
+          }
+        } else {
+          hasMore = false;
+        }
+      }
+
+      const idSet = new Set<string>();
+      const emailSet = new Set<string>();
+
+      allUsers.forEach((u) => {
+        if (u.student_id) addIdVariations(u.student_id, idSet);
+        if (u.email) emailSet.add(String(u.email).trim().toLowerCase());
+      });
+
       setDbExistingStudentIds(idSet);
       setDbExistingEmails(emailSet);
-      return idSet;
+      return { idSet, emailSet };
     } catch (err: unknown) {
       console.error("Error fetching existing records:", err);
-      return new Set<string>();
+      return { idSet: new Set<string>(), emailSet: new Set<string>() };
     }
   }, [supabase]);
 
   useEffect(() => {
     let isMounted = true;
     const load = async () => {
-      try {
-        const { data, error } = await supabase
-          .from("users")
-          .select("student_id, email");
-
-        if (!error && data && isMounted) {
-          const idSet = new Set(
-            data
-              .map((u) => String(u.student_id || "").trim().toLowerCase())
-              .filter(Boolean)
-          );
-          const emailSet = new Set(
-            data
-              .map((u) => String(u.email || "").trim().toLowerCase())
-              .filter(Boolean)
-          );
-          setDbExistingStudentIds(idSet);
-          setDbExistingEmails(emailSet);
-        }
-      } catch (err: unknown) {
-        console.error("Error loading initial records:", err);
+      if (isMounted) {
+        await fetchAllExistingRecords();
       }
     };
     load();
     return () => {
       isMounted = false;
     };
-  }, [supabase]);
+  }, [fetchAllExistingRecords]);
 
   const processFile = async (file: File) => {
     setIsUploading(true);
     setErrorMessage(null);
+    setSaveReport(null);
+    setMemberErrors({});
 
-    // Refresh existing student IDs from database to ensure up-to-date check
-    const existingDbSet = await fetchExistingStudentIds();
+    // Refresh all existing student IDs & emails from database with full pagination
+    const { idSet: existingDbSet, emailSet: existingEmailSet } = await fetchAllExistingRecords();
 
     const reader = new FileReader();
 
@@ -176,12 +210,13 @@ export default function AddMembersPage() {
         const validatedData: RawMemberData[] = [];
 
         data.forEach((row) => {
-          const studentId = String(row.student_id || row["Student ID"] || row["ID"] || "").trim();
+          const rawStudentId = String(row.student_id || row["Student ID"] || row["ID"] || "").trim();
+          const studentId = normalizeStudentId(rawStudentId);
           const firstName = String(row.first_name || row["First Name"] || "").trim();
           const lastName = String(row.last_name || row["Last Name"] || "").trim();
           const email = String(row.email || row["Email"] || "").trim().toLowerCase();
 
-          if (!studentId || !firstName || !lastName || !email || !isValidEmail(email)) {
+          if (!studentId || !isValidStudentId(studentId) || !firstName || !lastName || !email || !isValidEmail(email)) {
             invalidCount++;
             return;
           }
@@ -212,14 +247,17 @@ export default function AddMembersPage() {
 
         // Accurate breakdown of incoming file rows
         const seenInFile = new Set<string>();
+        const seenEmailsInFile = new Set<string>();
         let inDbCount = 0;
         let inBatchDuplicateCount = 0;
         let newMemberCount = 0;
 
         validatedData.forEach((m) => {
           const sKey = String(m.student_id || "").trim().toLowerCase();
-          const inDb = existingDbSet.has(sKey);
-          const seenInBatch = seenInFile.has(sKey);
+          const emailKey = String(m.email || "").trim().toLowerCase();
+
+          const inDb = isIdInSet(sKey, existingDbSet) || (emailKey && existingEmailSet.has(emailKey));
+          const seenInBatch = isIdInSet(sKey, seenInFile) || (emailKey && seenEmailsInFile.has(emailKey));
 
           if (inDb) {
             inDbCount++;
@@ -228,7 +266,9 @@ export default function AddMembersPage() {
           } else {
             newMemberCount++;
           }
-          seenInFile.add(sKey);
+
+          if (sKey) addIdVariations(sKey, seenInFile);
+          if (emailKey) seenEmailsInFile.add(emailKey);
         });
 
         if (inDbCount > 0 && inBatchDuplicateCount > 0) {
@@ -262,7 +302,7 @@ export default function AddMembersPage() {
         if (invalidCount > 0) {
           setErrorMessage({
             type: "warning",
-            text: `Skipped ${invalidCount} rows due to missing required fields or incomplete email addresses (must include complete domain like @gmail.com).`
+            text: `Skipped ${invalidCount} row(s) due to incomplete or invalid Student ID (format must strictly be 0000-0000, e.g. 2022-2703), incomplete email address, or missing required fields.`
           });
         }
       } catch (error) {
@@ -285,9 +325,16 @@ export default function AddMembersPage() {
   const handleManualAdd = (e: React.FormEvent) => {
     e.preventDefault();
 
-    // Basic validation
-    if (!manualMember.student_id || !manualMember.first_name || !manualMember.last_name || !manualMember.email) {
+    const sId = normalizeStudentId(manualMember.student_id.trim());
+
+    // Strict validation
+    if (!sId || !manualMember.first_name || !manualMember.last_name || !manualMember.email) {
       toast.error("Please fill in all required fields.");
+      return;
+    }
+
+    if (!isValidStudentId(sId)) {
+      toast.error("Student ID must be complete and formatted as 0000-0000 (e.g. 2022-2703). Incomplete IDs are not allowed.");
       return;
     }
 
@@ -296,12 +343,16 @@ export default function AddMembersPage() {
       return;
     }
 
-    const sIdKey = manualMember.student_id.trim().toLowerCase();
-    const isAlreadyInDb = dbExistingStudentIds.has(sIdKey);
-    const isAlreadyInList = members.some((m) => m.student_id.trim().toLowerCase() === sIdKey);
+    const sIdKey = sId.toLowerCase();
+    const isAlreadyInDb = isIdInSet(sIdKey, dbExistingStudentIds) || (manualMember.email && dbExistingEmails.has(manualMember.email.trim().toLowerCase()));
+    const isAlreadyInList = members.some((m) => {
+      const mId = m.student_id.trim().toLowerCase();
+      const mEmail = m.email.trim().toLowerCase();
+      return isIdInSet(mId, new Set([sIdKey])) || (manualMember.email && mEmail === manualMember.email.trim().toLowerCase());
+    });
 
     setErrorMessage(null);
-    setMembers((prev) => [...prev, manualMember]);
+    setMembers((prev) => [...prev, { ...manualMember, student_id: sId }]);
     setIsManualModalOpen(false);
 
     // Reset form
@@ -342,8 +393,15 @@ export default function AddMembersPage() {
   const handleManualEditSave = (e: React.FormEvent) => {
     e.preventDefault();
 
-    if (!manualMember.student_id || !manualMember.first_name || !manualMember.last_name || !manualMember.email) {
+    const sId = normalizeStudentId(manualMember.student_id.trim());
+
+    if (!sId || !manualMember.first_name || !manualMember.last_name || !manualMember.email) {
       toast.error("Please fill in all required fields.");
+      return;
+    }
+
+    if (!isValidStudentId(sId)) {
+      toast.error("Student ID must be complete and formatted as 0000-0000 (e.g. 2022-2703). Incomplete IDs are not allowed.");
       return;
     }
 
@@ -355,7 +413,7 @@ export default function AddMembersPage() {
     setMembers((prev) => {
       const next = [...prev];
       if (editingIndex !== null && next[editingIndex]) {
-        next[editingIndex] = manualMember;
+        next[editingIndex] = { ...manualMember, student_id: sId };
       }
       return next;
     });
@@ -384,6 +442,7 @@ export default function AddMembersPage() {
     const onlyNew = membersWithStatus.filter((item) => item.isNew).map((item) => item.member);
     const removedCount = members.length - onlyNew.length;
     setMembers(onlyNew);
+    setSaveReport(null);
     setIsRemoveDuplicatesModalOpen(false);
     setFilterStatus("all");
     setCurrentPage(1);
@@ -406,21 +465,38 @@ export default function AddMembersPage() {
     if (file) processFile(file);
   };
 
-  // Compute members with metadata (isNew, isExistingInDb, isDuplicateInBatch)
+  // Compute members with metadata (isNew, isExistingInDb, isDuplicateInBatch, failureReason)
   const seenSoFar = new Set<string>();
+  const seenEmailsSoFar = new Set<string>();
+
   const membersWithStatus = members.map((member, originalIndex) => {
     const sId = String(member.student_id || "").trim().toLowerCase();
-    const isExistingInDb = dbExistingStudentIds.has(sId);
-    const isDuplicateInBatch = seenSoFar.has(sId);
-    const isNew = !isExistingInDb && !isDuplicateInBatch;
+    const email = String(member.email || "").trim().toLowerCase();
 
-    seenSoFar.add(sId);
+    const isExistingId = isIdInSet(sId, dbExistingStudentIds);
+    const isExistingEmail = email ? dbExistingEmails.has(email) : false;
+    const isExistingInDb = isExistingId || isExistingEmail;
+
+    const isDuplicateId = isIdInSet(sId, seenSoFar);
+    const isDuplicateEmail = email ? seenEmailsSoFar.has(email) : false;
+    const isDuplicateInBatch = isDuplicateId || isDuplicateEmail;
+
+    const failureReason = memberErrors[member.student_id] || null;
+    const isNew = !isExistingInDb && !isDuplicateInBatch && !failureReason;
+
+    if (sId) addIdVariations(sId, seenSoFar);
+    if (email) seenEmailsSoFar.add(email);
 
     return {
       member,
       originalIndex,
       isExistingInDb,
+      isExistingId,
+      isExistingEmail,
       isDuplicateInBatch,
+      isDuplicateId,
+      isDuplicateEmail,
+      failureReason,
       isNew,
     };
   });
@@ -471,44 +547,65 @@ export default function AddMembersPage() {
 
     setIsSaving(true);
     setErrorMessage(null);
+    setSaveReport(null);
     let successCount = 0;
     let errorCount = 0;
+    const failedDetailsList: { name: string; student_id: string; reason: string }[] = [];
 
     try {
-      // 1. Fresh check against DB to get the latest list of existing student IDs
-      const { data: existingUsers, error: fetchError } = await supabase
-        .from("users")
-        .select("student_id");
-
-      if (fetchError) throw fetchError;
-
-      const freshExistingStudentIds = new Set(
-        (existingUsers || [])
-          .map((u) => String(u.student_id || "").trim().toLowerCase())
-          .filter(Boolean)
-      );
+      // 1. Fresh check against DB with full pagination to get all existing student IDs and emails
+      const { idSet: freshExistingStudentIds, emailSet: freshExistingEmails } = await fetchAllExistingRecords();
 
       // Separate new members to save vs already recorded members to keep untouched
       const membersToProcess: RawMemberData[] = [];
       const duplicateMembers: RawMemberData[] = [];
       const seenInBatch = new Set<string>();
+      const seenEmailsInBatch = new Set<string>();
 
       for (const m of members) {
         const sKey = String(m.student_id || "").trim().toLowerCase();
-        if (freshExistingStudentIds.has(sKey) || seenInBatch.has(sKey)) {
+        const eKey = String(m.email || "").trim().toLowerCase();
+
+        if (!isValidStudentId(m.student_id)) {
+          toast.error(`Cannot save: Member ${m.first_name} ${m.last_name} has an invalid or incomplete Student ID "${m.student_id}". Must be 0000-0000 (e.g. 2022-2703).`);
+          setIsSaving(false);
+          return;
+        }
+
+        const inDb = isIdInSet(sKey, freshExistingStudentIds) || (eKey && freshExistingEmails.has(eKey));
+        const inBatch = isIdInSet(sKey, seenInBatch) || (eKey && seenEmailsInBatch.has(eKey));
+
+        if (inDb || inBatch) {
           duplicateMembers.push(m);
         } else {
-          seenInBatch.add(sKey);
+          if (sKey) addIdVariations(sKey, seenInBatch);
+          if (eKey) seenEmailsInBatch.add(eKey);
           membersToProcess.push(m);
         }
       }
 
       if (membersToProcess.length === 0) {
+        const inDb = duplicateMembers.filter((m) => {
+          const sId = String(m.student_id || "").trim().toLowerCase();
+          const email = String(m.email || "").trim().toLowerCase();
+          return isIdInSet(sId, freshExistingStudentIds) || (email && freshExistingEmails.has(email));
+        }).length;
+        const dups = duplicateMembers.length - inDb;
+
+        setSaveReport({
+          savedCount: 0,
+          remainingCount: duplicateMembers.length,
+          inDbCount: inDb,
+          duplicateInListCount: dups,
+          failedCount: 0,
+          failedDetails: [],
+        });
+
         setErrorMessage({
           type: "warning",
-          text: `No new members were saved because all ${duplicateMembers.length} student ID(s) are already recorded in the database. Their existing data was kept intact.`
+          text: `No new members were saved because all ${duplicateMembers.length} student ID(s) are already recorded in the database or duplicated in the list. Their existing data was kept intact.`
         });
-        toast.warning("All records already exist in the database. No changes were made.");
+        toast.warning("All records already exist in the database or are duplicates. No changes were made.");
         setIsSaving(false);
         return;
       }
@@ -518,7 +615,6 @@ export default function AddMembersPage() {
 
       // Process each new student sequentially with high-speed parallel inserts and live animated removal
       for (const member of membersToProcess) {
-        const studentIdKey = String(member.student_id || "").trim().toLowerCase();
         currentProgressIndex++;
 
         // Update live progress and highlight row being saved
@@ -584,7 +680,8 @@ export default function AddMembersPage() {
           if (memErr) throw memErr;
 
           successCount++;
-          freshExistingStudentIds.add(studentIdKey);
+          addIdVariations(member.student_id, freshExistingStudentIds);
+          freshExistingEmails.add(member.email.trim().toLowerCase());
 
           // Mark as saved for brief visual feedback animation
           setJustSavedIds((prev) => new Set([...prev, member.student_id]));
@@ -598,33 +695,73 @@ export default function AddMembersPage() {
           const errorMsg = error?.message || error?.error_description || (error instanceof Error ? error.message : JSON.stringify(error));
           console.error("Error saving member:", member.email, errorMsg);
           errorCount++;
-          // Retain failed member on preview list
+          
+          const isUniqueConstraint = errorMsg.includes("duplicate key value") || errorMsg.includes("unique constraint");
+          const cleanReason = isUniqueConstraint
+            ? errorMsg.includes("users_email_key") || errorMsg.includes("accounts_username_key")
+              ? "Email is already registered to another account"
+              : "Student ID is already recorded in the database"
+            : errorMsg;
+
+          // If database rejected due to uniqueness, record it in existing sets so it appears in the In DB tab
+          if (isUniqueConstraint) {
+            addIdVariations(member.student_id, freshExistingStudentIds);
+            freshExistingEmails.add(member.email.trim().toLowerCase());
+          }
+
+          failedDetailsList.push({
+            name: `${member.first_name} ${member.last_name}`,
+            student_id: member.student_id,
+            reason: cleanReason,
+          });
+
+          setMemberErrors((prev) => ({
+            ...prev,
+            [member.student_id]: cleanReason,
+          }));
         }
       }
 
-      // Update cached database student IDs
-      setDbExistingStudentIds(freshExistingStudentIds);
+      // Update cached database student IDs & Emails
+      setDbExistingStudentIds(new Set(freshExistingStudentIds));
+      setDbExistingEmails(new Set(freshExistingEmails));
 
-      if (successCount > 0) {
-        if (duplicateMembers.length > 0 || errorCount > 0) {
-          setErrorMessage({
-            type: "warning",
-            text: `Successfully saved ${successCount} new member(s). Kept existing data and skipped ${duplicateMembers.length} duplicate/already recorded student ID(s).`
-          });
-          toast.success(
-            `Saved ${successCount} new members. ${duplicateMembers.length} already recorded student ID(s) were kept unchanged.`
-          );
-        } else {
-          setErrorMessage({
-            type: "success",
-            text: `Successfully saved all ${successCount} new members!`
-          });
-          toast.success(`Successfully saved all ${successCount} members!`);
-        }
-      } else {
+      const remainingTotal = duplicateMembers.length + errorCount;
+      const alreadyInDbRemaining = duplicateMembers.filter((m) => {
+        const sId = String(m.student_id || "").trim().toLowerCase();
+        const email = String(m.email || "").trim().toLowerCase();
+        return isIdInSet(sId, freshExistingStudentIds) || (email && freshExistingEmails.has(email));
+      }).length + failedDetailsList.filter((f) => f.reason.includes("already")).length;
+
+      const duplicatesInListRemaining = Math.max(0, remainingTotal - alreadyInDbRemaining);
+
+      setSaveReport({
+        savedCount: successCount,
+        remainingCount: remainingTotal,
+        inDbCount: alreadyInDbRemaining,
+        duplicateInListCount: duplicatesInListRemaining,
+        failedCount: errorCount,
+        failedDetails: failedDetailsList,
+      });
+
+      if (successCount > 0 && remainingTotal === 0) {
+        setErrorMessage({
+          type: "success",
+          text: `🎉 Successfully saved all ${successCount} new member(s) to the database!`
+        });
+        toast.success(`Successfully saved all ${successCount} members!`);
+      } else if (successCount > 0 && remainingTotal > 0) {
+        setErrorMessage({
+          type: "warning",
+          text: `Saved ${successCount} new member(s). ${remainingTotal} student(s) remain unsaved in your list (see detailed reasons below).`
+        });
+        toast.warning(
+          `Saved ${successCount} students. ${remainingTotal} student(s) were not added.`
+        );
+      } else if (successCount === 0) {
         setErrorMessage({
           type: "error",
-          text: "Failed to save members. Database save encountered errors."
+          text: `Unable to save members. All ${remainingTotal} student(s) are already recorded in the database or encountered errors.`
         });
         toast.error("Failed to save members. Please check the logs.");
       }
@@ -733,8 +870,119 @@ export default function AddMembersPage() {
         </div>
       )}
 
-      {/* Summary Banner / Alert Messages */}
-      {errorMessage && (
+      {/* Summary Banner / Post-Save Detailed Status Banner */}
+      {saveReport ? (
+        <div className={`p-5 sm:p-6 rounded-3xl border shadow-md animate-in fade-in slide-in-from-top-3 duration-300 ${
+          saveReport.remainingCount === 0 && saveReport.savedCount > 0
+            ? "bg-gradient-to-r from-emerald-50 via-teal-50 to-emerald-50 border-emerald-300 text-emerald-950"
+            : saveReport.savedCount > 0
+            ? "bg-gradient-to-r from-amber-50 via-orange-50/70 to-amber-50 border-amber-300 text-amber-950"
+            : "bg-gradient-to-r from-rose-50 via-red-50 to-rose-50 border-rose-300 text-rose-950"
+        }`}>
+          <div className="flex flex-col md:flex-row items-start justify-between gap-5">
+            <div className="flex items-start gap-4">
+              <div className={`size-12 rounded-2xl flex items-center justify-center shrink-0 shadow-md ${
+                saveReport.remainingCount === 0 && saveReport.savedCount > 0
+                  ? "bg-emerald-500 text-white shadow-emerald-500/20"
+                  : saveReport.savedCount > 0
+                  ? "bg-amber-500 text-white shadow-amber-500/20"
+                  : "bg-rose-500 text-white shadow-rose-500/20"
+              }`}>
+                {saveReport.remainingCount === 0 && saveReport.savedCount > 0 ? (
+                  <LuCircleCheck className="size-6" />
+                ) : saveReport.savedCount > 0 ? (
+                  <LuTriangleAlert className="size-6" />
+                ) : (
+                  <LuCircleAlert className="size-6" />
+                )}
+              </div>
+
+              <div className="space-y-2">
+                <div>
+                  <h3 className="text-base sm:text-lg font-black tracking-tight text-slate-900">
+                    {saveReport.remainingCount === 0 && saveReport.savedCount > 0 ? (
+                      `🎉 All ${saveReport.savedCount} Members Successfully Added to Database!`
+                    ) : saveReport.savedCount > 0 ? (
+                      `✅ Saved ${saveReport.savedCount} Student(s) • ⚠️ ${saveReport.remainingCount} Student(s) Remain Unsaved`
+                    ) : (
+                      `⚠️ Unable to Save ${saveReport.remainingCount} Student(s)`
+                    )}
+                  </h3>
+                  <p className="text-xs text-slate-500 font-medium mt-0.5">
+                    Batch saving animation completed. See the detailed breakdown below for why remaining students were not saved.
+                  </p>
+                </div>
+
+                {saveReport.remainingCount > 0 && (
+                  <div className="bg-white/80 border border-slate-200/80 rounded-2xl p-3.5 space-y-2 text-xs font-semibold text-slate-700 shadow-xs">
+                    <p className="font-bold text-slate-900 flex items-center gap-1.5">
+                      <LuCircleAlert className="size-4 text-amber-600 shrink-0" />
+                      Detailed reason(s) why remaining students were not added:
+                    </p>
+                    <ul className="space-y-1.5 pl-1 text-slate-600">
+                      {saveReport.inDbCount > 0 && (
+                        <li className="flex items-start gap-2">
+                          <span className="size-2 rounded-full bg-amber-500 mt-1.5 shrink-0" />
+                          <span>
+                            <strong className="text-amber-900">{saveReport.inDbCount} student(s)</strong> are already recorded in the database. Their existing student records were preserved to prevent overwriting.
+                          </span>
+                        </li>
+                      )}
+                      {saveReport.duplicateInListCount > 0 && (
+                        <li className="flex items-start gap-2">
+                          <span className="size-2 rounded-full bg-orange-500 mt-1.5 shrink-0" />
+                          <span>
+                            <strong className="text-orange-900">{saveReport.duplicateInListCount} student(s)</strong> have duplicate Student IDs inside your uploaded preview file.
+                          </span>
+                        </li>
+                      )}
+                      {saveReport.failedCount > 0 && (
+                        <li className="flex items-start gap-2">
+                          <span className="size-2 rounded-full bg-rose-500 mt-1.5 shrink-0" />
+                          <span>
+                            <strong className="text-rose-900">{saveReport.failedCount} student(s)</strong> encountered database insertion errors (e.g. email or username conflict with another account).
+                          </span>
+                        </li>
+                      )}
+                    </ul>
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {/* Direct Action Buttons on Banner */}
+            {saveReport.remainingCount > 0 && (
+              <div className="flex flex-wrap items-center gap-2 shrink-0 self-end md:self-start w-full md:w-auto justify-end">
+                {saveReport.inDbCount + saveReport.duplicateInListCount > 0 && (
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={handleRemoveAlreadyRecorded}
+                    className="rounded-xl h-9 text-xs font-bold border-amber-300 bg-white hover:bg-amber-50 text-amber-900 shadow-xs cursor-pointer"
+                  >
+                    <LuTrash2 className="size-3.5 mr-1 text-amber-700" />
+                    Remove Already Recorded ({saveReport.inDbCount + saveReport.duplicateInListCount})
+                  </Button>
+                )}
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={() => {
+                    setMembers([]);
+                    setSaveReport(null);
+                    setMemberErrors({});
+                    setErrorMessage(null);
+                    toast.success("Preview list cleared.");
+                  }}
+                  className="rounded-xl h-9 text-xs font-bold border-slate-200 bg-white hover:bg-slate-50 text-slate-700 shadow-xs cursor-pointer"
+                >
+                  <LuX className="size-3.5 mr-1" /> Clear Remaining
+                </Button>
+              </div>
+            )}
+          </div>
+        </div>
+      ) : errorMessage ? (
         <div className={`p-4 rounded-2xl flex items-start gap-3 border animate-in fade-in slide-in-from-top-2 duration-300 ${
           errorMessage.type === "error" 
             ? "bg-rose-50 border-rose-200 text-rose-800" 
@@ -753,7 +1001,7 @@ export default function AddMembersPage() {
             {errorMessage.text}
           </div>
         </div>
-      )}
+      ) : null}
 
       {/* Modals */}
       <ConfirmModal
@@ -835,7 +1083,7 @@ export default function AddMembersPage() {
               {isDragging ? "Drop your file here" : "Upload Members List"}
             </h3>
             <p className="text-slate-500 max-w-sm mx-auto mb-8">
-              Drop your .xlsx, .xls, or .csv file here. Make sure it has a <strong>Student ID</strong> column.
+              Drop your .xlsx, .xls, or .csv file here. Make sure it has a <strong>Student ID</strong> column with <strong>0000-0000</strong> format (e.g. <strong>2022-2703</strong>).
             </p>
             <div className="relative inline-block">
               <input
@@ -1045,7 +1293,7 @@ export default function AddMembersPage() {
                       </td>
                     </tr>
                   ) : (
-                    paginatedMembers.map(({ member, originalIndex, isExistingInDb, isDuplicateInBatch, isNew }) => {
+                    paginatedMembers.map(({ member, originalIndex, isExistingInDb, isExistingId, isExistingEmail, isDuplicateInBatch, failureReason, isNew }) => {
                       const isCurrentlySaving = activeSavingId === member.student_id;
                       const wasJustSaved = justSavedIds.has(member.student_id);
 
@@ -1057,6 +1305,8 @@ export default function AddMembersPage() {
                               ? "bg-emerald-50/90 border-emerald-300 ring-2 ring-emerald-400/50 shadow-md animate-pulse" 
                               : wasJustSaved
                               ? "bg-emerald-100/60 opacity-40 translate-x-3"
+                              : failureReason && !isExistingInDb
+                              ? "bg-rose-50/40 hover:bg-rose-50/70"
                               : !isNew 
                               ? "bg-amber-50/30 hover:bg-slate-50/70" 
                               : "hover:bg-slate-50/70"
@@ -1064,7 +1314,7 @@ export default function AddMembersPage() {
                         >
                           <td className="px-6 py-4">
                             <div className="flex items-center gap-2">
-                              <span className="font-black text-slate-900">{member.student_id}</span>
+                              <span className="font-black text-slate-900 font-mono">{member.student_id}</span>
                               {isCurrentlySaving ? (
                                 <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[10px] font-black tracking-wide bg-emerald-600 text-white shadow-sm animate-pulse">
                                   <LuRefreshCw className="size-3 animate-spin" /> Saving...
@@ -1073,17 +1323,31 @@ export default function AddMembersPage() {
                                 <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-black tracking-wide bg-emerald-700 text-white shadow-sm">
                                   <LuCheck className="size-3" /> Saved!
                                 </span>
-                              ) : isExistingInDb ? (
+                              ) : failureReason && !isExistingInDb ? (
                                 <span 
-                                  title="This Student ID already exists in the database. When saving, this new entry will NOT overwrite the existing record."
+                                  title={failureReason}
+                                  className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-black tracking-wide bg-rose-100 text-rose-800 border border-rose-200"
+                                >
+                                  <LuCircleAlert className="size-3 text-rose-600" /> Error: {failureReason}
+                                </span>
+                              ) : isExistingId ? (
+                                <span 
+                                  title="This Student ID already exists in the database. When saving, this record was NOT saved to preserve the existing account."
                                   className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-black tracking-wide bg-amber-100 text-amber-800 border border-amber-200"
                                 >
-                                  <LuDatabase className="size-3" /> Already Recorded
+                                  <LuDatabase className="size-3" /> Already in DB (Student ID exists)
+                                </span>
+                              ) : isExistingEmail ? (
+                                <span 
+                                  title="This Email address is already registered to another user in the database."
+                                  className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-black tracking-wide bg-amber-100 text-amber-800 border border-amber-200"
+                                >
+                                  <LuDatabase className="size-3" /> Already in DB (Email exists)
                                 </span>
                               ) : isDuplicateInBatch ? (
                                 <span 
-                                  title="This Student ID is duplicated in the uploaded list."
-                                  className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-black tracking-wide bg-rose-100 text-rose-800 border border-rose-200"
+                                  title="This Student ID or Email is duplicated within your uploaded list."
+                                  className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-black tracking-wide bg-orange-100 text-orange-800 border border-orange-200"
                                 >
                                   <LuTriangleAlert className="size-3" /> Duplicate in List
                                 </span>
@@ -1246,19 +1510,44 @@ export default function AddMembersPage() {
             <div className="md:col-span-2 space-y-2">
               <div className="flex items-center justify-between">
                 <Label className="text-xs font-bold uppercase tracking-wider text-slate-500">Student ID *</Label>
-                {manualMember.student_id && dbExistingStudentIds.has(manualMember.student_id.trim().toLowerCase()) && (
-                  <span className="text-xs font-bold text-amber-600 flex items-center gap-1">
-                    <LuTriangleAlert className="size-3.5" /> Already recorded in DB
-                  </span>
+                {manualMember.student_id && (
+                  <div className="flex items-center gap-2">
+                    {!isValidStudentId(manualMember.student_id) ? (
+                      <span className="text-xs font-bold text-rose-500 flex items-center gap-1">
+                        <LuCircleAlert className="size-3.5" /> Must be 0000-0000 (e.g. 2022-2703)
+                      </span>
+                    ) : dbExistingStudentIds.has(manualMember.student_id.trim().toLowerCase()) ? (
+                      <span className="text-xs font-bold text-amber-600 flex items-center gap-1">
+                        <LuTriangleAlert className="size-3.5" /> Already recorded in DB
+                      </span>
+                    ) : (
+                      <span className="text-xs font-bold text-emerald-600 flex items-center gap-1">
+                        <LuCircleCheck className="size-3.5" /> Valid Format
+                      </span>
+                    )}
+                  </div>
                 )}
               </div>
               <Input
-                placeholder="2024-0001"
+                placeholder="2022-2703"
                 value={manualMember.student_id}
-                onChange={(e) => setManualMember({ ...manualMember, student_id: e.target.value })}
+                maxLength={9}
+                onChange={(e) =>
+                  setManualMember({
+                    ...manualMember,
+                    student_id: formatStudentIdInput(e.target.value),
+                  })
+                }
                 required
-                className="rounded-xl h-11"
+                className={`rounded-xl h-11 font-mono ${
+                  manualMember.student_id && !isValidStudentId(manualMember.student_id)
+                    ? "border-rose-300 focus:border-rose-500 focus:ring-rose-500/20"
+                    : ""
+                }`}
               />
+              <p className="text-[11px] text-slate-400 font-medium">
+                Strict format: 4 digits, hyphen, 4 digits (e.g., <span className="font-mono font-bold text-slate-600">2022-2703</span>). Incomplete IDs are not allowed.
+              </p>
             </div>
             <div className="md:col-span-2 grid grid-cols-1 md:grid-cols-3 gap-4">
               <div className="space-y-2">

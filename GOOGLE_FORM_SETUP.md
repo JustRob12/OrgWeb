@@ -34,7 +34,7 @@ If you prefer to build the form manually directly in [Google Forms (forms.google
 
 | # | Question Title | Question Type | Required | Help Text / Options |
 |---|----------------|---------------|:--------:|---------------------|
-| 1 | **Student ID** | Short Answer | ✅ Yes | e.g. `2022-2703` |
+| 1 | **Student ID** | Short Answer | ✅ Yes | Strict format: `0000-0000` (e.g. `2022-2703`) |
 | 2 | **First Name** | Short Answer | ✅ Yes | e.g. `Roberto Jr` |
 | 3 | **Middle Initial** | Short Answer | ❌ No | e.g. `M` |
 | 4 | **Last Name** | Short Answer | ✅ Yes | e.g. `Prisoris` |

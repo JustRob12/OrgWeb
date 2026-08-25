@@ -407,7 +407,7 @@ export default function StudentIDPage() {
                 {/* Bottom: Organization Footer */}
                 <div className="pt-2 border-t border-slate-300/80 w-full text-center">
                   <p className="text-[9px] sm:text-[10px] font-black text-slate-800 tracking-widest uppercase">
-                    ASSOCIATION OF COMPUTER ENGINEERING STUDENTS
+                    ASSOCIATION OF COMPUTING AND ENGINEERING STUDENTS
                   </p>
                 </div>
               </div>

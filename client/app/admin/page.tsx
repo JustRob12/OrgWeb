@@ -116,7 +116,7 @@ const FALLBACK_PALETTE: CourseTheme[] = [
 
 const COURSE_FULL_NAMES: Record<string, string> = {
   BSIT: "Information Technology",
-  BSCE: "Computer Engineering",
+  BSCE: "Civil Engineering",
   BITM: "Bachelor of Industrial Technology Management",
   BSM: "Mathematics",
   BSMRS: "Mathematics w/ Research Statistics",

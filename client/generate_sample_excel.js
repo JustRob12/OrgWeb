@@ -3,6 +3,7 @@ const path = require('path');
 
 const data = [
   {
+    "Student ID": "2024-0001",
     "First Name": "John",
     "Middle Initial": "D",
     "Last Name": "Doe",
@@ -15,10 +16,11 @@ const data = [
     "Receipt": "131234"
   },
   {
+    "Student ID": "2024-0002",
     "First Name": "Jane",
     "Middle Initial": "S",
     "Last Name": "Smith",
-    "Course": "BSCS",
+    "Course": "BSCE",
     "Section": "B",
     "Year": "2",
     "Email": "jane.smith@example.org",
@@ -27,10 +29,11 @@ const data = [
     "Receipt": "3423"
   },
   {
+    "Student ID": "2024-0003",
     "First Name": "Alice",
     "Middle Initial": "M",
     "Last Name": "Johnson",
-    "Course": "BSCpE",
+    "Course": "BITM",
     "Section": "C",
     "Year": "1",
     "Email": "alice.j@uni.edu",
@@ -39,6 +42,7 @@ const data = [
     "Receipt": "2342"
   },
   {
+    "Student ID": "2024-0004",
     "First Name": "Bob",
     "Middle Initial": "L",
     "Last Name": "Brown",
@@ -51,10 +55,11 @@ const data = [
     "Receipt": "1343200"
   },
   {
+    "Student ID": "2024-0005",
     "First Name": "Charlie",
     "Middle Initial": "K",
     "Last Name": "Davis",
-    "Course": "BSCS",
+    "Course": "BSM",
     "Section": "B",
     "Year": "2",
     "Email": "charlie.d@example.com",

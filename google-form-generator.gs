@@ -40,8 +40,13 @@ function createMembershipRegistrationForm() {
   // Question 1: Student ID
   const studentIdItem = form.addTextItem();
   studentIdItem.setTitle("Student ID");
-  studentIdItem.setHelpText("Example: 2022-2703");
+  studentIdItem.setHelpText("Format: 0000-0000 (e.g., 2022-2703)");
   studentIdItem.setRequired(true);
+  const studentIdValidation = FormApp.createTextValidation()
+    .requireTextMatchesPattern("^\\d{4}-\\d{4}$")
+    .setHelpText("Student ID must be complete and in 0000-0000 format (e.g., 2022-2703).")
+    .build();
+  studentIdItem.setValidation(studentIdValidation);
 
   // Question 2: First Name
   const firstNameItem = form.addTextItem();
