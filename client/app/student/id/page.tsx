@@ -435,41 +435,21 @@ export default function StudentIDPage() {
       nameFontSize -= 2;
       ctx.font = `900 ${nameFontSize}px -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif`;
     }
-    ctx.fillText(fullName, width / 2, 325);
+    ctx.fillText(fullName, width / 2, 330);
     ctx.restore();
 
-    // 5. Official Member Badge: "OFFICIAL MEMBER"
-    ctx.save();
-    const badgeW = 210;
-    const badgeH = 32;
-    const badgeX = (width - badgeW) / 2;
-    const badgeY = 352;
-    drawRoundRect(badgeX, badgeY, badgeW, badgeH, 16);
-    ctx.fillStyle = "rgba(249, 115, 22, 0.12)";
-    ctx.fill();
-    ctx.lineWidth = 1.5;
-    ctx.strokeStyle = "rgba(249, 115, 22, 0.35)";
-    ctx.stroke();
-
-    ctx.fillStyle = "#c2410c";
-    ctx.font = "900 12px -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif";
-    ctx.textAlign = "center";
-    ctx.textBaseline = "middle";
-    ctx.fillText("🛡️ OFFICIAL MEMBER", width / 2, badgeY + 16);
-    ctx.restore();
-
-    // 6. Student ID Section
+    // 5. Student ID Section
     ctx.save();
     ctx.fillStyle = "#94a3b8";
     ctx.font = "800 11px -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif";
     ctx.textAlign = "center";
     ctx.textBaseline = "middle";
-    ctx.fillText("STUDENT ID", width / 2, 408);
+    ctx.fillText("STUDENT ID", width / 2, 382);
 
     const idBoxW = 230;
-    const idBoxH = 44;
+    const idBoxH = 46;
     const idBoxX = (width - idBoxW) / 2;
-    const idBoxY = 422;
+    const idBoxY = 398;
     drawRoundRect(idBoxX, idBoxY, idBoxW, idBoxH, 13);
     ctx.fillStyle = "#ffffff";
     ctx.fill();
@@ -478,17 +458,17 @@ export default function StudentIDPage() {
     ctx.stroke();
 
     ctx.fillStyle = "#1e293b";
-    ctx.font = "900 21px 'Courier New', Courier, monospace";
+    ctx.font = "900 22px 'Courier New', Courier, monospace";
     ctx.textAlign = "center";
     ctx.textBaseline = "middle";
-    ctx.fillText(user?.student_id || "NOT-SET", width / 2, idBoxY + 22);
+    ctx.fillText(user?.student_id || "NOT-SET", width / 2, idBoxY + 23);
     ctx.restore();
 
-    // 7. QR Code Container Box & QR Code
+    // 6. QR Code Container Box & QR Code
     ctx.save();
     const qrBoxSize = 300;
     const qrBoxX = (width - qrBoxSize) / 2;
-    const qrBoxY = 486;
+    const qrBoxY = 478;
     drawRoundRect(qrBoxX, qrBoxY, qrBoxSize, qrBoxSize, 36);
     ctx.fillStyle = "#ffffff";
     ctx.fill();
@@ -776,13 +756,10 @@ export default function StudentIDPage() {
                   </button>
 
                   {/* 2. Name */}
-                  <div className="text-center space-y-0.5 mb-1 px-2 w-full">
+                  <div className="text-center mb-1.5 px-2 w-full">
                     <h2 className="text-base sm:text-lg font-black text-slate-900 tracking-tight leading-tight line-clamp-1">
                       {user.first_name} {user.last_name}
                     </h2>
-                    <div className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-orange-500/10 border border-orange-500/25 text-orange-600 text-[8px] sm:text-[9px] font-black uppercase tracking-widest whitespace-nowrap">
-                      <LuShieldCheck className="size-2.5 shrink-0" /> OFFICIAL MEMBER
-                    </div>
                   </div>
 
                   {/* 3. Student ID Pill */}

@@ -167,12 +167,13 @@ export default function AttendanceScannerPage() {
     };
   }, [selectedEventId, supabase]);
 
-  const startScanner = () => {
-    if (!selectedEventId) {
-      toast.error("Please select an event first.");
-      return;
-    }
+  const scanModeRef = useRef<"time_in" | "time_out">(scanMode);
 
+  useEffect(() => {
+    scanModeRef.current = scanMode;
+  }, [scanMode]);
+
+  const initCamera = useCallback(() => {
     setIsScanning(true);
     const html5QrCode = new Html5Qrcode("reader");
     scannerRef.current = html5QrCode;
@@ -193,9 +194,55 @@ export default function AttendanceScannerPage() {
       onScanFailure
     ).catch((err) => {
       console.error("Scanner error:", err);
-      toast.error("Failed to start camera.");
+      toast.error("Failed to start camera. Please check camera permissions.");
       setIsScanning(false);
     });
+  }, [selectedEventId]);
+
+  const startScanner = useCallback(() => {
+    if (!selectedEventId) {
+      toast.error("Please select an event first.");
+      return;
+    }
+
+    // If scanner instance already exists, stop and re-init cleanly
+    if (scannerRef.current && scannerRef.current.isScanning) {
+      scannerRef.current.stop().catch(() => {}).finally(() => {
+        scannerRef.current?.clear();
+        initCamera();
+      });
+      return;
+    }
+
+    initCamera();
+  }, [selectedEventId, initCamera]);
+
+  // Switch Scanning Mode (Time In <-> Time Out) with Automatic Camera Restart
+  const handleModeChange = async (newMode: "time_in" | "time_out") => {
+    if (scanMode === newMode) return;
+    setScanMode(newMode);
+    scanModeRef.current = newMode;
+
+    const modeLabel = newMode === "time_in" ? "Time In" : "Time Out";
+
+    if (isScanning) {
+      toast.info(`Switched to ${modeLabel}. Restarting camera...`);
+      try {
+        if (scannerRef.current && scannerRef.current.isScanning) {
+          await scannerRef.current.stop();
+          scannerRef.current.clear();
+        }
+      } catch (err) {
+        console.warn("Scanner restart error on mode change:", err);
+      }
+
+      // Smoothly re-launch camera for the new mode
+      setTimeout(() => {
+        initCamera();
+      }, 150);
+    } else {
+      toast.info(`Mode set to ${modeLabel}`);
+    }
   };
 
   const audioRef = useRef<HTMLAudioElement | null>(null);
@@ -264,13 +311,15 @@ export default function AttendanceScannerPage() {
         .eq("student_id", userRecord.student_id)
         .single();
 
+      const currentMode = scanModeRef.current;
+
       if (existingRecord) {
-        if (scanMode === "time_in" && existingRecord.time_in) {
+        if (currentMode === "time_in" && existingRecord.time_in) {
           setScannedStudent(userRecord as AttendanceStudent);
           setActiveModal("duplicate");
           safePause();
           return;
-        } else if (scanMode === "time_out" && existingRecord.time_out) {
+        } else if (currentMode === "time_out" && existingRecord.time_out) {
           setScannedStudent(userRecord as AttendanceStudent);
           setActiveModal("duplicate");
           safePause();
@@ -321,6 +370,7 @@ export default function AttendanceScannerPage() {
     
     try {
       const now = new Date().toISOString();
+      const currentMode = scanModeRef.current;
       const payload: Record<string, unknown> = {
         event_id: selectedEventId,
         user_id: scannedStudent.id,
@@ -332,7 +382,7 @@ export default function AttendanceScannerPage() {
         year: scannedStudent.year,
       };
 
-      if (scanMode === "time_in") {
+      if (currentMode === "time_in") {
         payload.time_in = now;
       } else {
         payload.time_out = now;
@@ -355,7 +405,7 @@ export default function AttendanceScannerPage() {
           section: payload.section,
           year: payload.year,
         };
-        if (scanMode === "time_in") {
+        if (currentMode === "time_in") {
           updatePayload.time_in = now;
         } else {
           updatePayload.time_out = now;
@@ -376,7 +426,7 @@ export default function AttendanceScannerPage() {
         if (error) throw error;
       }
 
-      toast.success(`${scanMode === "time_in" ? "CHECKED IN" : "CHECKED OUT"}: ${payload.full_name}`);
+      toast.success(`${currentMode === "time_in" ? "CHECKED IN" : "CHECKED OUT"}: ${payload.full_name}`);
       fetchAttendanceCount(selectedEventId);
       closeModal();
     } catch (err) {
@@ -572,7 +622,7 @@ export default function AttendanceScannerPage() {
               <div className="grid grid-cols-2 gap-2 bg-slate-100 p-1.5 rounded-2xl">
                 <button 
                   type="button"
-                  onClick={() => setScanMode("time_in")}
+                  onClick={() => handleModeChange("time_in")}
                   className={`h-12 rounded-xl text-xs font-black uppercase tracking-wider transition-all cursor-pointer flex items-center justify-center gap-2 ${
                     scanMode === "time_in" 
                       ? 'bg-emerald-600 text-white shadow-sm' 
@@ -583,7 +633,7 @@ export default function AttendanceScannerPage() {
                 </button>
                 <button 
                   type="button"
-                  onClick={() => setScanMode("time_out")}
+                  onClick={() => handleModeChange("time_out")}
                   className={`h-12 rounded-xl text-xs font-black uppercase tracking-wider transition-all cursor-pointer flex items-center justify-center gap-2 ${
                     scanMode === "time_out" 
                       ? 'bg-rose-600 text-white shadow-sm' 
