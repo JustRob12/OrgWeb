@@ -8,28 +8,20 @@ import {
   LuInfo,
   LuCamera,
   LuLoader,
-  LuCrop,
-  LuSparkles,
-  LuEye,
-  LuShare2,
   LuSmartphone,
-  LuImage,
 } from "react-icons/lu";
 import { createClient } from "@/utils/supabase/client";
 import { Button } from "@/app/Components/ui/button";
 import { toast } from "sonner";
 import { useRouter } from "next/navigation";
-import { toJpeg, toPng } from "html-to-image";
-import { saveAs } from "file-saver";
-import { QRCodeSVG } from "qrcode.react";
+import { QRCodeSVG, QRCodeCanvas } from "qrcode.react";
 import { ImageCropperModal } from "@/app/Components/ui/image-cropper-modal";
-import { IdPreviewModal } from "@/app/Components/ui/id-preview-modal";
 
 export default function StudentIDPage() {
   const [user, setUser] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [uploading, setUploading] = useState(false);
-  const [downloadingFormat, setDownloadingFormat] = useState<string | null>(null);
+  const [isDownloading, setIsDownloading] = useState(false);
 
   // Inlined Base64 Profile Picture for 100% CORS-Safe WebKit/Safari rendering
   const [base64Photo, setBase64Photo] = useState<string | null>(null);
@@ -38,17 +30,7 @@ export default function StudentIDPage() {
   const [cropImageSrc, setCropImageSrc] = useState<string | null>(null);
   const [showCropper, setShowCropper] = useState(false);
 
-  // ID Preview & Universal Save Modal State
-  const [previewModalOpen, setPreviewModalOpen] = useState(false);
-  const [previewData, setPreviewData] = useState<{
-    imageSrc: string;
-    blob: Blob | null;
-    pngBlob?: Blob | null;
-    fileName: string;
-  } | null>(null);
-
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const cardRef = useRef<HTMLDivElement>(null);
   const router = useRouter();
   const supabase = createClient();
 
@@ -56,7 +38,7 @@ export default function StudentIDPage() {
     fetchUserData();
   }, []);
 
-  // Whenever user.profile_picture changes, convert to Base64 to bypass Safari canvas tainting
+  // Whenever user.profile_picture changes, convert to Base64 for instant canvas rendering
   useEffect(() => {
     if (user?.profile_picture) {
       convertImageToBase64(user.profile_picture).then((dataUrl) => {
@@ -80,7 +62,6 @@ export default function StudentIDPage() {
         reader.readAsDataURL(blob);
       });
     } catch {
-      // Canvas drawing fallback
       return new Promise((resolve) => {
         const img = new Image();
         img.crossOrigin = "anonymous";
@@ -129,7 +110,6 @@ export default function StudentIDPage() {
     }
 
     if (userEmail) {
-      // Get detailed user info from the 'users' table
       const { data, error } = await supabase
         .from("users")
         .select("*")
@@ -171,11 +151,10 @@ export default function StudentIDPage() {
     };
     reader.readAsDataURL(file);
 
-    // Reset input so re-selecting same file triggers onChange
     if (fileInputRef.current) fileInputRef.current.value = "";
   };
 
-  // 2. Crop Confirmed -> Upload to Cloudinary & Delete Old Image
+  // 2. Crop Confirmed -> Upload to Cloudinary & Update Supabase
   const handleCropComplete = async (croppedBlob: Blob) => {
     setUploading(true);
 
@@ -189,7 +168,6 @@ export default function StudentIDPage() {
         );
       }
 
-      // 1. Upload new cropped photo to Cloudinary
       const formData = new FormData();
       formData.append("file", croppedBlob, "profile.jpg");
       formData.append("upload_preset", uploadPreset);
@@ -207,7 +185,7 @@ export default function StudentIDPage() {
         throw new Error(cloudData.error?.message || "Cloudinary upload failed");
       }
 
-      // 2. Delete old photo on Cloudinary to prevent orphaned storage
+      // Delete old photo on Cloudinary to prevent orphaned storage
       if (user?.profile_picture?.includes("cloudinary.com")) {
         try {
           const parts = user.profile_picture.split("/upload/");
@@ -232,7 +210,6 @@ export default function StudentIDPage() {
         }
       }
 
-      // 3. Update Supabase users table with new secure URL
       if (!user?.id) {
         throw new Error("User session expired or invalid. Please refresh.");
       }
@@ -247,7 +224,7 @@ export default function StudentIDPage() {
       toast.success("Profile photo cropped and updated successfully!");
       setShowCropper(false);
       setCropImageSrc(null);
-      fetchUserData(); // Refresh ID card display
+      fetchUserData();
     } catch (err: any) {
       console.error(err);
       toast.error(err.message || "Upload failed. Please try again.");
@@ -265,186 +242,373 @@ export default function StudentIDPage() {
       })
     : "";
 
-  // Synchronous, safe Data URL to Blob converter (bypasses fetch data: URL issues in Safari)
-  const dataUrlToBlob = (dataUrl: string): Blob => {
-    const parts = dataUrl.split(",");
-    const mime = parts[0].match(/:(.*?);/)?.[1] || "image/jpeg";
-    const binary = atob(parts[1]);
-    const array = new Uint8Array(binary.length);
-    for (let i = 0; i < binary.length; i++) {
-      array[i] = binary.charCodeAt(i);
-    }
-    return new Blob([array], { type: mime });
-  };
+  // 100% Native High-Resolution Canvas Generator (Zero foreignObject / WebKit bugs)
+  const generateIdCanvas = async (): Promise<HTMLCanvasElement> => {
+    const width = 700;
+    const height = 1040;
+    const canvas = document.createElement("canvas");
+    canvas.width = width;
+    canvas.height = height;
+    const ctx = canvas.getContext("2d");
+    if (!ctx) throw new Error("Canvas context not available");
 
-  // Cross-browser download trigger (including iOS Safari 13+ native download manager)
-  const triggerFileDownload = (blob: Blob, fileName: string, dataUrl?: string) => {
-    try {
-      const blobUrl = URL.createObjectURL(blob);
-      const link = document.createElement("a");
-      link.href = blobUrl;
-      link.download = fileName;
-      link.rel = "noopener";
-      document.body.appendChild(link);
-      link.click();
-      setTimeout(() => {
-        document.body.removeChild(link);
-        URL.revokeObjectURL(blobUrl);
-      }, 3000);
-    } catch {
-      if (dataUrl) {
-        const link = document.createElement("a");
-        link.href = dataUrl;
-        link.download = fileName;
-        document.body.appendChild(link);
-        link.click();
-        setTimeout(() => document.body.removeChild(link), 1500);
-      }
-    }
-  };
+    ctx.imageSmoothingEnabled = true;
+    ctx.imageSmoothingQuality = "high";
 
-  // Core High-Resolution Card Capture Function (Tuned for WebKit / iOS Safari)
-  const generateCard = async (
-    format: "jpeg" | "png" = "jpeg"
-  ): Promise<{ blob: Blob; dataUrl: string } | null> => {
-    if (!cardRef.current) return null;
-
-    // Ensure all web fonts are fully rendered
-    if (typeof document !== "undefined" && document.fonts) {
-      try {
-        await document.fonts.ready;
-      } catch (e) {
-        console.warn("Fonts ready check skipped:", e);
-      }
-    }
-
-    const options = {
-      cacheBust: true,
-      quality: 0.98,
-      pixelRatio: 2, // 2x gives 300+ DPI print-ready clarity without exceeding iOS Safari canvas limits
-      backgroundColor: "#ffffff",
-      skipFonts: true, // Crucial for Safari: prevents CORS font-stylesheet blocking
-      style: {
-        transform: "scale(1)",
-      },
+    const drawRoundRect = (
+      x: number,
+      y: number,
+      w: number,
+      h: number,
+      r: number
+    ) => {
+      ctx.beginPath();
+      ctx.moveTo(x + r, y);
+      ctx.lineTo(x + w - r, y);
+      ctx.quadraticCurveTo(x + w, y, x + w, y + r);
+      ctx.lineTo(x + w, y + h - r);
+      ctx.quadraticCurveTo(x + w, y + h, x + w - r, y + h);
+      ctx.lineTo(x + r, y + h);
+      ctx.quadraticCurveTo(x, y + h, x, y + h - r);
+      ctx.lineTo(x, y + r);
+      ctx.quadraticCurveTo(x, y, x + r, y);
+      ctx.closePath();
     };
 
-    let dataUrl = "";
-    try {
-      if (format === "png") {
-        dataUrl = await toPng(cardRef.current, options);
-      } else {
-        dataUrl = await toJpeg(cardRef.current, options);
-      }
-    } catch (err) {
-      console.warn("First capture attempt failed, retrying...", err);
-      // Wait 100ms for Safari DOM sync
-      await new Promise((r) => setTimeout(r, 100));
-      if (format === "png") {
-        dataUrl = await toPng(cardRef.current, options);
-      } else {
-        dataUrl = await toJpeg(cardRef.current, options);
+    // 1. Base Card Shape with Rounded Corners & Background Gradient
+    const cardX = 14;
+    const cardY = 14;
+    const cardW = width - 28; // 672
+    const cardH = height - 28; // 1012
+    const cardRadius = 56;
+
+    ctx.save();
+    drawRoundRect(cardX, cardY, cardW, cardH, cardRadius);
+    ctx.clip();
+
+    const bgGradient = ctx.createLinearGradient(0, cardY, 0, cardY + cardH);
+    bgGradient.addColorStop(0, "#f97316"); // vibrant orange-500
+    bgGradient.addColorStop(0.18, "#fb923c");
+    bgGradient.addColorStop(0.35, "#ffedd5"); // warm cream
+    bgGradient.addColorStop(0.55, "#ffffff");
+    bgGradient.addColorStop(1, "#ffffff");
+
+    ctx.fillStyle = bgGradient;
+    ctx.fillRect(cardX, cardY, cardW, cardH);
+
+    // Decorative Top Orange Arc
+    ctx.beginPath();
+    ctx.moveTo(cardX, cardY);
+    ctx.lineTo(cardX + cardW, cardY);
+    ctx.lineTo(cardX + cardW, cardY + 160);
+    ctx.quadraticCurveTo(width / 2, cardY + 220, cardX, cardY + 160);
+    ctx.closePath();
+    const topArcGrad = ctx.createLinearGradient(0, cardY, 0, cardY + 180);
+    topArcGrad.addColorStop(0, "#ea580c");
+    topArcGrad.addColorStop(1, "#f97316");
+    ctx.fillStyle = topArcGrad;
+    ctx.fill();
+
+    // Decorative Soft Glow Oval
+    ctx.beginPath();
+    ctx.arc(width / 2, cardY + 130, 240, 0, Math.PI * 2);
+    ctx.fillStyle = "rgba(255, 255, 255, 0.15)";
+    ctx.fill();
+
+    ctx.restore(); // Exit clip
+
+    // Card Outer Border
+    ctx.save();
+    drawRoundRect(cardX, cardY, cardW, cardH, cardRadius);
+    ctx.lineWidth = 4;
+    ctx.strokeStyle = "#fed7aa";
+    ctx.stroke();
+    ctx.restore();
+
+    // 2. Top Header Pill: "ACETRACK 3.0 • ACES"
+    ctx.save();
+    const pillW = 260;
+    const pillH = 36;
+    const pillX = (width - pillW) / 2;
+    const pillY = 44;
+    drawRoundRect(pillX, pillY, pillW, pillH, 18);
+    ctx.fillStyle = "rgba(255, 255, 255, 0.95)";
+    ctx.fill();
+    ctx.lineWidth = 1.5;
+    ctx.strokeStyle = "#ffffff";
+    ctx.stroke();
+
+    // Orange Dot
+    ctx.beginPath();
+    ctx.arc(pillX + 22, pillY + 18, 4, 0, Math.PI * 2);
+    ctx.fillStyle = "#ea580c";
+    ctx.fill();
+
+    // Text (Always single-line, perfectly measured)
+    ctx.fillStyle = "#7c2d12";
+    ctx.font = "900 12px -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif";
+    ctx.textAlign = "center";
+    ctx.textBaseline = "middle";
+    ctx.fillText("ACETRACK 3.0 • ACES", width / 2 + 8, pillY + 19);
+    ctx.restore();
+
+    // 3. Square Profile Photo with Rounded Corners
+    const photoSize = 185;
+    const photoX = (width - photoSize) / 2;
+    const photoY = 100;
+    const photoRadius = 36;
+
+    // Outer white & peach ring
+    ctx.save();
+    drawRoundRect(photoX - 6, photoY - 6, photoSize + 12, photoSize + 12, photoRadius + 4);
+    ctx.fillStyle = "#ffffff";
+    ctx.fill();
+    ctx.lineWidth = 3;
+    ctx.strokeStyle = "#fed7aa";
+    ctx.stroke();
+    ctx.restore();
+
+    // Clip & Draw User Image
+    ctx.save();
+    drawRoundRect(photoX, photoY, photoSize, photoSize, photoRadius);
+    ctx.clip();
+    ctx.fillStyle = "#ffffff";
+    ctx.fillRect(photoX, photoY, photoSize, photoSize);
+
+    let photoLoaded = false;
+    const photoSrc = base64Photo || user?.profile_picture;
+    if (photoSrc) {
+      try {
+        const img = new Image();
+        img.crossOrigin = "anonymous";
+        await new Promise((resolve, reject) => {
+          img.onload = () => resolve(true);
+          img.onerror = () => reject();
+          img.src = photoSrc;
+        });
+
+        // Cover fit
+        const hRatio = photoSize / img.width;
+        const vRatio = photoSize / img.height;
+        const ratio = Math.max(hRatio, vRatio);
+        const centerShiftX = (photoSize - img.width * ratio) / 2;
+        const centerShiftY = (photoSize - img.height * ratio) / 2;
+
+        ctx.drawImage(
+          img,
+          0,
+          0,
+          img.width,
+          img.height,
+          photoX + centerShiftX,
+          photoY + centerShiftY,
+          img.width * ratio,
+          img.height * ratio
+        );
+        photoLoaded = true;
+      } catch (e) {
+        console.warn("Could not draw profile photo on canvas:", e);
       }
     }
 
-    // Double render pass for Safari / WebKit warm-up if initial pass returned empty
-    if (!dataUrl || dataUrl === "data:," || dataUrl.length < 100) {
-      await new Promise((r) => setTimeout(r, 150));
-      if (format === "png") {
-        dataUrl = await toPng(cardRef.current, options);
-      } else {
-        dataUrl = await toJpeg(cardRef.current, options);
-      }
+    if (!photoLoaded) {
+      ctx.fillStyle = "#ffedd5";
+      ctx.fillRect(photoX, photoY, photoSize, photoSize);
+      ctx.fillStyle = "#ea580c";
+      ctx.font = "900 48px -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif";
+      ctx.textAlign = "center";
+      ctx.textBaseline = "middle";
+      ctx.fillText(user?.first_name?.[0] || "A", photoX + photoSize / 2, photoY + photoSize / 2);
     }
+    ctx.restore();
 
-    if (!dataUrl || dataUrl.length < 100) {
-      throw new Error("Failed to render ID card image");
+    // 4. Student Full Name
+    ctx.save();
+    const fullName = `${user?.first_name || ""} ${user?.last_name || ""}`.trim() || "Student Member";
+    ctx.fillStyle = "#0f172a";
+    ctx.textAlign = "center";
+    ctx.textBaseline = "middle";
+
+    let nameFontSize = 32;
+    ctx.font = `900 ${nameFontSize}px -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif`;
+    while (ctx.measureText(fullName).width > 560 && nameFontSize > 18) {
+      nameFontSize -= 2;
+      ctx.font = `900 ${nameFontSize}px -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif`;
     }
+    ctx.fillText(fullName, width / 2, 325);
+    ctx.restore();
 
-    const blob = dataUrlToBlob(dataUrl);
-    return { blob, dataUrl };
+    // 5. Official Member Badge: "OFFICIAL MEMBER"
+    ctx.save();
+    const badgeW = 210;
+    const badgeH = 32;
+    const badgeX = (width - badgeW) / 2;
+    const badgeY = 352;
+    drawRoundRect(badgeX, badgeY, badgeW, badgeH, 16);
+    ctx.fillStyle = "rgba(249, 115, 22, 0.12)";
+    ctx.fill();
+    ctx.lineWidth = 1.5;
+    ctx.strokeStyle = "rgba(249, 115, 22, 0.35)";
+    ctx.stroke();
+
+    ctx.fillStyle = "#c2410c";
+    ctx.font = "900 12px -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif";
+    ctx.textAlign = "center";
+    ctx.textBaseline = "middle";
+    ctx.fillText("🛡️ OFFICIAL MEMBER", width / 2, badgeY + 16);
+    ctx.restore();
+
+    // 6. Student ID Section
+    ctx.save();
+    ctx.fillStyle = "#94a3b8";
+    ctx.font = "800 11px -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif";
+    ctx.textAlign = "center";
+    ctx.textBaseline = "middle";
+    ctx.fillText("STUDENT ID", width / 2, 408);
+
+    const idBoxW = 230;
+    const idBoxH = 44;
+    const idBoxX = (width - idBoxW) / 2;
+    const idBoxY = 422;
+    drawRoundRect(idBoxX, idBoxY, idBoxW, idBoxH, 13);
+    ctx.fillStyle = "#ffffff";
+    ctx.fill();
+    ctx.lineWidth = 1.5;
+    ctx.strokeStyle = "#e2e8f0";
+    ctx.stroke();
+
+    ctx.fillStyle = "#1e293b";
+    ctx.font = "900 21px 'Courier New', Courier, monospace";
+    ctx.textAlign = "center";
+    ctx.textBaseline = "middle";
+    ctx.fillText(user?.student_id || "NOT-SET", width / 2, idBoxY + 22);
+    ctx.restore();
+
+    // 7. QR Code Container Box & QR Code
+    ctx.save();
+    const qrBoxSize = 300;
+    const qrBoxX = (width - qrBoxSize) / 2;
+    const qrBoxY = 486;
+    drawRoundRect(qrBoxX, qrBoxY, qrBoxSize, qrBoxSize, 36);
+    ctx.fillStyle = "#ffffff";
+    ctx.fill();
+    ctx.lineWidth = 2;
+    ctx.strokeStyle = "#fed7aa";
+    ctx.stroke();
+
+    // Draw from hidden QRCodeCanvas element
+    const qrCanvasElement = document.getElementById("qr-code-canvas-source") as HTMLCanvasElement | null;
+    if (qrCanvasElement) {
+      const qrInnerSize = 246;
+      const qrInnerX = (width - qrInnerSize) / 2;
+      const qrInnerY = qrBoxY + (qrBoxSize - qrInnerSize) / 2;
+      ctx.drawImage(qrCanvasElement, qrInnerX, qrInnerY, qrInnerSize, qrInnerSize);
+    }
+    ctx.restore();
+
+    // 8. Scan for Attendance Text
+    ctx.save();
+    ctx.fillStyle = "#334155";
+    ctx.font = "800 13px -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif";
+    ctx.textAlign = "center";
+    ctx.textBaseline = "middle";
+    ctx.fillText("SCAN FOR ATTENDANCE", width / 2, 818);
+    ctx.restore();
+
+    // 9. Bottom Divider & Footer
+    ctx.save();
+    ctx.beginPath();
+    ctx.moveTo(65, 852);
+    ctx.lineTo(width - 65, 852);
+    ctx.lineWidth = 1.5;
+    ctx.strokeStyle = "#cbd5e1";
+    ctx.stroke();
+
+    ctx.fillStyle = "#1e293b";
+    ctx.font = "900 11px -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif";
+    ctx.textAlign = "center";
+    ctx.textBaseline = "middle";
+    ctx.fillText("ASSOCIATION OF COMPUTING AND ENGINEERING STUDENTS", width / 2, 882);
+    ctx.restore();
+
+    return canvas;
   };
 
-  // Universal Smart Download / Save Handler (Cross-Platform & iOS Compatible)
-  const handleSmartSave = async (format: "jpeg" | "png" = "jpeg") => {
-    if (!cardRef.current) return;
-    setDownloadingFormat(format);
-    const toastId = toast.loading(
-      `Generating high-res ${format.toUpperCase()} ID Badge...`
-    );
+  // ONE Universal 1-Click Download Handler (iOS Safari, Android, Mac, Laptop, PC)
+  const handleUniversalDownload = async () => {
+    if (isDownloading) return;
+    setIsDownloading(true);
+    const toastId = toast.loading("Generating your official Digital ID...");
 
     try {
-      const result = await generateCard(format);
-      if (!result) throw new Error("Could not capture ID card");
+      const canvas = await generateIdCanvas();
+      const fileName = `ACES_ID_${user?.student_id || "MEMBER"}.jpg`;
 
-      const { blob, dataUrl } = result;
-      const extension = format === "png" ? "png" : "jpg";
-      const mimeType = format === "png" ? "image/png" : "image/jpeg";
-      const fileName = `ACES_ID_${user?.student_id || "MEMBER"}.${extension}`;
+      canvas.toBlob(
+        async (blob) => {
+          if (!blob) {
+            toast.dismiss(toastId);
+            toast.error("Failed to generate ID image.");
+            setIsDownloading(false);
+            return;
+          }
 
-      const file = new File([blob], fileName, { type: mimeType });
+          const ua = typeof navigator !== "undefined" ? navigator.userAgent.toLowerCase() : "";
+          const isMobile = /iphone|ipad|ipod|android|mobile/.test(ua);
+          const file = new File([blob], fileName, { type: "image/jpeg" });
 
-      // Save into preview state for modal
-      setPreviewData({
-        imageSrc: dataUrl,
-        blob,
-        pngBlob: format === "png" ? blob : null,
-        fileName,
-      });
+          // Mobile (iOS / Android): Trigger native Web Share sheet (Save Image to Photos / Files)
+          if (
+            isMobile &&
+            typeof navigator !== "undefined" &&
+            typeof navigator.share === "function" &&
+            typeof navigator.canShare === "function" &&
+            navigator.canShare({ files: [file] })
+          ) {
+            toast.dismiss(toastId);
+            try {
+              await navigator.share({
+                files: [file],
+                title: "ACES Digital ID",
+                text: `Official ACES Digital ID for ${user?.first_name || ""} ${user?.last_name || ""}`,
+              });
+              toast.success("ID saved / shared successfully!");
+              setIsDownloading(false);
+              return;
+            } catch (shareErr: any) {
+              if (shareErr.name === "AbortError") {
+                setIsDownloading(false);
+                return;
+              }
+            }
+          }
 
-      const ua = typeof navigator !== "undefined" ? navigator.userAgent.toLowerCase() : "";
-      const isMobile = /iphone|ipad|ipod|android|mobile/.test(ua);
-      const isIOSDevice =
-        /iphone|ipad|ipod/.test(ua) ||
-        (typeof navigator !== "undefined" &&
-          navigator.platform === "MacIntel" &&
-          navigator.maxTouchPoints > 1);
+          // Universal Direct Browser Download (Laptop, Desktop, & Mobile Fallback)
+          const blobUrl = URL.createObjectURL(blob);
+          const link = document.createElement("a");
+          link.href = blobUrl;
+          link.download = fileName;
+          link.rel = "noopener";
+          document.body.appendChild(link);
+          link.click();
 
-      // Trigger direct file download
-      triggerFileDownload(blob, fileName, dataUrl);
+          setTimeout(() => {
+            document.body.removeChild(link);
+            URL.revokeObjectURL(blobUrl);
+          }, 3000);
 
-      // On iOS / Mobile, also open the Preview modal with the instant "Save to Photos" button ready
-      if (isIOSDevice || isMobile) {
-        toast.dismiss(toastId);
-        setPreviewModalOpen(true);
-        toast.success(`ID Card ready! Tap "Save to Photos" or download.`);
-        return;
-      }
-
-      toast.dismiss(toastId);
-      toast.success(`ID saved as ${extension.toUpperCase()}!`);
+          toast.dismiss(toastId);
+          toast.success("ID downloaded successfully!");
+          setIsDownloading(false);
+        },
+        "image/jpeg",
+        0.98
+      );
     } catch (err: any) {
-      console.error("Download error:", err);
+      console.error("Download ID error:", err);
       toast.dismiss(toastId);
-      toast.error("Failed to generate ID. Please try again.");
-    } finally {
-      setDownloadingFormat(null);
-    }
-  };
-
-  // Explicitly Open High-Res Preview & Save Modal
-  const handleOpenPreview = async () => {
-    if (!cardRef.current) return;
-    setDownloadingFormat("preview");
-    const toastId = toast.loading("Generating ID preview...");
-
-    try {
-      const result = await generateCard("jpeg");
-      if (!result) throw new Error("Could not capture ID card");
-
-      setPreviewData({
-        imageSrc: result.dataUrl,
-        blob: result.blob,
-        fileName: `ACES_ID_${user?.student_id || "MEMBER"}.jpg`,
-      });
-      toast.dismiss(toastId);
-      setPreviewModalOpen(true);
-    } catch (err: any) {
-      console.error("Preview error:", err);
-      toast.dismiss(toastId);
-      toast.error("Failed to generate ID preview.");
-    } finally {
-      setDownloadingFormat(null);
+      toast.error("Failed to download ID. Please try again.");
+      setIsDownloading(false);
     }
   };
 
@@ -461,6 +625,17 @@ export default function StudentIDPage() {
 
   return (
     <div className="space-y-6 sm:space-y-8 max-w-5xl mx-auto">
+      {/* Hidden High-Resolution QR Canvas Source for 100% Crisp Canvas Merging */}
+      <div className="hidden" aria-hidden="true">
+        <QRCodeCanvas
+          id="qr-code-canvas-source"
+          value={qrData}
+          size={500}
+          level="M"
+          includeMargin={false}
+        />
+      </div>
+
       {/* Top Header */}
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div>
@@ -473,61 +648,19 @@ export default function StudentIDPage() {
         </div>
 
         {user?.profile_picture && (
-          <div className="flex flex-wrap items-center w-full sm:w-auto gap-2 sm:gap-2.5">
-            {/* Primary Smart Save Button (JPG) */}
+          <div className="w-full sm:w-auto">
+            {/* ONE Single Universal Download Button */}
             <Button
-              onClick={() => handleSmartSave("jpeg")}
-              disabled={Boolean(downloadingFormat)}
-              className="flex-1 sm:flex-none h-11 px-4 rounded-xl font-black bg-primary hover:bg-primary/95 text-white shadow-md shadow-primary/20 hover:scale-[1.02] cursor-pointer justify-center transition-all text-xs sm:text-sm"
+              onClick={handleUniversalDownload}
+              disabled={isDownloading}
+              className="w-full sm:w-auto h-12 px-6 rounded-2xl font-black bg-primary hover:bg-primary/95 text-white shadow-xl shadow-primary/25 hover:scale-[1.02] cursor-pointer justify-center transition-all text-sm sm:text-base"
             >
-              {downloadingFormat === "jpeg" ? (
-                <LuLoader className="size-4 mr-2 animate-spin text-white" />
+              {isDownloading ? (
+                <LuLoader className="size-5 mr-2.5 animate-spin text-white" />
               ) : (
-                <LuDownload className="size-4 mr-2 text-white" />
+                <LuDownload className="size-5 mr-2.5 text-white" />
               )}
-              {downloadingFormat === "jpeg" ? "Saving JPG..." : "Save ID (JPG)"}
-            </Button>
-
-            {/* Secondary Save Button (PNG) */}
-            <Button
-              variant="outline"
-              onClick={() => handleSmartSave("png")}
-              disabled={Boolean(downloadingFormat)}
-              className="flex-1 sm:flex-none h-11 px-3.5 rounded-xl font-bold bg-white text-slate-700 border-slate-200 shadow-xs cursor-pointer justify-center hover:bg-orange-50 hover:text-primary hover:border-orange-300 transition-all text-xs sm:text-sm"
-            >
-              {downloadingFormat === "png" ? (
-                <LuLoader className="size-4 mr-1.5 animate-spin text-primary" />
-              ) : (
-                <LuDownload className="size-4 mr-1.5 text-primary" />
-              )}
-              PNG
-            </Button>
-
-            {/* Preview & Save to Photos Modal Button */}
-            <Button
-              variant="outline"
-              onClick={handleOpenPreview}
-              disabled={Boolean(downloadingFormat)}
-              className="flex-1 sm:flex-none h-11 px-3.5 rounded-xl font-bold bg-white text-slate-700 border-slate-200 shadow-xs cursor-pointer justify-center hover:bg-slate-50 hover:text-slate-900 transition-all text-xs sm:text-sm"
-              title="Preview badge and save to Photos"
-            >
-              {downloadingFormat === "preview" ? (
-                <LuLoader className="size-4 mr-1.5 animate-spin text-primary" />
-              ) : (
-                <LuEye className="size-4 mr-1.5 text-primary" />
-              )}
-              Preview & Save
-            </Button>
-
-            {/* Change & Crop Photo */}
-            <Button
-              variant="outline"
-              onClick={() => fileInputRef.current?.click()}
-              disabled={uploading}
-              className="w-full sm:w-auto h-11 px-3.5 rounded-xl font-bold bg-white text-slate-700 border-slate-200 shadow-xs cursor-pointer justify-center hover:bg-slate-50 transition-all text-xs sm:text-sm"
-            >
-              <LuCrop className="size-4 mr-1.5 text-primary" />
-              Crop Photo
+              {isDownloading ? "Downloading ID..." : "Download Official ID"}
             </Button>
           </div>
         )}
@@ -552,18 +685,6 @@ export default function StudentIDPage() {
         }}
         onCropComplete={handleCropComplete}
         isUploading={uploading}
-      />
-
-      {/* High-Resolution ID Preview & Universal Save Modal */}
-      <IdPreviewModal
-        isOpen={previewModalOpen}
-        onClose={() => setPreviewModalOpen(false)}
-        imageSrc={previewData?.imageSrc || null}
-        blob={previewData?.blob || null}
-        pngBlob={previewData?.pngBlob || null}
-        fileName={previewData?.fileName || "ACES_ID.jpg"}
-        studentName={`${user?.first_name || ""} ${user?.last_name || ""}`.trim()}
-        studentId={user?.student_id}
       />
 
       {!user?.profile_picture ? (
@@ -609,11 +730,8 @@ export default function StudentIDPage() {
         /* Step 2: Display Physical ID Layout & Controls */
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 lg:gap-12 items-start">
           {/* Card Section */}
-          <div className="lg:col-span-5 flex justify-center w-full">
-            <div
-              ref={cardRef}
-              className="relative w-full max-w-[300px] xs:max-w-[320px] sm:max-w-[340px] aspect-[3.5/5.6] rounded-[2.5rem] sm:rounded-[3rem] overflow-hidden shadow-2xl shadow-orange-950/15 border-2 border-orange-200/90 flex flex-col justify-between bg-gradient-to-b from-orange-500 via-orange-400/20 to-white"
-            >
+          <div className="lg:col-span-5 flex flex-col items-center w-full">
+            <div className="relative w-full max-w-[310px] sm:max-w-[340px] aspect-[3.5/5.3] rounded-[2.5rem] sm:rounded-[3rem] overflow-hidden shadow-2xl shadow-orange-950/15 border-2 border-orange-200/90 flex flex-col justify-between bg-gradient-to-b from-orange-500 via-orange-400/20 to-white">
               {/* Decorative Geometric Top & Bottom Curves */}
               <div className="absolute top-0 left-0 right-0 h-28 bg-gradient-to-b from-orange-500 to-orange-500/90 z-0" />
               <div className="absolute top-20 -left-10 -right-10 h-16 bg-white/30 rounded-[100%] blur-sm z-0" />
@@ -623,15 +741,20 @@ export default function StudentIDPage() {
                 {/* Top: Header Pill + Profile Picture + Info */}
                 <div className="flex flex-col items-center w-full">
                   {/* Top Org Badge */}
-                  <div className="flex items-center gap-1.5 px-3 py-1 rounded-full bg-white/90 shadow-sm border border-white mb-3">
+                  <div className="flex items-center gap-1.5 px-3 py-1 rounded-full bg-white/90 shadow-sm border border-white mb-3 shrink-0">
                     <span className="size-1.5 rounded-full bg-orange-500 animate-pulse" />
-                    <p className="text-[9px] font-black text-orange-950 uppercase tracking-widest">
+                    <p className="text-[9px] font-black text-orange-950 uppercase tracking-widest whitespace-nowrap">
                       ACETRACK 3.0 • ACES
                     </p>
                   </div>
 
-                  {/* 1. Square Profile Picture Frame */}
-                  <div className="size-24 sm:size-28 rounded-2xl sm:rounded-3xl overflow-hidden bg-white border-3 border-white shadow-xl mb-2.5 shrink-0 flex items-center justify-center text-orange-300 ring-2 ring-orange-200/80">
+                  {/* 1. Square Profile Picture Frame with Quick Change Overlay */}
+                  <button
+                    type="button"
+                    onClick={() => fileInputRef.current?.click()}
+                    title="Click to change and crop your photo"
+                    className="group relative size-24 sm:size-28 rounded-2xl sm:rounded-3xl overflow-hidden bg-white border-3 border-white shadow-xl mb-2 shrink-0 flex items-center justify-center text-orange-300 ring-2 ring-orange-200/80 cursor-pointer focus:outline-none focus:ring-4 focus:ring-primary/40 transition-all hover:scale-105"
+                  >
                     {user.profile_picture ? (
                       <img
                         src={base64Photo || user.profile_picture}
@@ -646,24 +769,28 @@ export default function StudentIDPage() {
                     ) : (
                       <LuIdCard className="size-12 sm:size-14" />
                     )}
-                  </div>
+                    <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 flex flex-col items-center justify-center text-white transition-opacity gap-1">
+                      <LuCamera className="size-5" />
+                      <span className="text-[9px] font-black uppercase tracking-wider">Change</span>
+                    </div>
+                  </button>
 
                   {/* 2. Name */}
                   <div className="text-center space-y-0.5 mb-1 px-2 w-full">
-                    <h2 className="text-lg sm:text-xl font-black text-slate-900 tracking-tight leading-tight line-clamp-1">
+                    <h2 className="text-base sm:text-lg font-black text-slate-900 tracking-tight leading-tight line-clamp-1">
                       {user.first_name} {user.last_name}
                     </h2>
-                    <div className="inline-flex items-center gap-1.5 px-3 py-0.5 rounded-full bg-orange-500/10 border border-orange-500/25 text-orange-600 text-[8px] sm:text-[9px] font-black uppercase tracking-widest">
-                      <LuShieldCheck className="size-2.5" /> Official Member
+                    <div className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-orange-500/10 border border-orange-500/25 text-orange-600 text-[8px] sm:text-[9px] font-black uppercase tracking-widest whitespace-nowrap">
+                      <LuShieldCheck className="size-2.5 shrink-0" /> OFFICIAL MEMBER
                     </div>
                   </div>
 
                   {/* 3. Student ID Pill */}
-                  <div className="text-center mt-1">
-                    <span className="text-[8px] font-black text-slate-400 uppercase tracking-[0.25em] block mb-0.5">
-                      Student ID
+                  <div className="text-center mt-0.5">
+                    <span className="text-[8px] font-black text-slate-400 uppercase tracking-[0.2em] block mb-0.5">
+                      STUDENT ID
                     </span>
-                    <span className="inline-block px-3 py-0.5 rounded-lg bg-white border border-slate-200/80 text-xs sm:text-sm font-black text-slate-800 tracking-[0.1em] shadow-xs">
+                    <span className="inline-block px-3 py-0.5 rounded-lg bg-white border border-slate-200/80 text-xs sm:text-sm font-black text-slate-800 tracking-[0.1em] shadow-xs font-mono">
                       {user.student_id || "NOT-SET"}
                     </span>
                   </div>
@@ -680,24 +807,32 @@ export default function StudentIDPage() {
                       className="size-24 sm:size-28"
                     />
                   </div>
-                  <p className="text-[9px] font-black text-slate-700 uppercase tracking-[0.25em] mt-2">
-                    Scan for Attendance
+                  <p className="text-[8.5px] sm:text-[9px] font-black text-slate-700 uppercase tracking-[0.2em] mt-1.5 whitespace-nowrap">
+                    SCAN FOR ATTENDANCE
                   </p>
                 </div>
 
                 {/* Bottom: Organization Footer */}
                 <div className="pt-2 border-t border-slate-300/80 w-full text-center">
-                  <p className="text-[9px] sm:text-[10px] font-black text-slate-800 tracking-widest uppercase">
+                  <p className="text-[8px] sm:text-[9px] font-black text-slate-800 tracking-wider uppercase whitespace-nowrap">
                     ASSOCIATION OF COMPUTING AND ENGINEERING STUDENTS
                   </p>
                 </div>
               </div>
             </div>
+
+            <button
+              type="button"
+              onClick={() => fileInputRef.current?.click()}
+              className="mt-3 text-xs font-bold text-slate-500 hover:text-primary transition-colors flex items-center gap-1.5 cursor-pointer py-1 px-3 rounded-lg hover:bg-slate-100"
+            >
+              <LuCamera className="size-3.5" /> Tap photo to crop/change
+            </button>
           </div>
 
-          {/* Details & Universal Device Guidance Section */}
+          {/* Guidance Section */}
           <div className="lg:col-span-7 space-y-4 sm:space-y-6 w-full">
-            {/* Universal Device & iOS Save Guidance Card */}
+            {/* Save Guidance Card */}
             <div className="bg-gradient-to-br from-orange-500/10 via-amber-500/5 to-white rounded-3xl sm:rounded-[2.5rem] border border-orange-200 p-6 sm:p-8 shadow-sm">
               <div className="flex items-start gap-4 sm:gap-5">
                 <div className="p-3.5 sm:p-4 bg-orange-500 text-white rounded-2xl sm:rounded-3xl shadow-lg shadow-orange-500/20 shrink-0">
@@ -705,28 +840,23 @@ export default function StudentIDPage() {
                 </div>
                 <div className="space-y-2 text-left">
                   <h3 className="text-base sm:text-lg font-black text-slate-900 tracking-tight leading-snug">
-                    Save to Any Phone or Device
+                    Universal Device Downloads
                   </h3>
                   <p className="text-xs sm:text-sm text-slate-600 font-medium leading-relaxed">
-                    Designed for 100% universal compatibility across iPhones, iPads, Android, and Desktop computers.
+                    One-click high-resolution download optimized for iPhones, iPads, Android, Laptops, and Desktop computers.
                   </p>
 
                   <div className="space-y-2 pt-2 text-xs font-semibold text-slate-700">
                     <div className="flex items-center gap-2.5">
                       <span className="size-1.5 rounded-full bg-orange-500 shrink-0" />
                       <span>
-                        <strong className="text-orange-950">iPhone / iPad (iOS):</strong> Tap{" "}
-                        <span className="text-primary font-black">Save ID</span> or{" "}
-                        <span className="text-primary font-black">Preview & Save</span> &rarr; tap &amp; hold the image to select{" "}
-                        <em>&quot;Save to Photos&quot;</em>.
+                        <strong className="text-orange-950">Laptop &amp; PC:</strong> Downloads your official badge directly into your Downloads folder.
                       </span>
                     </div>
                     <div className="flex items-center gap-2.5">
                       <span className="size-1.5 rounded-full bg-orange-500 shrink-0" />
                       <span>
-                        <strong className="text-orange-950">Android &amp; Desktop:</strong> Tap{" "}
-                        <span className="text-primary font-black">Save ID (JPG)</span> or{" "}
-                        <span className="text-primary font-black">PNG</span> for instant high-speed file download.
+                        <strong className="text-orange-950">iPhone / iPad / Android:</strong> Opens the native save sheet to save directly to Photos or Files.
                       </span>
                     </div>
                   </div>
