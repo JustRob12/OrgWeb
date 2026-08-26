@@ -51,6 +51,22 @@ interface RawMemberData {
   receipt?: string;
 }
 
+export interface SkippedMemberData {
+  rowNumber: number;
+  student_id: string;
+  first_name: string;
+  middle_initial?: string;
+  last_name: string;
+  course?: string;
+  section?: string;
+  year?: string;
+  email: string;
+  membership_status?: string;
+  payment?: number;
+  receipt?: string;
+  reasons: string[];
+}
+
 interface PostSaveReport {
   savedCount: number;
   remainingCount: number;
@@ -62,6 +78,7 @@ interface PostSaveReport {
 
 export default function AddMembersPage() {
   const [members, setMembers] = useState<RawMemberData[]>([]);
+  const [skippedMembers, setSkippedMembers] = useState<SkippedMemberData[]>([]);
   const [dbExistingStudentIds, setDbExistingStudentIds] = useState<Set<string>>(new Set());
   const [dbExistingEmails, setDbExistingEmails] = useState<Set<string>>(new Set());
   const [isUploading, setIsUploading] = useState(false);
@@ -85,7 +102,7 @@ export default function AddMembersPage() {
   const [customSheetUrlInput, setCustomSheetUrlInput] = useState(DEFAULT_GOOGLE_SHEET_URL);
 
   // Table filtering and pagination states
-  const [filterStatus, setFilterStatus] = useState<"all" | "new" | "existing">("all");
+  const [filterStatus, setFilterStatus] = useState<"all" | "new" | "existing" | "skipped">("all");
   const [searchQuery, setSearchQuery] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage, setItemsPerPage] = useState(10);
@@ -221,18 +238,43 @@ export default function AddMembersPage() {
         return;
       }
 
-      let invalidCount = 0;
       const validatedData: RawMemberData[] = [];
+      const skippedData: SkippedMemberData[] = [];
 
-      rows.forEach((row) => {
+      rows.forEach((row, idx) => {
+        const rowNum = idx + 2; // header is row 1
         const rawStudentId = String(row.student_id || row["Student ID"] || row["ID"] || row["id"] || "").trim();
         const studentId = normalizeStudentId(rawStudentId) || rawStudentId;
         const firstName = String(row.first_name || row["First Name"] || row["Firstname"] || row["firstname"] || "").trim();
         const lastName = String(row.last_name || row["Last Name"] || row["Lastname"] || row["lastname"] || "").trim();
         const email = String(row.email || row["Email"] || row["Email Address"] || "").trim().toLowerCase();
 
-        if (!studentId || !firstName || !lastName || !email || !isValidEmail(email)) {
-          invalidCount++;
+        const reasons: string[] = [];
+        if (!studentId) reasons.push("Missing Student ID");
+        if (!firstName) reasons.push("Missing First Name");
+        if (!lastName) reasons.push("Missing Last Name");
+        if (!email) {
+          reasons.push("Missing Email");
+        } else if (!isValidEmail(email)) {
+          reasons.push("Invalid Email Address");
+        }
+
+        if (reasons.length > 0) {
+          skippedData.push({
+            rowNumber: rowNum,
+            student_id: rawStudentId,
+            first_name: firstName,
+            middle_initial: String(row.middle_initial || row["Middle Initial"] || row["MI"] || row["M.I."] || "").trim(),
+            last_name: lastName,
+            course: String(row.course || row["Course"] || row["program"] || "").trim(),
+            section: String(row.section || row["Section"] || row["sec"] || "").trim(),
+            year: String(row.year || row["Year"] || row["yr"] || "").trim(),
+            email: email,
+            membership_status: "Not Paid",
+            payment: Number(row.payment || row["Payment"] || row["Amount"] || row["amount"] || 0) || 0,
+            receipt: String(row.receipt || row["Receipt"] || row["Receipt Number"] || row["Receipt No"] || "").trim(),
+            reasons,
+          });
           return;
         }
 
@@ -258,6 +300,7 @@ export default function AddMembersPage() {
       });
 
       setMembers(validatedData);
+      setSkippedMembers(skippedData);
       setCurrentPage(1);
 
       const { idSet: existingDbSet, emailSet: existingEmailSet } = await fetchAllExistingRecords();
@@ -288,10 +331,10 @@ export default function AddMembersPage() {
 
       toast.success(`Fetched ${validatedData.length} rows from Google Sheet (${newMemberCount} new to save, ${inDbCount} already in database).`);
 
-      if (invalidCount > 0) {
+      if (skippedData.length > 0) {
         setErrorMessage({
           type: "warning",
-          text: `Skipped ${invalidCount} row(s) due to missing Student ID, missing name, or invalid email address.`,
+          text: `Skipped ${skippedData.length} row(s) due to missing Student ID, missing name, or invalid email address.`,
         });
       }
     } catch (err: any) {
@@ -333,18 +376,43 @@ export default function AddMembersPage() {
         const worksheet = workbook.Sheets[sheetName];
         const data = XLSX.utils.sheet_to_json(worksheet, { defval: "" }) as Record<string, unknown>[];
 
-        let invalidCount = 0;
         const validatedData: RawMemberData[] = [];
+        const skippedData: SkippedMemberData[] = [];
 
-        data.forEach((row) => {
+        data.forEach((row, idx) => {
+          const rowNum = idx + 2;
           const rawStudentId = String(row.student_id || row["Student ID"] || row["ID"] || "").trim();
           const studentId = normalizeStudentId(rawStudentId);
           const firstName = String(row.first_name || row["First Name"] || "").trim();
           const lastName = String(row.last_name || row["Last Name"] || "").trim();
           const email = String(row.email || row["Email"] || "").trim().toLowerCase();
 
-          if (!studentId || !firstName || !lastName || !email || !isValidEmail(email)) {
-            invalidCount++;
+          const reasons: string[] = [];
+          if (!studentId) reasons.push("Missing Student ID");
+          if (!firstName) reasons.push("Missing First Name");
+          if (!lastName) reasons.push("Missing Last Name");
+          if (!email) {
+            reasons.push("Missing Email");
+          } else if (!isValidEmail(email)) {
+            reasons.push("Invalid Email Address");
+          }
+
+          if (reasons.length > 0) {
+            skippedData.push({
+              rowNumber: rowNum,
+              student_id: rawStudentId,
+              first_name: firstName,
+              middle_initial: String(row.middle_initial || row["Middle Initial"] || row["MI"] || "").trim(),
+              last_name: lastName,
+              course: String(row.course || row["Course"] || "").trim(),
+              section: String(row.section || row["Section"] || "").trim(),
+              year: String(row.year || row["Year"] || "").trim(),
+              email: email,
+              membership_status: "Not Paid",
+              payment: Number(row.payment || row["Payment"] || row["Amount"] || 0) || 0,
+              receipt: String(row.receipt || row["Receipt"] || row["Receipt Number"] || row["Receipt No"] || "").trim(),
+              reasons,
+            });
             return;
           }
 
@@ -370,6 +438,7 @@ export default function AddMembersPage() {
         });
 
         setMembers(validatedData);
+        setSkippedMembers(skippedData);
         setCurrentPage(1);
 
         // Accurate breakdown of incoming file rows
@@ -426,10 +495,10 @@ export default function AddMembersPage() {
           toast.success(`Successfully parsed ${validatedData.length} new members.`);
         }
 
-        if (invalidCount > 0) {
+        if (skippedData.length > 0) {
           setErrorMessage({
             type: "warning",
-            text: `Skipped ${invalidCount} row(s) due to missing Student ID, missing name, or invalid email address.`
+            text: `Skipped ${skippedData.length} row(s) due to missing Student ID, missing name, or invalid email address.`
           });
         }
       } catch (error) {
@@ -625,6 +694,45 @@ export default function AddMembersPage() {
   const inDbCount = membersWithStatus.filter((item) => item.isExistingInDb).length;
   const duplicateInFileCount = membersWithStatus.filter((item) => !item.isExistingInDb && item.isDuplicateInBatch).length;
 
+  // Handle fixing a skipped row
+  const handleFixSkippedRow = (skipped: SkippedMemberData) => {
+    setManualMember({
+      student_id: skipped.student_id || "",
+      first_name: skipped.first_name || "",
+      middle_initial: skipped.middle_initial || "",
+      last_name: skipped.last_name || "",
+      course: skipped.course || "",
+      section: skipped.section || "",
+      year: skipped.year || "",
+      email: skipped.email || "",
+      membership_status: (skipped.membership_status as any) || "Not Paid",
+      payment: skipped.payment || 0,
+      receipt: skipped.receipt || "",
+    });
+    setEditingIndex(null);
+    setIsManualModalOpen(true);
+  };
+
+  // Filtered skipped members
+  const filteredSkippedMembers = useMemo(() => {
+    return skippedMembers.filter((item) => {
+      if (searchQuery.trim()) {
+        const query = searchQuery.toLowerCase().trim();
+        const matchesName = `${item.first_name} ${item.last_name}`.toLowerCase().includes(query);
+        const matchesId = item.student_id.toLowerCase().includes(query);
+        const matchesEmail = item.email.toLowerCase().includes(query);
+        const matchesCourse = (item.course || "").toLowerCase().includes(query);
+        const matchesSection = (item.section || "").toLowerCase().includes(query);
+        const matchesReasons = item.reasons.some((r) => r.toLowerCase().includes(query));
+
+        if (!matchesName && !matchesId && !matchesEmail && !matchesCourse && !matchesSection && !matchesReasons) {
+          return false;
+        }
+      }
+      return true;
+    });
+  }, [skippedMembers, searchQuery]);
+
   // Filtered members according to selected filter tab and search query
   const filteredMembers = useMemo(() => {
     return membersWithStatus.filter((item) => {
@@ -651,13 +759,20 @@ export default function AddMembersPage() {
   }, [membersWithStatus, filterStatus, searchQuery]);
 
   // Pagination calculation
-  const totalPages = Math.max(1, Math.ceil(filteredMembers.length / itemsPerPage));
+  const isSkippedTab = filterStatus === "skipped";
+  const activeTotalForPagination = isSkippedTab ? filteredSkippedMembers.length : filteredMembers.length;
+  const totalPages = Math.max(1, Math.ceil(activeTotalForPagination / itemsPerPage));
   const validCurrentPage = Math.min(currentPage, totalPages);
 
   const paginatedMembers = useMemo(() => {
     const start = (validCurrentPage - 1) * itemsPerPage;
     return filteredMembers.slice(start, start + itemsPerPage);
   }, [filteredMembers, validCurrentPage, itemsPerPage]);
+
+  const paginatedSkippedMembers = useMemo(() => {
+    const start = (validCurrentPage - 1) * itemsPerPage;
+    return filteredSkippedMembers.slice(start, start + itemsPerPage);
+  }, [filteredSkippedMembers, validCurrentPage, itemsPerPage]);
 
   const saveMembers = async () => {
     if (members.length === 0) return;
@@ -1094,23 +1209,43 @@ export default function AddMembersPage() {
           </div>
         </div>
       ) : errorMessage ? (
-        <div className={`p-3.5 sm:p-4 rounded-2xl flex items-start gap-3 border animate-in fade-in slide-in-from-top-2 duration-300 ${
+        <div className={`p-3.5 sm:p-4 rounded-2xl flex items-start justify-between gap-3 border animate-in fade-in slide-in-from-top-2 duration-300 ${
           errorMessage.type === "error" 
             ? "bg-rose-50 border-rose-200 text-rose-800" 
             : errorMessage.type === "warning"
-            ? "bg-amber-50 border-amber-200 text-amber-800"
+            ? "bg-amber-50 border-amber-200 text-amber-900"
             : "bg-emerald-50 border-emerald-200 text-emerald-800"
         }`}>
-          {errorMessage.type === "error" ? (
-            <LuCircleAlert className="size-5 shrink-0 text-rose-500 mt-0.5" />
-          ) : errorMessage.type === "warning" ? (
-            <LuTriangleAlert className="size-5 shrink-0 text-amber-500 mt-0.5" />
-          ) : (
-            <LuCircleCheck className="size-5 shrink-0 text-emerald-500 mt-0.5" />
-          )}
-          <div className="text-xs font-semibold leading-relaxed">
-            {errorMessage.text}
+          <div className="flex items-start gap-3">
+            {errorMessage.type === "error" ? (
+              <LuCircleAlert className="size-5 shrink-0 text-rose-500 mt-0.5" />
+            ) : errorMessage.type === "warning" ? (
+              <LuTriangleAlert className="size-5 shrink-0 text-amber-500 mt-0.5" />
+            ) : (
+              <LuCircleCheck className="size-5 shrink-0 text-emerald-500 mt-0.5" />
+            )}
+            <div className="text-xs font-semibold leading-relaxed">
+              <span>{errorMessage.text}</span>
+              {skippedMembers.length > 0 && filterStatus !== "skipped" && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setFilterStatus("skipped");
+                    setCurrentPage(1);
+                  }}
+                  className="ml-2 font-black underline hover:text-amber-950 cursor-pointer inline-flex items-center gap-1"
+                >
+                  View {skippedMembers.length} Skipped Row(s) →
+                </button>
+              )}
+            </div>
           </div>
+          <button
+            onClick={() => setErrorMessage(null)}
+            className="text-slate-400 hover:text-slate-600 p-0.5 cursor-pointer shrink-0"
+          >
+            <LuX className="size-4" />
+          </button>
         </div>
       ) : null}
 
@@ -1142,7 +1277,11 @@ export default function AddMembersPage() {
         onClose={() => setIsClearModalOpen(false)}
         onConfirm={() => {
           setMembers([]);
+          setSkippedMembers([]);
           setErrorMessage(null);
+          setSaveReport(null);
+          setFilterStatus("all");
+          setCurrentPage(1);
           setIsClearModalOpen(false);
           toast.success("Preview list cleared.");
         }}
@@ -1236,7 +1375,7 @@ export default function AddMembersPage() {
         </div>
       </div>
 
-      {members.length === 0 ? (
+      {members.length === 0 && skippedMembers.length === 0 ? (
         <Card
           onDragOver={handleDragOver}
           onDragLeave={handleDragLeave}
@@ -1279,13 +1418,13 @@ export default function AddMembersPage() {
       ) : (
         <div className="space-y-4">
           {/* Summary Metric Cards */}
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4">
+          <div className={`grid grid-cols-1 sm:grid-cols-2 ${skippedMembers.length > 0 ? "lg:grid-cols-4" : "lg:grid-cols-3"} gap-3 sm:gap-4`}>
             <div className="bg-white border border-slate-200/80 rounded-2xl p-3.5 sm:p-4 shadow-sm flex items-center gap-3">
               <div className="size-10 rounded-xl bg-slate-100 text-slate-700 flex items-center justify-center font-bold shrink-0">
                 <LuUsers className="size-5" />
               </div>
               <div>
-                <p className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider">Total in Preview</p>
+                <p className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider">Total Valid in Preview</p>
                 <p className="text-xl sm:text-2xl font-black text-slate-900">{totalCount}</p>
               </div>
             </div>
@@ -1315,6 +1454,29 @@ export default function AddMembersPage() {
                 <p className="text-xl sm:text-2xl font-black text-amber-950">{existingCount}</p>
               </div>
             </div>
+
+            {skippedMembers.length > 0 && (
+              <button
+                type="button"
+                onClick={() => {
+                  setFilterStatus("skipped");
+                  setCurrentPage(1);
+                }}
+                className="bg-rose-50/80 border border-rose-200/90 rounded-2xl p-3.5 sm:p-4 shadow-sm flex items-center gap-3 text-left hover:bg-rose-100/80 transition-all cursor-pointer group"
+              >
+                <div className="size-10 rounded-xl bg-rose-500 text-white flex items-center justify-center font-bold shadow-md shadow-rose-200 shrink-0 group-hover:scale-105 transition-transform">
+                  <LuCircleAlert className="size-5" />
+                </div>
+                <div>
+                  <p className="text-[11px] font-semibold text-rose-600 uppercase tracking-wider">
+                    Skipped / Invalid Rows
+                  </p>
+                  <p className="text-xl sm:text-2xl font-black text-rose-950">
+                    {skippedMembers.length}
+                  </p>
+                </div>
+              </button>
+            )}
           </div>
 
           {/* Filter Bar & Controls */}
@@ -1389,6 +1551,29 @@ export default function AddMembersPage() {
                     {existingCount}
                   </span>
                 </button>
+
+                {skippedMembers.length > 0 && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setFilterStatus("skipped");
+                      setCurrentPage(1);
+                    }}
+                    className={`shrink-0 flex items-center gap-1.5 sm:gap-2 px-3 py-1.5 sm:py-2 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+                      filterStatus === "skipped"
+                        ? "bg-rose-600 text-white shadow-sm"
+                        : "text-rose-700 hover:bg-rose-50"
+                    }`}
+                  >
+                    <LuCircleAlert className="size-3.5" />
+                    <span>Skipped / Invalid</span>
+                    <span className={`px-2 py-0.5 rounded-md text-[10px] font-black ${
+                      filterStatus === "skipped" ? "bg-rose-700 text-white" : "bg-rose-100 text-rose-800"
+                    }`}>
+                      {skippedMembers.length}
+                    </span>
+                  </button>
+                )}
               </div>
 
               {/* Search & Items Per Page Controls */}
@@ -1396,7 +1581,7 @@ export default function AddMembersPage() {
                 <div className="relative w-full sm:w-64">
                   <LuSearch className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 size-4" />
                   <Input
-                    placeholder="Search by ID, name, email..."
+                    placeholder={filterStatus === "skipped" ? "Search skipped rows..." : "Search by ID, name, email..."}
                     value={searchQuery}
                     onChange={(e) => {
                       setSearchQuery(e.target.value);
@@ -1441,109 +1626,375 @@ export default function AddMembersPage() {
           <Card className="overflow-hidden border-slate-200 shadow-xl shadow-slate-200/50 rounded-2xl sm:rounded-3xl">
             {/* Desktop Table View */}
             <div className="hidden md:block overflow-x-auto">
-              <table className="w-full text-left border-collapse min-w-[850px]">
-                <thead>
-                  <tr className="bg-slate-50/80 border-b border-slate-200">
-                    <th className="px-6 py-4 text-xs font-bold uppercase tracking-wider text-slate-500">Student ID & Record Status</th>
-                    <th className="px-6 py-4 text-xs font-bold uppercase tracking-wider text-slate-500">Name</th>
-                    <th className="px-6 py-4 text-xs font-bold uppercase tracking-wider text-slate-500">Course & Year</th>
-                    <th className="px-6 py-4 text-xs font-bold uppercase tracking-wider text-slate-500">Email</th>
-                    <th className="px-6 py-4 text-xs font-bold uppercase tracking-wider text-slate-500">Payment Status</th>
-                    <th className="px-6 py-4 text-xs font-bold uppercase tracking-wider text-slate-500">Amount Paid</th>
-                    <th className="px-6 py-4 text-xs font-bold uppercase tracking-wider text-slate-500">Receipt</th>
-                    <th className="px-6 py-4 text-xs font-bold uppercase tracking-wider text-slate-500 text-right">Actions</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-slate-100">
-                  {paginatedMembers.length === 0 ? (
-                    <tr>
-                      <td colSpan={8} className="px-6 py-12 text-center text-slate-400">
-                        <div className="max-w-xs mx-auto space-y-2">
-                          <LuFilter className="size-8 mx-auto text-slate-300" />
-                          <p className="text-sm font-semibold text-slate-600">No members match your current filter</p>
-                          <p className="text-xs text-slate-400">Try changing the status tab or search keyword.</p>
-                        </div>
-                      </td>
+              {filterStatus === "skipped" ? (
+                <table className="w-full text-left border-collapse min-w-[850px]">
+                  <thead>
+                    <tr className="bg-rose-50/70 border-b border-rose-200">
+                      <th className="px-6 py-4 text-xs font-bold uppercase tracking-wider text-rose-950">Source Row</th>
+                      <th className="px-6 py-4 text-xs font-bold uppercase tracking-wider text-rose-950">Student ID</th>
+                      <th className="px-6 py-4 text-xs font-bold uppercase tracking-wider text-rose-950">Full Name</th>
+                      <th className="px-6 py-4 text-xs font-bold uppercase tracking-wider text-rose-950">Email Address</th>
+                      <th className="px-6 py-4 text-xs font-bold uppercase tracking-wider text-rose-950">Course & Section</th>
+                      <th className="px-6 py-4 text-xs font-bold uppercase tracking-wider text-rose-950">Reason(s) Skipped</th>
+                      <th className="px-6 py-4 text-xs font-bold uppercase tracking-wider text-rose-950 text-right">Actions</th>
                     </tr>
-                  ) : (
-                    paginatedMembers.map(({ member, originalIndex, isExistingInDb, isExistingId, isExistingEmail, isDuplicateInBatch, failureReason, isNew }) => {
-                      const isCurrentlySaving = activeSavingId === member.student_id;
-                      const wasJustSaved = justSavedIds.has(member.student_id);
-
-                      return (
-                        <tr 
-                          key={originalIndex} 
-                          className={`transition-all duration-300 ${
-                            isCurrentlySaving 
-                              ? "bg-emerald-50/90 border-emerald-300 ring-2 ring-emerald-400/50 shadow-md animate-pulse" 
-                              : wasJustSaved
-                              ? "bg-emerald-100/60 opacity-40 translate-x-3"
-                              : failureReason && !isExistingInDb
-                              ? "bg-rose-50/40 hover:bg-rose-50/70"
-                              : !isNew 
-                              ? "bg-amber-50/30 hover:bg-slate-50/70" 
-                              : "hover:bg-slate-50/70"
-                          }`}
-                        >
+                  </thead>
+                  <tbody className="divide-y divide-slate-100">
+                    {paginatedSkippedMembers.length === 0 ? (
+                      <tr>
+                        <td colSpan={7} className="px-6 py-12 text-center text-slate-400">
+                          <div className="max-w-xs mx-auto space-y-2">
+                            <LuFilter className="size-8 mx-auto text-slate-300" />
+                            <p className="text-sm font-semibold text-slate-600">No skipped rows match your current search</p>
+                          </div>
+                        </td>
+                      </tr>
+                    ) : (
+                      paginatedSkippedMembers.map((skipped, idx) => (
+                        <tr key={idx} className="hover:bg-rose-50/40 transition-colors">
                           <td className="px-6 py-4">
-                            <div className="flex items-center gap-2">
-                              <span className="font-black text-slate-900 font-mono">{member.student_id}</span>
-                              {isCurrentlySaving ? (
-                                <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[10px] font-black tracking-wide bg-emerald-600 text-white shadow-sm animate-pulse">
-                                  <LuRefreshCw className="size-3 animate-spin" /> Saving...
-                                </span>
-                              ) : wasJustSaved ? (
-                                <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-black tracking-wide bg-emerald-700 text-white shadow-sm">
-                                  <LuCheck className="size-3" /> Saved!
-                                </span>
-                              ) : failureReason && !isExistingInDb ? (
-                                <span 
-                                  title={failureReason}
-                                  className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-black tracking-wide bg-rose-100 text-rose-800 border border-rose-200"
+                            <span className="font-mono text-xs font-bold text-slate-600 bg-slate-100 px-2.5 py-1 rounded-md">
+                              Row #{skipped.rowNumber}
+                            </span>
+                          </td>
+                          <td className="px-6 py-4">
+                            {skipped.student_id ? (
+                              <span className="font-mono font-bold text-slate-900">{skipped.student_id}</span>
+                            ) : (
+                              <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded text-[11px] font-black bg-rose-100 text-rose-700">
+                                MISSING ID
+                              </span>
+                            )}
+                          </td>
+                          <td className="px-6 py-4">
+                            {skipped.first_name || skipped.last_name ? (
+                              <div className="font-bold text-slate-900">{skipped.first_name} {skipped.last_name}</div>
+                            ) : (
+                              <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded text-[11px] font-black bg-rose-100 text-rose-700">
+                                MISSING NAME
+                              </span>
+                            )}
+                          </td>
+                          <td className="px-6 py-4">
+                            {skipped.email ? (
+                              <div className="text-xs font-medium text-slate-700">{skipped.email}</div>
+                            ) : (
+                              <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded text-[11px] font-black bg-rose-100 text-rose-700">
+                                MISSING EMAIL
+                              </span>
+                            )}
+                          </td>
+                          <td className="px-6 py-4">
+                            <div className="text-xs text-slate-600 font-medium">{skipped.course || "—"} {skipped.section ? `• ${skipped.section}` : ""}</div>
+                          </td>
+                          <td className="px-6 py-4">
+                            <div className="flex flex-wrap gap-1.5">
+                              {skipped.reasons.map((reason, rIdx) => (
+                                <span
+                                  key={rIdx}
+                                  className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-black bg-rose-100 text-rose-800 border border-rose-200"
                                 >
-                                  <LuCircleAlert className="size-3 text-rose-600" /> Error: {failureReason}
+                                  <LuCircleAlert className="size-3 text-rose-600 shrink-0" /> {reason}
                                 </span>
-                              ) : isExistingId ? (
-                                <span 
-                                  title="This Student ID already exists in the database. When saving, this record was NOT saved to preserve the existing account."
-                                  className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-black tracking-wide bg-amber-100 text-amber-800 border border-amber-200"
-                                >
-                                  <LuDatabase className="size-3" /> Already in DB (ID exists)
-                                </span>
-                              ) : isExistingEmail ? (
-                                <span 
-                                  title="This Email address is already registered to another user in the database."
-                                  className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-black tracking-wide bg-amber-100 text-amber-800 border border-amber-200"
-                                >
-                                  <LuDatabase className="size-3" /> Already in DB (Email exists)
-                                </span>
-                              ) : isDuplicateInBatch ? (
-                                <span 
-                                  title="This Student ID or Email is duplicated within your uploaded list."
-                                  className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-black tracking-wide bg-orange-100 text-orange-800 border border-orange-200"
-                                >
-                                  <LuTriangleAlert className="size-3" /> Duplicate in List
-                                </span>
-                              ) : (
-                                <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-black tracking-wide bg-emerald-100 text-emerald-800 border border-emerald-200">
-                                  <LuSparkles className="size-3" /> New
-                                </span>
-                              )}
+                              ))}
                             </div>
                           </td>
-                          <td className="px-6 py-4">
-                            <div className="font-bold text-slate-900">{member.first_name} {member.last_name}</div>
-                            <div className="text-xs text-slate-400 font-medium">MI: {member.middle_initial || "N/A"}</div>
+                          <td className="px-6 py-4 text-right">
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => handleFixSkippedRow(skipped)}
+                              className="h-8 px-3 rounded-lg text-xs font-bold border-rose-200 bg-rose-50/50 hover:bg-rose-100 text-rose-700 cursor-pointer"
+                            >
+                              <LuPencil className="size-3 mr-1" /> Fix &amp; Add
+                            </Button>
                           </td>
-                          <td className="px-6 py-4">
-                            <div className="text-slate-700 font-medium">{member.course || "N/A"} - {member.year || "N/A"}</div>
-                            <div className="text-xs text-slate-400 font-medium">Sec: {member.section || "N/A"}</div>
-                          </td>
-                          <td className="px-6 py-4">
-                            <div className="text-slate-900 font-medium">{member.email}</div>
-                          </td>
-                          <td className="px-6 py-4">
-                            <span className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-bold border ${
+                        </tr>
+                      ))
+                    )}
+                  </tbody>
+                </table>
+              ) : (
+                <table className="w-full text-left border-collapse min-w-[850px]">
+                  <thead>
+                    <tr className="bg-slate-50/80 border-b border-slate-200">
+                      <th className="px-6 py-4 text-xs font-bold uppercase tracking-wider text-slate-500">Student ID & Record Status</th>
+                      <th className="px-6 py-4 text-xs font-bold uppercase tracking-wider text-slate-500">Name</th>
+                      <th className="px-6 py-4 text-xs font-bold uppercase tracking-wider text-slate-500">Course & Year</th>
+                      <th className="px-6 py-4 text-xs font-bold uppercase tracking-wider text-slate-500">Email</th>
+                      <th className="px-6 py-4 text-xs font-bold uppercase tracking-wider text-slate-500">Payment Status</th>
+                      <th className="px-6 py-4 text-xs font-bold uppercase tracking-wider text-slate-500">Amount Paid</th>
+                      <th className="px-6 py-4 text-xs font-bold uppercase tracking-wider text-slate-500">Receipt</th>
+                      <th className="px-6 py-4 text-xs font-bold uppercase tracking-wider text-slate-500 text-right">Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-100">
+                    {paginatedMembers.length === 0 ? (
+                      <tr>
+                        <td colSpan={8} className="px-6 py-12 text-center text-slate-400">
+                          <div className="max-w-xs mx-auto space-y-2">
+                            <LuFilter className="size-8 mx-auto text-slate-300" />
+                            <p className="text-sm font-semibold text-slate-600">No members match your current filter</p>
+                            <p className="text-xs text-slate-400">Try changing the status tab or search keyword.</p>
+                          </div>
+                        </td>
+                      </tr>
+                    ) : (
+                      paginatedMembers.map(({ member, originalIndex, isExistingInDb, isExistingId, isExistingEmail, isDuplicateInBatch, failureReason, isNew }) => {
+                        const isCurrentlySaving = activeSavingId === member.student_id;
+                        const wasJustSaved = justSavedIds.has(member.student_id);
+
+                        return (
+                          <tr 
+                            key={originalIndex} 
+                            className={`transition-all duration-300 ${
+                              isCurrentlySaving 
+                                ? "bg-emerald-50/90 border-emerald-300 ring-2 ring-emerald-400/50 shadow-md animate-pulse" 
+                                : wasJustSaved
+                                ? "bg-emerald-100/60 opacity-40 translate-x-3"
+                                : failureReason && !isExistingInDb
+                                ? "bg-rose-50/40 hover:bg-rose-50/70"
+                                : !isNew 
+                                ? "bg-amber-50/30 hover:bg-slate-50/70" 
+                                : "hover:bg-slate-50/70"
+                            }`}
+                          >
+                            <td className="px-6 py-4">
+                              <div className="flex items-center gap-2">
+                                <span className="font-black text-slate-900 font-mono">{member.student_id}</span>
+                                {isCurrentlySaving ? (
+                                  <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[10px] font-black tracking-wide bg-emerald-600 text-white shadow-sm animate-pulse">
+                                    <LuRefreshCw className="size-3 animate-spin" /> Saving...
+                                  </span>
+                                ) : wasJustSaved ? (
+                                  <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-black tracking-wide bg-emerald-700 text-white shadow-sm">
+                                    <LuCheck className="size-3" /> Saved!
+                                  </span>
+                                ) : failureReason && !isExistingInDb ? (
+                                  <span 
+                                    title={failureReason}
+                                    className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-black tracking-wide bg-rose-100 text-rose-800 border border-rose-200"
+                                  >
+                                    <LuCircleAlert className="size-3 text-rose-600" /> Error: {failureReason}
+                                  </span>
+                                ) : isExistingId ? (
+                                  <span 
+                                    title="This Student ID already exists in the database. When saving, this record was NOT saved to preserve the existing account."
+                                    className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-black tracking-wide bg-amber-100 text-amber-800 border border-amber-200"
+                                  >
+                                    <LuDatabase className="size-3" /> Already in DB (ID exists)
+                                  </span>
+                                ) : isExistingEmail ? (
+                                  <span 
+                                    title="This Email address is already registered to another user in the database."
+                                    className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-black tracking-wide bg-amber-100 text-amber-800 border border-amber-200"
+                                  >
+                                    <LuDatabase className="size-3" /> Already in DB (Email exists)
+                                  </span>
+                                ) : isDuplicateInBatch ? (
+                                  <span 
+                                    title="This Student ID or Email is duplicated within your uploaded list."
+                                    className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-black tracking-wide bg-orange-100 text-orange-800 border border-orange-200"
+                                  >
+                                    <LuTriangleAlert className="size-3" /> Duplicate in List
+                                  </span>
+                                ) : (
+                                  <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-black tracking-wide bg-emerald-100 text-emerald-800 border border-emerald-200">
+                                    <LuSparkles className="size-3" /> New
+                                  </span>
+                                )}
+                              </div>
+                            </td>
+                            <td className="px-6 py-4">
+                              <div className="font-bold text-slate-900">{member.first_name} {member.last_name}</div>
+                              <div className="text-xs text-slate-400 font-medium">MI: {member.middle_initial || "N/A"}</div>
+                            </td>
+                            <td className="px-6 py-4">
+                              <div className="text-slate-700 font-medium">{member.course || "N/A"} - {member.year || "N/A"}</div>
+                              <div className="text-xs text-slate-400 font-medium">Sec: {member.section || "N/A"}</div>
+                            </td>
+                            <td className="px-6 py-4">
+                              <div className="text-slate-900 font-medium">{member.email}</div>
+                            </td>
+                            <td className="px-6 py-4">
+                              <span className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-bold border ${
+                                member.membership_status === 'Fully Paid' ? 'bg-emerald-50 text-emerald-600 border-emerald-100' :
+                                member.membership_status === 'Half Semester Paid' ? 'bg-blue-50 text-blue-600 border-blue-100' :
+                                member.membership_status === 'Partial' ? 'bg-amber-50 text-amber-600 border-amber-100' :
+                                'bg-rose-50 text-rose-600 border-rose-100'
+                              }`}>
+                                {member.membership_status}
+                              </span>
+                            </td>
+                            <td className="px-6 py-4">
+                              <div className="font-bold text-slate-900">₱{member.payment.toLocaleString()}</div>
+                            </td>
+                            <td className="px-6 py-4">
+                              <div className="text-sm font-semibold text-slate-600">{member.receipt || "—"}</div>
+                            </td>
+                            <td className="px-6 py-4 text-right">
+                              <div className="flex justify-end gap-2">
+                                <Button 
+                                  variant="outline" 
+                                  size="sm" 
+                                  disabled={isSaving}
+                                  onClick={() => handleEditRowClick(originalIndex)}
+                                  className="size-9 p-0 rounded-xl hover:bg-primary hover:text-white hover:border-primary transition-all cursor-pointer disabled:opacity-50"
+                                  title="Edit Member"
+                                >
+                                  <LuPencil className="size-4" />
+                                </Button>
+                                <Button 
+                                  variant="outline" 
+                                  size="sm" 
+                                  disabled={isSaving}
+                                  onClick={() => handleDeleteRow(originalIndex)}
+                                  className="size-9 p-0 rounded-xl hover:bg-rose-500 hover:text-white hover:border-rose-500 transition-all cursor-pointer disabled:opacity-50"
+                                  title="Remove from List"
+                                >
+                                  <LuTrash2 className="size-4" />
+                                </Button>
+                              </div>
+                            </td>
+                          </tr>
+                        );
+                      })
+                    )}
+                  </tbody>
+                </table>
+              )}
+            </div>
+
+            {/* Mobile Card List View (< md) */}
+            <div className="md:hidden divide-y divide-slate-100">
+              {filterStatus === "skipped" ? (
+                paginatedSkippedMembers.length === 0 ? (
+                  <div className="p-8 text-center text-slate-400 space-y-2">
+                    <LuFilter className="size-7 mx-auto text-slate-300" />
+                    <p className="text-sm font-semibold text-slate-600">No skipped rows match your search</p>
+                  </div>
+                ) : (
+                  paginatedSkippedMembers.map((skipped, idx) => (
+                    <div key={idx} className="p-4 space-y-2.5 bg-rose-50/20 border-l-4 border-l-rose-500">
+                      <div className="flex items-center justify-between gap-2 flex-wrap">
+                        <span className="font-mono text-xs font-bold text-slate-600 bg-white px-2.5 py-0.5 rounded border border-slate-200">
+                          Row #{skipped.rowNumber}
+                        </span>
+                        <div className="flex flex-wrap gap-1">
+                          {skipped.reasons.map((reason, rIdx) => (
+                            <span key={rIdx} className="text-[10px] font-black bg-rose-100 text-rose-800 px-2 py-0.5 rounded-full">
+                              {reason}
+                            </span>
+                          ))}
+                        </div>
+                      </div>
+                      <div>
+                        <h4 className="font-bold text-slate-900 text-sm">
+                          {skipped.first_name || skipped.last_name ? `${skipped.first_name} ${skipped.last_name}` : "Missing Name"}
+                        </h4>
+                        <p className="text-xs text-slate-500 font-mono mt-0.5">
+                          ID: {skipped.student_id || "MISSING"} • {skipped.email || "No Email"}
+                        </p>
+                        <p className="text-xs text-slate-600 mt-0.5 font-medium">
+                          {skipped.course || "No Course"} {skipped.section ? `• Sec ${skipped.section}` : ""}
+                        </p>
+                      </div>
+                      <div className="pt-2 flex justify-end">
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => handleFixSkippedRow(skipped)}
+                          className="h-8 px-3 rounded-lg text-xs font-bold border-rose-200 bg-white text-rose-700 hover:bg-rose-50 cursor-pointer"
+                        >
+                          <LuPencil className="size-3 mr-1" /> Fix &amp; Add to List
+                        </Button>
+                      </div>
+                    </div>
+                  ))
+                )
+              ) : (
+                paginatedMembers.length === 0 ? (
+                  <div className="p-8 text-center text-slate-400 space-y-2">
+                    <LuFilter className="size-7 mx-auto text-slate-300" />
+                    <p className="text-sm font-semibold text-slate-600">No members match your filter</p>
+                    <p className="text-xs text-slate-400">Try changing status or search keywords.</p>
+                  </div>
+                ) : (
+                  paginatedMembers.map(({ member, originalIndex, isExistingInDb, isExistingId, isExistingEmail, isDuplicateInBatch, failureReason, isNew }) => {
+                    const isCurrentlySaving = activeSavingId === member.student_id;
+                    const wasJustSaved = justSavedIds.has(member.student_id);
+
+                    return (
+                      <div
+                        key={originalIndex}
+                        className={`p-4 space-y-3 transition-all ${
+                          isCurrentlySaving
+                            ? "bg-emerald-50/90 border-l-4 border-l-emerald-500"
+                            : wasJustSaved
+                            ? "bg-emerald-100/60 opacity-50"
+                            : failureReason && !isExistingInDb
+                            ? "bg-rose-50/40 border-l-4 border-l-rose-500"
+                            : !isNew
+                            ? "bg-amber-50/30 border-l-4 border-l-amber-400"
+                            : "bg-white"
+                        }`}
+                      >
+                        {/* Top Row: ID & Status Badge */}
+                        <div className="flex items-center justify-between gap-2 flex-wrap">
+                          <span className="font-mono font-black text-slate-900 text-sm">
+                            {member.student_id}
+                          </span>
+
+                          <div>
+                            {isCurrentlySaving ? (
+                              <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-black bg-emerald-600 text-white shadow-sm animate-pulse">
+                                <LuRefreshCw className="size-3 animate-spin" /> Saving...
+                              </span>
+                            ) : wasJustSaved ? (
+                              <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-black bg-emerald-700 text-white shadow-sm">
+                                <LuCheck className="size-3" /> Saved!
+                              </span>
+                            ) : failureReason && !isExistingInDb ? (
+                              <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-black bg-rose-100 text-rose-800 border border-rose-200">
+                                <LuCircleAlert className="size-3 text-rose-600" /> Error
+                              </span>
+                            ) : isExistingId ? (
+                              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-black bg-amber-100 text-amber-800 border border-amber-200">
+                                <LuDatabase className="size-3" /> Already in DB (ID)
+                              </span>
+                            ) : isExistingEmail ? (
+                              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-black bg-amber-100 text-amber-800 border border-amber-200">
+                                <LuDatabase className="size-3" /> Already in DB (Email)
+                              </span>
+                            ) : isDuplicateInBatch ? (
+                              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-black bg-orange-100 text-orange-800 border border-orange-200">
+                                <LuTriangleAlert className="size-3" /> File Duplicate
+                              </span>
+                            ) : (
+                              <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-black bg-emerald-100 text-emerald-800 border border-emerald-200">
+                                <LuSparkles className="size-3" /> New
+                              </span>
+                            )}
+                          </div>
+                        </div>
+
+                        {/* Name & Academic Info */}
+                        <div>
+                          <h4 className="font-bold text-slate-900 text-sm">
+                            {member.first_name} {member.middle_initial ? `${member.middle_initial} ` : ""}{member.last_name}
+                          </h4>
+                          <p className="text-xs text-slate-500 font-medium">
+                            {member.course || "No Course"} • Year {member.year || "—"} • Sec {member.section || "—"}
+                          </p>
+                          <p className="text-xs text-slate-600 font-medium mt-0.5 truncate">
+                            {member.email}
+                          </p>
+                        </div>
+
+                        {/* Payment & Receipt Details */}
+                        <div className="flex items-center justify-between gap-2 pt-1 border-t border-slate-100 text-xs">
+                          <div className="flex items-center gap-2">
+                            <span className={`inline-flex items-center px-2 py-0.5 rounded-md text-[11px] font-bold border ${
                               member.membership_status === 'Fully Paid' ? 'bg-emerald-50 text-emerald-600 border-emerald-100' :
                               member.membership_status === 'Half Semester Paid' ? 'bg-blue-50 text-blue-600 border-blue-100' :
                               member.membership_status === 'Partial' ? 'bg-amber-50 text-amber-600 border-amber-100' :
@@ -1551,185 +2002,56 @@ export default function AddMembersPage() {
                             }`}>
                               {member.membership_status}
                             </span>
-                          </td>
-                          <td className="px-6 py-4">
-                            <div className="font-bold text-slate-900">₱{member.payment.toLocaleString()}</div>
-                          </td>
-                          <td className="px-6 py-4">
-                            <div className="text-sm font-semibold text-slate-600">{member.receipt || "—"}</div>
-                          </td>
-                          <td className="px-6 py-4 text-right">
-                            <div className="flex justify-end gap-2">
-                              <Button 
-                                variant="outline" 
-                                size="sm" 
-                                disabled={isSaving}
-                                onClick={() => handleEditRowClick(originalIndex)}
-                                className="size-9 p-0 rounded-xl hover:bg-primary hover:text-white hover:border-primary transition-all cursor-pointer disabled:opacity-50"
-                                title="Edit Member"
-                              >
-                                <LuPencil className="size-4" />
-                              </Button>
-                              <Button 
-                                variant="outline" 
-                                size="sm" 
-                                disabled={isSaving}
-                                onClick={() => handleDeleteRow(originalIndex)}
-                                className="size-9 p-0 rounded-xl hover:bg-rose-500 hover:text-white hover:border-rose-500 transition-all cursor-pointer disabled:opacity-50"
-                                title="Remove from List"
-                              >
-                                <LuTrash2 className="size-4" />
-                              </Button>
-                            </div>
-                          </td>
-                        </tr>
-                      );
-                    })
-                  )}
-                </tbody>
-              </table>
-            </div>
+                            <span className="font-bold text-slate-900">₱{member.payment.toLocaleString()}</span>
+                          </div>
 
-            {/* Mobile Card List View (< md) */}
-            <div className="md:hidden divide-y divide-slate-100">
-              {paginatedMembers.length === 0 ? (
-                <div className="p-8 text-center text-slate-400 space-y-2">
-                  <LuFilter className="size-7 mx-auto text-slate-300" />
-                  <p className="text-sm font-semibold text-slate-600">No members match your filter</p>
-                  <p className="text-xs text-slate-400">Try changing status or search keywords.</p>
-                </div>
-              ) : (
-                paginatedMembers.map(({ member, originalIndex, isExistingInDb, isExistingId, isExistingEmail, isDuplicateInBatch, failureReason, isNew }) => {
-                  const isCurrentlySaving = activeSavingId === member.student_id;
-                  const wasJustSaved = justSavedIds.has(member.student_id);
-
-                  return (
-                    <div
-                      key={originalIndex}
-                      className={`p-4 space-y-3 transition-all ${
-                        isCurrentlySaving
-                          ? "bg-emerald-50/90 border-l-4 border-l-emerald-500"
-                          : wasJustSaved
-                          ? "bg-emerald-100/60 opacity-50"
-                          : failureReason && !isExistingInDb
-                          ? "bg-rose-50/40 border-l-4 border-l-rose-500"
-                          : !isNew
-                          ? "bg-amber-50/30 border-l-4 border-l-amber-400"
-                          : "bg-white"
-                      }`}
-                    >
-                      {/* Top Row: ID & Status Badge */}
-                      <div className="flex items-center justify-between gap-2 flex-wrap">
-                        <span className="font-mono font-black text-slate-900 text-sm">
-                          {member.student_id}
-                        </span>
-
-                        <div>
-                          {isCurrentlySaving ? (
-                            <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-black bg-emerald-600 text-white shadow-sm animate-pulse">
-                              <LuRefreshCw className="size-3 animate-spin" /> Saving...
-                            </span>
-                          ) : wasJustSaved ? (
-                            <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-black bg-emerald-700 text-white shadow-sm">
-                              <LuCheck className="size-3" /> Saved!
-                            </span>
-                          ) : failureReason && !isExistingInDb ? (
-                            <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-black bg-rose-100 text-rose-800 border border-rose-200">
-                              <LuCircleAlert className="size-3 text-rose-600" /> Error
-                            </span>
-                          ) : isExistingId ? (
-                            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-black bg-amber-100 text-amber-800 border border-amber-200">
-                              <LuDatabase className="size-3" /> Already in DB (ID)
-                            </span>
-                          ) : isExistingEmail ? (
-                            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-black bg-amber-100 text-amber-800 border border-amber-200">
-                              <LuDatabase className="size-3" /> Already in DB (Email)
-                            </span>
-                          ) : isDuplicateInBatch ? (
-                            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-black bg-orange-100 text-orange-800 border border-orange-200">
-                              <LuTriangleAlert className="size-3" /> File Duplicate
-                            </span>
-                          ) : (
-                            <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-black bg-emerald-100 text-emerald-800 border border-emerald-200">
-                              <LuSparkles className="size-3" /> New
+                          {member.receipt && (
+                            <span className="text-[11px] font-mono text-slate-500 font-semibold truncate max-w-[120px]">
+                              Rcpt: {member.receipt}
                             </span>
                           )}
                         </div>
-                      </div>
 
-                      {/* Name & Academic Info */}
-                      <div>
-                        <h4 className="font-bold text-slate-900 text-sm">
-                          {member.first_name} {member.middle_initial ? `${member.middle_initial} ` : ""}{member.last_name}
-                        </h4>
-                        <p className="text-xs text-slate-500 font-medium">
-                          {member.course || "No Course"} • Year {member.year || "—"} • Sec {member.section || "—"}
-                        </p>
-                        <p className="text-xs text-slate-600 font-medium mt-0.5 truncate">
-                          {member.email}
-                        </p>
-                      </div>
-
-                      {/* Payment & Receipt Details */}
-                      <div className="flex items-center justify-between gap-2 pt-1 border-t border-slate-100 text-xs">
-                        <div className="flex items-center gap-2">
-                          <span className={`inline-flex items-center px-2 py-0.5 rounded-md text-[11px] font-bold border ${
-                            member.membership_status === 'Fully Paid' ? 'bg-emerald-50 text-emerald-600 border-emerald-100' :
-                            member.membership_status === 'Half Semester Paid' ? 'bg-blue-50 text-blue-600 border-blue-100' :
-                            member.membership_status === 'Partial' ? 'bg-amber-50 text-amber-600 border-amber-100' :
-                            'bg-rose-50 text-rose-600 border-rose-100'
-                          }`}>
-                            {member.membership_status}
-                          </span>
-                          <span className="font-bold text-slate-900">₱{member.payment.toLocaleString()}</span>
-                        </div>
-
-                        {member.receipt && (
-                          <span className="text-[11px] font-mono text-slate-500 font-semibold truncate max-w-[120px]">
-                            Rcpt: {member.receipt}
-                          </span>
+                        {/* Error or Warning message if present */}
+                        {failureReason && (
+                          <div className="p-2 bg-rose-50 rounded-xl text-[11px] font-semibold text-rose-700 border border-rose-200">
+                            {failureReason}
+                          </div>
                         )}
-                      </div>
 
-                      {/* Error or Warning message if present */}
-                      {failureReason && (
-                        <div className="p-2 bg-rose-50 rounded-xl text-[11px] font-semibold text-rose-700 border border-rose-200">
-                          {failureReason}
+                        {/* Action Buttons for Mobile */}
+                        <div className="flex items-center gap-2 pt-1">
+                          <Button 
+                            variant="outline" 
+                            size="sm" 
+                            disabled={isSaving}
+                            onClick={() => handleEditRowClick(originalIndex)}
+                            className="flex-1 h-8 rounded-xl text-xs font-bold text-slate-700 hover:bg-primary hover:text-white transition-all cursor-pointer justify-center"
+                          >
+                            <LuPencil className="size-3.5 mr-1" /> Edit
+                          </Button>
+                          <Button 
+                            variant="outline" 
+                            size="sm" 
+                            disabled={isSaving}
+                            onClick={() => handleDeleteRow(originalIndex)}
+                            className="flex-1 h-8 rounded-xl text-xs font-bold text-rose-600 hover:bg-rose-500 hover:text-white border-rose-200 transition-all cursor-pointer justify-center"
+                          >
+                            <LuTrash2 className="size-3.5 mr-1" /> Remove
+                          </Button>
                         </div>
-                      )}
-
-                      {/* Action Buttons for Mobile */}
-                      <div className="flex items-center gap-2 pt-1">
-                        <Button 
-                          variant="outline" 
-                          size="sm" 
-                          disabled={isSaving}
-                          onClick={() => handleEditRowClick(originalIndex)}
-                          className="flex-1 h-8 rounded-xl text-xs font-bold text-slate-700 hover:bg-primary hover:text-white transition-all cursor-pointer justify-center"
-                        >
-                          <LuPencil className="size-3.5 mr-1" /> Edit
-                        </Button>
-                        <Button 
-                          variant="outline" 
-                          size="sm" 
-                          disabled={isSaving}
-                          onClick={() => handleDeleteRow(originalIndex)}
-                          className="flex-1 h-8 rounded-xl text-xs font-bold text-rose-600 hover:bg-rose-500 hover:text-white border-rose-200 transition-all cursor-pointer justify-center"
-                        >
-                          <LuTrash2 className="size-3.5 mr-1" /> Remove
-                        </Button>
                       </div>
-                    </div>
-                  );
-                })
+                    );
+                  })
+                )
               )}
             </div>
 
             {/* Pagination Controls */}
             <div className="p-3.5 sm:p-6 bg-slate-50/50 border-t border-slate-100 flex flex-col sm:flex-row items-center justify-between gap-3 sm:gap-4">
               <p className="text-[11px] sm:text-xs font-bold text-slate-500 uppercase tracking-widest text-center sm:text-left">
-                Showing <span className="text-slate-900">{filteredMembers.length > 0 ? (validCurrentPage - 1) * itemsPerPage + 1 : 0}-{Math.min(filteredMembers.length, validCurrentPage * itemsPerPage)}</span> of <span className="text-slate-900">{filteredMembers.length}</span> members
-                {filteredMembers.length !== totalCount && ` (filtered from ${totalCount})`}
+                Showing <span className="text-slate-900">{activeTotalForPagination > 0 ? (validCurrentPage - 1) * itemsPerPage + 1 : 0}-{Math.min(activeTotalForPagination, validCurrentPage * itemsPerPage)}</span> of <span className="text-slate-900">{activeTotalForPagination}</span> {isSkippedTab ? "skipped records" : "members"}
+                {!isSkippedTab && filteredMembers.length !== totalCount && ` (filtered from ${totalCount})`}
               </p>
               
               <div className="flex items-center gap-1.5 flex-wrap justify-center">
