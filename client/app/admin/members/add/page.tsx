@@ -888,21 +888,21 @@ export default function AddMembersPage() {
   };
 
   return (
-    <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-700">
+    <div className="space-y-4 sm:space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-700 max-w-7xl mx-auto pb-12">
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
         <div>
-          <h1 className="text-4xl font-bold tracking-tight text-slate-900">Add New Members</h1>
-          <p className="text-slate-500 mt-1">Upload Excel/CSV files to bulk-create student accounts.</p>
+          <h1 className="text-2xl sm:text-3xl lg:text-4xl font-bold tracking-tight text-slate-900">Add New Members</h1>
+          <p className="text-xs sm:text-sm text-slate-500 mt-1">Upload Excel/CSV files to bulk-create student accounts.</p>
         </div>
 
         {members.length > 0 && (
-          <div className="flex flex-wrap items-center gap-2">
+          <div className="flex flex-wrap items-center gap-2 w-full md:w-auto">
             <Button
               variant="outline"
               size="sm"
               disabled={isSaving}
               onClick={() => setIsManualModalOpen(true)}
-              className="rounded-xl h-10 px-4 font-semibold text-slate-700 hover:bg-slate-100 cursor-pointer disabled:opacity-50"
+              className="rounded-xl h-9 sm:h-10 px-3 sm:px-4 font-semibold text-xs sm:text-sm text-slate-700 hover:bg-slate-100 cursor-pointer disabled:opacity-50 flex-1 sm:flex-initial justify-center"
             >
               <LuPlus className="size-4 mr-1 text-primary" /> Manually Add
             </Button>
@@ -913,7 +913,7 @@ export default function AddMembersPage() {
                 size="sm"
                 disabled={isSaving}
                 onClick={() => setIsRemoveDuplicatesModalOpen(true)}
-                className="rounded-xl h-10 px-4 font-semibold border-amber-200 text-amber-800 bg-amber-50 hover:bg-amber-100 cursor-pointer disabled:opacity-50"
+                className="rounded-xl h-9 sm:h-10 px-3 sm:px-4 font-semibold text-xs sm:text-sm border-amber-200 text-amber-800 bg-amber-50 hover:bg-amber-100 cursor-pointer disabled:opacity-50 flex-1 sm:flex-initial justify-center"
               >
                 <LuTrash2 className="size-4 mr-1 text-amber-600" /> Remove Already Recorded ({existingCount})
               </Button>
@@ -924,7 +924,7 @@ export default function AddMembersPage() {
               size="sm"
               disabled={isSaving}
               onClick={() => setIsClearModalOpen(true)}
-              className="rounded-xl h-10 px-4 font-semibold text-slate-600 hover:bg-rose-50 hover:text-rose-600 hover:border-rose-200 cursor-pointer disabled:opacity-50"
+              className="rounded-xl h-9 sm:h-10 px-3 sm:px-4 font-semibold text-xs sm:text-sm text-slate-600 hover:bg-rose-50 hover:text-rose-600 hover:border-rose-200 cursor-pointer disabled:opacity-50 flex-1 sm:flex-initial justify-center"
             >
               <LuX className="size-4 mr-1" /> Clear List
             </Button>
@@ -934,7 +934,7 @@ export default function AddMembersPage() {
               onClick={() => setIsSaveModalOpen(true)}
               loading={isSaving}
               disabled={newCount === 0 || isSaving}
-              className="rounded-xl h-10 px-5 font-bold gradient-primary text-white shadow-lg shadow-primary/20 hover:shadow-primary/40 cursor-pointer disabled:opacity-50"
+              className="rounded-xl h-9 sm:h-10 px-4 sm:px-5 font-bold text-xs sm:text-sm gradient-primary text-white shadow-lg shadow-primary/20 hover:shadow-primary/40 cursor-pointer disabled:opacity-50 w-full sm:w-auto justify-center"
             >
               <LuSave className="size-4 mr-1.5" /> {isSaving ? "Saving..." : `Save ${newCount > 0 ? `(${newCount} New)` : ""}`}
             </Button>
@@ -944,26 +944,26 @@ export default function AddMembersPage() {
 
       {/* Live Saving Animated Progress Banner */}
       {isSaving && savingProgress && (
-        <div className="bg-gradient-to-r from-emerald-50 via-primary/5 to-emerald-50 border-2 border-emerald-400/40 rounded-3xl p-5 shadow-lg shadow-emerald-500/10 animate-in fade-in slide-in-from-top-3 duration-300">
+        <div className="bg-gradient-to-r from-emerald-50 via-primary/5 to-emerald-50 border-2 border-emerald-400/40 rounded-3xl p-4 sm:p-5 shadow-lg shadow-emerald-500/10 animate-in fade-in slide-in-from-top-3 duration-300">
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-3">
             <div className="flex items-center gap-3">
-              <div className="size-11 rounded-2xl bg-emerald-500 text-white flex items-center justify-center font-bold shadow-md shadow-emerald-200">
+              <div className="size-10 sm:size-11 rounded-2xl bg-emerald-500 text-white flex items-center justify-center font-bold shadow-md shadow-emerald-200 shrink-0">
                 <LuRefreshCw className="size-5 animate-spin" />
               </div>
-              <div>
-                <h4 className="text-sm font-black text-slate-900 flex items-center gap-2">
+              <div className="min-w-0 flex-1">
+                <h4 className="text-xs sm:text-sm font-black text-slate-900 flex items-center gap-2 flex-wrap">
                   <span>Adding Students to Database</span>
-                  <span className="text-xs px-2.5 py-0.5 rounded-full bg-emerald-100 text-emerald-800 font-black">
+                  <span className="text-[10px] sm:text-xs px-2.5 py-0.5 rounded-full bg-emerald-100 text-emerald-800 font-black">
                     {savingProgress.current} / {savingProgress.total}
                   </span>
                 </h4>
-                <p className="text-xs font-semibold text-slate-500 mt-0.5">
+                <p className="text-xs font-semibold text-slate-500 mt-0.5 truncate max-w-xs sm:max-w-md">
                   Currently adding: <strong className="text-emerald-700">{savingProgress.currentName}</strong> ({savingProgress.currentId})
                 </p>
               </div>
             </div>
-            <div className="text-right">
-              <span className="text-2xl font-black text-emerald-600">
+            <div className="text-right sm:text-right shrink-0">
+              <span className="text-xl sm:text-2xl font-black text-emerald-600">
                 {Math.round((savingProgress.current / savingProgress.total) * 100)}%
               </span>
             </div>
@@ -983,16 +983,16 @@ export default function AddMembersPage() {
 
       {/* Summary Banner / Post-Save Detailed Status Banner */}
       {saveReport ? (
-        <div className={`p-5 sm:p-6 rounded-3xl border shadow-md animate-in fade-in slide-in-from-top-3 duration-300 ${
+        <div className={`p-4 sm:p-6 rounded-3xl border shadow-md animate-in fade-in slide-in-from-top-3 duration-300 ${
           saveReport.remainingCount === 0 && saveReport.savedCount > 0
             ? "bg-gradient-to-r from-emerald-50 via-teal-50 to-emerald-50 border-emerald-300 text-emerald-950"
             : saveReport.savedCount > 0
             ? "bg-gradient-to-r from-amber-50 via-orange-50/70 to-amber-50 border-amber-300 text-amber-950"
             : "bg-gradient-to-r from-rose-50 via-red-50 to-rose-50 border-rose-300 text-rose-950"
         }`}>
-          <div className="flex flex-col md:flex-row items-start justify-between gap-5">
-            <div className="flex items-start gap-4">
-              <div className={`size-12 rounded-2xl flex items-center justify-center shrink-0 shadow-md ${
+          <div className="flex flex-col md:flex-row items-start justify-between gap-4 sm:gap-5">
+            <div className="flex items-start gap-3 sm:gap-4 w-full md:w-auto">
+              <div className={`size-10 sm:size-12 rounded-2xl flex items-center justify-center shrink-0 shadow-md ${
                 saveReport.remainingCount === 0 && saveReport.savedCount > 0
                   ? "bg-emerald-500 text-white shadow-emerald-500/20"
                   : saveReport.savedCount > 0
@@ -1000,17 +1000,17 @@ export default function AddMembersPage() {
                   : "bg-rose-500 text-white shadow-rose-500/20"
               }`}>
                 {saveReport.remainingCount === 0 && saveReport.savedCount > 0 ? (
-                  <LuCircleCheck className="size-6" />
+                  <LuCircleCheck className="size-5 sm:size-6" />
                 ) : saveReport.savedCount > 0 ? (
-                  <LuTriangleAlert className="size-6" />
+                  <LuTriangleAlert className="size-5 sm:size-6" />
                 ) : (
-                  <LuCircleAlert className="size-6" />
+                  <LuCircleAlert className="size-5 sm:size-6" />
                 )}
               </div>
 
-              <div className="space-y-2">
+              <div className="space-y-2 min-w-0 flex-1">
                 <div>
-                  <h3 className="text-base sm:text-lg font-black tracking-tight text-slate-900">
+                  <h3 className="text-sm sm:text-base md:text-lg font-black tracking-tight text-slate-900 leading-snug">
                     {saveReport.remainingCount === 0 && saveReport.savedCount > 0 ? (
                       `🎉 All ${saveReport.savedCount} Members Successfully Added to Database!`
                     ) : saveReport.savedCount > 0 ? (
@@ -1019,13 +1019,13 @@ export default function AddMembersPage() {
                       `⚠️ Unable to Save ${saveReport.remainingCount} Student(s)`
                     )}
                   </h3>
-                  <p className="text-xs text-slate-500 font-medium mt-0.5">
+                  <p className="text-[11px] sm:text-xs text-slate-500 font-medium mt-0.5">
                     Batch saving animation completed. See the detailed breakdown below for why remaining students were not saved.
                   </p>
                 </div>
 
                 {saveReport.remainingCount > 0 && (
-                  <div className="bg-white/80 border border-slate-200/80 rounded-2xl p-3.5 space-y-2 text-xs font-semibold text-slate-700 shadow-xs">
+                  <div className="bg-white/80 border border-slate-200/80 rounded-2xl p-3 sm:p-3.5 space-y-2 text-xs font-semibold text-slate-700 shadow-xs">
                     <p className="font-bold text-slate-900 flex items-center gap-1.5">
                       <LuCircleAlert className="size-4 text-amber-600 shrink-0" />
                       Detailed reason(s) why remaining students were not added:
@@ -1063,16 +1063,16 @@ export default function AddMembersPage() {
 
             {/* Direct Action Buttons on Banner */}
             {saveReport.remainingCount > 0 && (
-              <div className="flex flex-wrap items-center gap-2 shrink-0 self-end md:self-start w-full md:w-auto justify-end">
+              <div className="flex flex-wrap items-center gap-2 shrink-0 w-full md:w-auto justify-stretch sm:justify-end">
                 {saveReport.inDbCount + saveReport.duplicateInListCount > 0 && (
                   <Button
                     size="sm"
                     variant="outline"
                     onClick={handleRemoveAlreadyRecorded}
-                    className="rounded-xl h-9 text-xs font-bold border-amber-300 bg-white hover:bg-amber-50 text-amber-900 shadow-xs cursor-pointer"
+                    className="rounded-xl h-9 text-xs font-bold border-amber-300 bg-white hover:bg-amber-50 text-amber-900 shadow-xs cursor-pointer flex-1 sm:flex-none justify-center"
                   >
                     <LuTrash2 className="size-3.5 mr-1 text-amber-700" />
-                    Remove Already Recorded ({saveReport.inDbCount + saveReport.duplicateInListCount})
+                    Remove Recorded ({saveReport.inDbCount + saveReport.duplicateInListCount})
                   </Button>
                 )}
                 <Button
@@ -1085,7 +1085,7 @@ export default function AddMembersPage() {
                     setErrorMessage(null);
                     toast.success("Preview list cleared.");
                   }}
-                  className="rounded-xl h-9 text-xs font-bold border-slate-200 bg-white hover:bg-slate-50 text-slate-700 shadow-xs cursor-pointer"
+                  className="rounded-xl h-9 text-xs font-bold border-slate-200 bg-white hover:bg-slate-50 text-slate-700 shadow-xs cursor-pointer flex-1 sm:flex-none justify-center"
                 >
                   <LuX className="size-3.5 mr-1" /> Clear Remaining
                 </Button>
@@ -1094,7 +1094,7 @@ export default function AddMembersPage() {
           </div>
         </div>
       ) : errorMessage ? (
-        <div className={`p-4 rounded-2xl flex items-start gap-3 border animate-in fade-in slide-in-from-top-2 duration-300 ${
+        <div className={`p-3.5 sm:p-4 rounded-2xl flex items-start gap-3 border animate-in fade-in slide-in-from-top-2 duration-300 ${
           errorMessage.type === "error" 
             ? "bg-rose-50 border-rose-200 text-rose-800" 
             : errorMessage.type === "warning"
@@ -1163,10 +1163,10 @@ export default function AddMembersPage() {
       />
 
       {!members.length && (
-        <div className="flex justify-end mb-6">
+        <div className="flex justify-stretch sm:justify-end mb-4 sm:mb-6">
           <Button
             variant="outline"
-            className="rounded-2xl border-slate-200 h-11 px-6 font-semibold items-center gap-2 shadow-sm text-slate-600 hover:bg-white hover:text-slate-600 cursor-pointer"
+            className="w-full sm:w-auto rounded-2xl border-slate-200 h-11 px-6 font-semibold items-center justify-center gap-2 shadow-sm text-slate-600 hover:bg-white hover:text-slate-600 cursor-pointer"
             onClick={() => setIsManualModalOpen(true)}
           >
             <LuUserPlus className="size-4.5 text-primary/70" />
@@ -1176,30 +1176,30 @@ export default function AddMembersPage() {
       )}
 
       {/* Connected Google Sheet Sync Banner */}
-      <div className="bg-gradient-to-r from-emerald-50 via-teal-50/70 to-emerald-50 border border-emerald-200 rounded-3xl p-5 shadow-xs flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
-        <div className="flex items-center gap-3.5">
-          <div className="size-11 rounded-2xl bg-emerald-600 text-white flex items-center justify-center font-bold shadow-md shadow-emerald-200 shrink-0">
-            <LuFileSpreadsheet className="size-6" />
+      <div className="bg-gradient-to-r from-emerald-50 via-teal-50/70 to-emerald-50 border border-emerald-200 rounded-3xl p-4 sm:p-5 shadow-xs flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+        <div className="flex items-center gap-3 sm:gap-3.5 w-full md:w-auto">
+          <div className="size-10 sm:size-11 rounded-2xl bg-emerald-600 text-white flex items-center justify-center font-bold shadow-md shadow-emerald-200 shrink-0">
+            <LuFileSpreadsheet className="size-5 sm:size-6" />
           </div>
-          <div>
+          <div className="min-w-0 flex-1">
             <div className="flex items-center gap-2 flex-wrap">
-              <h4 className="text-sm font-black text-emerald-950">Linked Google Sheet</h4>
-              <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-black bg-emerald-100 text-emerald-800">
+              <h4 className="text-xs sm:text-sm font-black text-emerald-950">Linked Google Sheet</h4>
+              <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-black bg-emerald-100 text-emerald-800 shrink-0">
                 Live Source Connected
               </span>
             </div>
-            <p className="text-xs text-emerald-800/80 font-medium mt-0.5 truncate max-w-xl">
+            <p className="text-[11px] sm:text-xs text-emerald-800/80 font-medium mt-0.5 truncate max-w-full sm:max-w-md md:max-w-xl">
               {googleSheetUrl}
             </p>
           </div>
         </div>
 
-        <div className="flex flex-wrap items-center gap-2.5 shrink-0 self-end md:self-center">
+        <div className="flex flex-wrap items-center gap-2 w-full md:w-auto justify-stretch sm:justify-end">
           <a
             href={googleSheetUrl}
             target="_blank"
             rel="noopener noreferrer"
-            className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-bold bg-white text-emerald-900 border border-emerald-300 hover:bg-emerald-100/60 transition-colors shadow-xs"
+            className="inline-flex items-center justify-center gap-1.5 px-3 py-2 rounded-xl text-xs font-bold bg-white text-emerald-900 border border-emerald-300 hover:bg-emerald-100/60 transition-colors shadow-xs flex-1 sm:flex-none text-center"
           >
             <LuExternalLink className="size-3.5" /> Open Sheet ↗
           </a>
@@ -1208,7 +1208,7 @@ export default function AddMembersPage() {
             size="sm"
             disabled={isFetchingSheet}
             onClick={() => handleFetchFromGoogleSheet()}
-            className="rounded-xl h-9 text-xs font-bold bg-emerald-600 hover:bg-emerald-700 text-white shadow-xs cursor-pointer"
+            className="rounded-xl h-9 text-xs font-bold bg-emerald-600 hover:bg-emerald-700 text-white shadow-xs cursor-pointer flex-1 sm:flex-none justify-center"
           >
             <LuRefreshCw className={`size-3.5 mr-1.5 ${isFetchingSheet ? "animate-spin" : ""}`} />
             {isFetchingSheet ? "Fetching Live..." : "Fetch from Google Sheet"}
@@ -1225,7 +1225,7 @@ export default function AddMembersPage() {
               toast.info(next ? "Auto-fetch on page open enabled." : "Auto-fetch disabled.");
             }}
             title="Automatically fetch latest Google Sheet rows when you open this page"
-            className={`px-3 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer border ${
+            className={`px-3 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer border flex-1 sm:flex-none text-center justify-center ${
               autoFetchSheet
                 ? "bg-emerald-700 text-white border-emerald-700"
                 : "bg-white text-slate-600 border-slate-200 hover:bg-slate-50"
@@ -1241,94 +1241,94 @@ export default function AddMembersPage() {
           onDragOver={handleDragOver}
           onDragLeave={handleDragLeave}
           onDrop={handleDrop}
-          className={`border-2 border-dashed transition-all duration-300 group rounded-[2.5rem] ${isDragging
+          className={`border-2 border-dashed transition-all duration-300 group rounded-[2rem] sm:rounded-[2.5rem] ${isDragging
             ? "border-primary bg-primary/5 scale-[1.01] shadow-2xl shadow-primary/10"
             : "border-slate-200 bg-slate-50/50 hover:border-primary/50"
             }`}
         >
-          <CardContent className="p-12 text-center py-24">
-            <div className={`mx-auto w-20 h-20 bg-white rounded-3xl shadow-xl flex items-center justify-center mb-6 transition-all duration-500 ${isDragging ? "scale-110 rotate-12 shadow-primary/20" : "shadow-slate-200/50 group-hover:scale-110"
+          <CardContent className="p-6 sm:p-12 text-center py-12 sm:py-20">
+            <div className={`mx-auto w-16 h-16 sm:w-20 sm:h-20 bg-white rounded-3xl shadow-xl flex items-center justify-center mb-5 sm:mb-6 transition-all duration-500 ${isDragging ? "scale-110 rotate-12 shadow-primary/20" : "shadow-slate-200/50 group-hover:scale-110"
               }`}>
-              <LuUpload className={`size-10 transition-colors ${isDragging ? "text-primary" : "text-primary/60 group-hover:text-primary"}`} />
+              <LuUpload className={`size-8 sm:size-10 transition-colors ${isDragging ? "text-primary" : "text-primary/60 group-hover:text-primary"}`} />
             </div>
-            <h3 className="text-2xl font-bold text-slate-900 mb-2">
+            <h3 className="text-xl sm:text-2xl font-bold text-slate-900 mb-2">
               {isDragging ? "Drop your file here" : "Upload Members List"}
             </h3>
-            <p className="text-slate-500 max-w-sm mx-auto mb-8">
+            <p className="text-xs sm:text-sm text-slate-500 max-w-sm mx-auto mb-6 sm:mb-8 px-2">
               Drop your .xlsx, .xls, or .csv file here. Existing students in the database will be preserved and won&apos;t be overwritten.
             </p>
-            <div className="relative inline-block">
+            <div className="relative inline-block w-full sm:w-auto">
               <input
                 type="file"
                 accept=".xlsx, .xls, .csv"
                 onChange={handleFileUpload}
-                className="absolute inset-0 opacity-0 cursor-pointer"
+                className="absolute inset-0 opacity-0 cursor-pointer w-full h-full"
                 disabled={isUploading}
               />
-              <Button disabled={isUploading} className="h-12 px-8 rounded-xl font-bold gradient-primary shadow-xl shadow-primary/10 cursor-pointer">
+              <Button disabled={isUploading} className="w-full sm:w-auto h-11 sm:h-12 px-8 rounded-xl font-bold gradient-primary shadow-xl shadow-primary/10 cursor-pointer justify-center">
                 {isUploading ? "Processing..." : "Select File"}
               </Button>
             </div>
-            <div className="mt-8 flex items-center justify-center gap-6 text-xs font-bold uppercase tracking-widest text-slate-400">
-              <span className="flex items-center gap-2"><LuCircleCheck /> Fast Parallel Additions</span>
-              <span className="flex items-center gap-2"><LuCircleCheck /> Live Row Animations</span>
-              <span className="flex items-center gap-2"><LuCircleCheck /> Duplicate Protection</span>
+            <div className="mt-6 sm:mt-8 flex flex-wrap items-center justify-center gap-3 sm:gap-6 text-[10px] sm:text-xs font-bold uppercase tracking-widest text-slate-400">
+              <span className="flex items-center gap-1.5"><LuCircleCheck className="size-3.5" /> Fast Parallel Additions</span>
+              <span className="flex items-center gap-1.5"><LuCircleCheck className="size-3.5" /> Live Row Animations</span>
+              <span className="flex items-center gap-1.5"><LuCircleCheck className="size-3.5" /> Duplicate Protection</span>
             </div>
           </CardContent>
         </Card>
       ) : (
         <div className="space-y-4">
           {/* Summary Metric Cards */}
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-            <div className="bg-white border border-slate-200/80 rounded-2xl p-4 shadow-sm flex items-center gap-3">
-              <div className="size-10 rounded-xl bg-slate-100 text-slate-700 flex items-center justify-center font-bold">
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4">
+            <div className="bg-white border border-slate-200/80 rounded-2xl p-3.5 sm:p-4 shadow-sm flex items-center gap-3">
+              <div className="size-10 rounded-xl bg-slate-100 text-slate-700 flex items-center justify-center font-bold shrink-0">
                 <LuUsers className="size-5" />
               </div>
               <div>
-                <p className="text-xs font-semibold text-slate-400 uppercase tracking-wider">Total in Preview</p>
-                <p className="text-2xl font-black text-slate-900">{totalCount}</p>
+                <p className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider">Total in Preview</p>
+                <p className="text-xl sm:text-2xl font-black text-slate-900">{totalCount}</p>
               </div>
             </div>
 
-            <div className="bg-emerald-50/50 border border-emerald-100 rounded-2xl p-4 shadow-sm flex items-center gap-3">
-              <div className="size-10 rounded-xl bg-emerald-500 text-white flex items-center justify-center font-bold shadow-md shadow-emerald-200">
+            <div className="bg-emerald-50/50 border border-emerald-100 rounded-2xl p-3.5 sm:p-4 shadow-sm flex items-center gap-3">
+              <div className="size-10 rounded-xl bg-emerald-500 text-white flex items-center justify-center font-bold shadow-md shadow-emerald-200 shrink-0">
                 <LuSparkles className="size-5" />
               </div>
               <div>
-                <p className="text-xs font-semibold text-emerald-600 uppercase tracking-wider">New Members to Save</p>
-                <p className="text-2xl font-black text-emerald-950">{newCount}</p>
+                <p className="text-[11px] font-semibold text-emerald-600 uppercase tracking-wider">New Members to Save</p>
+                <p className="text-xl sm:text-2xl font-black text-emerald-950">{newCount}</p>
               </div>
             </div>
 
-            <div className="bg-amber-50/50 border border-amber-100 rounded-2xl p-4 shadow-sm flex items-center gap-3">
-              <div className="size-10 rounded-xl bg-amber-500 text-white flex items-center justify-center font-bold shadow-md shadow-amber-200">
+            <div className="bg-amber-50/50 border border-amber-100 rounded-2xl p-3.5 sm:p-4 shadow-sm flex items-center gap-3">
+              <div className="size-10 rounded-xl bg-amber-500 text-white flex items-center justify-center font-bold shadow-md shadow-amber-200 shrink-0">
                 <LuDatabase className="size-5" />
               </div>
               <div>
-                <p className="text-xs font-semibold text-amber-600 uppercase tracking-wider">
+                <p className="text-[11px] font-semibold text-amber-600 uppercase tracking-wider">
                   {inDbCount > 0 && duplicateInFileCount > 0
-                    ? "In DB & File Duplicates"
+                    ? "In DB & File Dups"
                     : inDbCount > 0
                     ? "Already in Database"
                     : "Duplicates in File"} (Skipped)
                 </p>
-                <p className="text-2xl font-black text-amber-950">{existingCount}</p>
+                <p className="text-xl sm:text-2xl font-black text-amber-950">{existingCount}</p>
               </div>
             </div>
           </div>
 
           {/* Filter Bar & Controls */}
-          <Card className="border-slate-200 shadow-sm rounded-2xl p-4">
-            <div className="flex flex-col lg:flex-row items-stretch lg:items-center justify-between gap-4">
+          <Card className="border-slate-200 shadow-sm rounded-2xl p-3 sm:p-4">
+            <div className="flex flex-col lg:flex-row items-stretch lg:items-center justify-between gap-3 sm:gap-4">
               {/* Filter Tabs */}
-              <div className="flex items-center gap-1.5 p-1 bg-slate-100/80 rounded-xl">
+              <div className="overflow-x-auto no-scrollbar flex items-center gap-1.5 p-1 bg-slate-100/80 rounded-xl w-full lg:w-auto pb-1 lg:pb-1">
                 <button
                   type="button"
                   onClick={() => {
                     setFilterStatus("all");
                     setCurrentPage(1);
                   }}
-                  className={`flex items-center gap-2 px-3.5 py-2 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+                  className={`shrink-0 flex items-center gap-2 px-3 py-1.5 sm:py-2 rounded-lg text-xs font-bold transition-all cursor-pointer ${
                     filterStatus === "all"
                       ? "bg-white text-slate-900 shadow-sm"
                       : "text-slate-500 hover:text-slate-800"
@@ -1348,7 +1348,7 @@ export default function AddMembersPage() {
                     setFilterStatus("new");
                     setCurrentPage(1);
                   }}
-                  className={`flex items-center gap-2 px-3.5 py-2 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+                  className={`shrink-0 flex items-center gap-1.5 sm:gap-2 px-3 py-1.5 sm:py-2 rounded-lg text-xs font-bold transition-all cursor-pointer ${
                     filterStatus === "new"
                       ? "bg-emerald-600 text-white shadow-sm"
                       : "text-emerald-700 hover:bg-emerald-50"
@@ -1369,7 +1369,7 @@ export default function AddMembersPage() {
                     setFilterStatus("existing");
                     setCurrentPage(1);
                   }}
-                  className={`flex items-center gap-2 px-3.5 py-2 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+                  className={`shrink-0 flex items-center gap-1.5 sm:gap-2 px-3 py-1.5 sm:py-2 rounded-lg text-xs font-bold transition-all cursor-pointer ${
                     filterStatus === "existing"
                       ? "bg-amber-600 text-white shadow-sm"
                       : "text-amber-700 hover:bg-amber-50"
@@ -1392,8 +1392,8 @@ export default function AddMembersPage() {
               </div>
 
               {/* Search & Items Per Page Controls */}
-              <div className="flex flex-wrap items-center gap-3">
-                <div className="relative flex-1 sm:w-64">
+              <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2.5 sm:gap-3 w-full lg:w-auto">
+                <div className="relative w-full sm:w-64">
                   <LuSearch className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 size-4" />
                   <Input
                     placeholder="Search by ID, name, email..."
@@ -1402,7 +1402,7 @@ export default function AddMembersPage() {
                       setSearchQuery(e.target.value);
                       setCurrentPage(1);
                     }}
-                    className="pl-9 pr-8 h-9 text-xs rounded-xl border-slate-200"
+                    className="pl-9 pr-8 h-9 text-xs rounded-xl border-slate-200 w-full"
                   />
                   {searchQuery && (
                     <button
@@ -1417,7 +1417,7 @@ export default function AddMembersPage() {
                   )}
                 </div>
 
-                <div className="flex items-center gap-2">
+                <div className="flex items-center justify-between sm:justify-start gap-2">
                   <span className="text-xs font-semibold text-slate-400">Show:</span>
                   <select
                     value={itemsPerPage}
@@ -1437,10 +1437,11 @@ export default function AddMembersPage() {
             </div>
           </Card>
 
-          {/* Members Table */}
-          <Card className="overflow-hidden border-slate-200 shadow-xl shadow-slate-200/50 rounded-3xl">
-            <div className="overflow-x-auto">
-              <table className="w-full text-left border-collapse">
+          {/* Members Content: Desktop Table & Mobile Card List */}
+          <Card className="overflow-hidden border-slate-200 shadow-xl shadow-slate-200/50 rounded-2xl sm:rounded-3xl">
+            {/* Desktop Table View */}
+            <div className="hidden md:block overflow-x-auto">
+              <table className="w-full text-left border-collapse min-w-[850px]">
                 <thead>
                   <tr className="bg-slate-50/80 border-b border-slate-200">
                     <th className="px-6 py-4 text-xs font-bold uppercase tracking-wider text-slate-500">Student ID & Record Status</th>
@@ -1507,7 +1508,7 @@ export default function AddMembersPage() {
                                   title="This Student ID already exists in the database. When saving, this record was NOT saved to preserve the existing account."
                                   className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-black tracking-wide bg-amber-100 text-amber-800 border border-amber-200"
                                 >
-                                  <LuDatabase className="size-3" /> Already in DB (Student ID exists)
+                                  <LuDatabase className="size-3" /> Already in DB (ID exists)
                                 </span>
                               ) : isExistingEmail ? (
                                 <span 
@@ -1589,11 +1590,146 @@ export default function AddMembersPage() {
               </table>
             </div>
 
+            {/* Mobile Card List View (< md) */}
+            <div className="md:hidden divide-y divide-slate-100">
+              {paginatedMembers.length === 0 ? (
+                <div className="p-8 text-center text-slate-400 space-y-2">
+                  <LuFilter className="size-7 mx-auto text-slate-300" />
+                  <p className="text-sm font-semibold text-slate-600">No members match your filter</p>
+                  <p className="text-xs text-slate-400">Try changing status or search keywords.</p>
+                </div>
+              ) : (
+                paginatedMembers.map(({ member, originalIndex, isExistingInDb, isExistingId, isExistingEmail, isDuplicateInBatch, failureReason, isNew }) => {
+                  const isCurrentlySaving = activeSavingId === member.student_id;
+                  const wasJustSaved = justSavedIds.has(member.student_id);
+
+                  return (
+                    <div
+                      key={originalIndex}
+                      className={`p-4 space-y-3 transition-all ${
+                        isCurrentlySaving
+                          ? "bg-emerald-50/90 border-l-4 border-l-emerald-500"
+                          : wasJustSaved
+                          ? "bg-emerald-100/60 opacity-50"
+                          : failureReason && !isExistingInDb
+                          ? "bg-rose-50/40 border-l-4 border-l-rose-500"
+                          : !isNew
+                          ? "bg-amber-50/30 border-l-4 border-l-amber-400"
+                          : "bg-white"
+                      }`}
+                    >
+                      {/* Top Row: ID & Status Badge */}
+                      <div className="flex items-center justify-between gap-2 flex-wrap">
+                        <span className="font-mono font-black text-slate-900 text-sm">
+                          {member.student_id}
+                        </span>
+
+                        <div>
+                          {isCurrentlySaving ? (
+                            <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-black bg-emerald-600 text-white shadow-sm animate-pulse">
+                              <LuRefreshCw className="size-3 animate-spin" /> Saving...
+                            </span>
+                          ) : wasJustSaved ? (
+                            <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-black bg-emerald-700 text-white shadow-sm">
+                              <LuCheck className="size-3" /> Saved!
+                            </span>
+                          ) : failureReason && !isExistingInDb ? (
+                            <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-black bg-rose-100 text-rose-800 border border-rose-200">
+                              <LuCircleAlert className="size-3 text-rose-600" /> Error
+                            </span>
+                          ) : isExistingId ? (
+                            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-black bg-amber-100 text-amber-800 border border-amber-200">
+                              <LuDatabase className="size-3" /> Already in DB (ID)
+                            </span>
+                          ) : isExistingEmail ? (
+                            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-black bg-amber-100 text-amber-800 border border-amber-200">
+                              <LuDatabase className="size-3" /> Already in DB (Email)
+                            </span>
+                          ) : isDuplicateInBatch ? (
+                            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-black bg-orange-100 text-orange-800 border border-orange-200">
+                              <LuTriangleAlert className="size-3" /> File Duplicate
+                            </span>
+                          ) : (
+                            <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-black bg-emerald-100 text-emerald-800 border border-emerald-200">
+                              <LuSparkles className="size-3" /> New
+                            </span>
+                          )}
+                        </div>
+                      </div>
+
+                      {/* Name & Academic Info */}
+                      <div>
+                        <h4 className="font-bold text-slate-900 text-sm">
+                          {member.first_name} {member.middle_initial ? `${member.middle_initial} ` : ""}{member.last_name}
+                        </h4>
+                        <p className="text-xs text-slate-500 font-medium">
+                          {member.course || "No Course"} • Year {member.year || "—"} • Sec {member.section || "—"}
+                        </p>
+                        <p className="text-xs text-slate-600 font-medium mt-0.5 truncate">
+                          {member.email}
+                        </p>
+                      </div>
+
+                      {/* Payment & Receipt Details */}
+                      <div className="flex items-center justify-between gap-2 pt-1 border-t border-slate-100 text-xs">
+                        <div className="flex items-center gap-2">
+                          <span className={`inline-flex items-center px-2 py-0.5 rounded-md text-[11px] font-bold border ${
+                            member.membership_status === 'Fully Paid' ? 'bg-emerald-50 text-emerald-600 border-emerald-100' :
+                            member.membership_status === 'Half Semester Paid' ? 'bg-blue-50 text-blue-600 border-blue-100' :
+                            member.membership_status === 'Partial' ? 'bg-amber-50 text-amber-600 border-amber-100' :
+                            'bg-rose-50 text-rose-600 border-rose-100'
+                          }`}>
+                            {member.membership_status}
+                          </span>
+                          <span className="font-bold text-slate-900">₱{member.payment.toLocaleString()}</span>
+                        </div>
+
+                        {member.receipt && (
+                          <span className="text-[11px] font-mono text-slate-500 font-semibold truncate max-w-[120px]">
+                            Rcpt: {member.receipt}
+                          </span>
+                        )}
+                      </div>
+
+                      {/* Error or Warning message if present */}
+                      {failureReason && (
+                        <div className="p-2 bg-rose-50 rounded-xl text-[11px] font-semibold text-rose-700 border border-rose-200">
+                          {failureReason}
+                        </div>
+                      )}
+
+                      {/* Action Buttons for Mobile */}
+                      <div className="flex items-center gap-2 pt-1">
+                        <Button 
+                          variant="outline" 
+                          size="sm" 
+                          disabled={isSaving}
+                          onClick={() => handleEditRowClick(originalIndex)}
+                          className="flex-1 h-8 rounded-xl text-xs font-bold text-slate-700 hover:bg-primary hover:text-white transition-all cursor-pointer justify-center"
+                        >
+                          <LuPencil className="size-3.5 mr-1" /> Edit
+                        </Button>
+                        <Button 
+                          variant="outline" 
+                          size="sm" 
+                          disabled={isSaving}
+                          onClick={() => handleDeleteRow(originalIndex)}
+                          className="flex-1 h-8 rounded-xl text-xs font-bold text-rose-600 hover:bg-rose-500 hover:text-white border-rose-200 transition-all cursor-pointer justify-center"
+                        >
+                          <LuTrash2 className="size-3.5 mr-1" /> Remove
+                        </Button>
+                      </div>
+                    </div>
+                  );
+                })
+              )}
+            </div>
+
             {/* Pagination Controls */}
-            <div className="p-4 sm:p-6 bg-slate-50/50 border-t border-slate-100 flex flex-col sm:flex-row items-center justify-between gap-4">
-              <p className="text-xs font-bold text-slate-500 uppercase tracking-widest">
+            <div className="p-3.5 sm:p-6 bg-slate-50/50 border-t border-slate-100 flex flex-col sm:flex-row items-center justify-between gap-3 sm:gap-4">
+              <p className="text-[11px] sm:text-xs font-bold text-slate-500 uppercase tracking-widest text-center sm:text-left">
                 Showing <span className="text-slate-900">{filteredMembers.length > 0 ? (validCurrentPage - 1) * itemsPerPage + 1 : 0}-{Math.min(filteredMembers.length, validCurrentPage * itemsPerPage)}</span> of <span className="text-slate-900">{filteredMembers.length}</span> members
-                {filteredMembers.length !== totalCount && ` (filtered from ${totalCount} total)`}
+                {filteredMembers.length !== totalCount && ` (filtered from ${totalCount})`}
               </p>
               
               <div className="flex items-center gap-1.5 flex-wrap justify-center">
@@ -1602,9 +1738,9 @@ export default function AddMembersPage() {
                   size="sm" 
                   disabled={validCurrentPage <= 1 || isSaving} 
                   onClick={() => setCurrentPage((prev) => Math.max(prev - 1, 1))}
-                  className="rounded-xl px-3 py-1.5 h-9 border-slate-200 hover:bg-white transition-all disabled:opacity-50 text-xs font-bold cursor-pointer"
+                  className="rounded-xl px-2.5 sm:px-3 py-1.5 h-8 sm:h-9 border-slate-200 hover:bg-white transition-all disabled:opacity-50 text-xs font-bold cursor-pointer"
                 >
-                  <LuChevronLeft className="size-4 mr-1" /> Prev
+                  <LuChevronLeft className="size-3.5 sm:size-4 mr-0.5 sm:mr-1" /> Prev
                 </Button>
 
                 {Array.from({ length: totalPages }, (_, i) => i + 1)
@@ -1620,7 +1756,7 @@ export default function AddMembersPage() {
                           type="button"
                           disabled={isSaving}
                           onClick={() => setCurrentPage(pageNum)}
-                          className={`size-9 rounded-xl text-xs font-black transition-all cursor-pointer disabled:opacity-50 ${
+                          className={`size-8 sm:size-9 rounded-xl text-xs font-black transition-all cursor-pointer disabled:opacity-50 ${
                             validCurrentPage === pageNum
                               ? "bg-primary text-white shadow-xs"
                               : "bg-white text-slate-600 border border-slate-200 hover:bg-slate-50"
@@ -1637,18 +1773,18 @@ export default function AddMembersPage() {
                   size="sm" 
                   disabled={validCurrentPage >= totalPages || isSaving} 
                   onClick={() => setCurrentPage((prev) => Math.min(prev + 1, totalPages))}
-                  className="rounded-xl px-3 py-1.5 h-9 border-slate-200 hover:bg-white transition-all disabled:opacity-50 text-xs font-bold cursor-pointer"
+                  className="rounded-xl px-2.5 sm:px-3 py-1.5 h-8 sm:h-9 border-slate-200 hover:bg-white transition-all disabled:opacity-50 text-xs font-bold cursor-pointer"
                 >
-                  Next <LuChevronRight className="size-4 ml-1" />
+                  Next <LuChevronRight className="size-3.5 sm:size-4 ml-0.5 sm:ml-1" />
                 </Button>
               </div>
             </div>
           </Card>
 
           {/* Safety Notice */}
-          <div className="bg-emerald-50/60 border border-emerald-200/80 p-4 rounded-2xl flex items-start gap-3">
-            <LuCircleCheck className="text-emerald-600 size-5 mt-0.5 shrink-0" />
-            <p className="text-sm text-emerald-900 font-medium">
+          <div className="bg-emerald-50/60 border border-emerald-200/80 p-3.5 sm:p-4 rounded-2xl flex items-start gap-2.5 sm:gap-3">
+            <LuCircleCheck className="text-emerald-600 size-4 sm:size-5 mt-0.5 shrink-0" />
+            <p className="text-xs sm:text-sm text-emerald-900 font-medium leading-relaxed">
               <strong>Safe Save Active:</strong> If a student ID is already recorded in the database, its existing record and profile data will remain untouched and <strong>will not be overwritten</strong>. Only new student records will be created.
             </p>
           </div>
@@ -1677,23 +1813,23 @@ export default function AddMembersPage() {
         }}
         title={editingIndex !== null ? "Edit Member Details" : "Add Specific Member"}
       >
-        <form onSubmit={editingIndex !== null ? handleManualEditSave : handleManualAdd} className="space-y-6">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div className="md:col-span-2 space-y-2">
-              <div className="flex items-center justify-between">
+        <form onSubmit={editingIndex !== null ? handleManualEditSave : handleManualAdd} className="space-y-4 sm:space-y-6">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-3 sm:gap-4">
+            <div className="md:col-span-2 space-y-1.5">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-1">
                 <Label className="text-xs font-bold uppercase tracking-wider text-slate-500">Student ID *</Label>
                 {manualMember.student_id && (
                   <div className="flex items-center gap-2">
                     {!isValidStudentId(manualMember.student_id) ? (
-                      <span className="text-xs font-semibold text-amber-600 flex items-center gap-1">
-                        <LuTriangleAlert className="size-3.5" /> Recommended: 0000-0000 format
+                      <span className="text-[11px] font-semibold text-amber-600 flex items-center gap-1">
+                        <LuTriangleAlert className="size-3.5" /> 0000-0000 format
                       </span>
                     ) : dbExistingStudentIds.has(manualMember.student_id.trim().toLowerCase()) ? (
-                      <span className="text-xs font-bold text-amber-600 flex items-center gap-1">
-                        <LuTriangleAlert className="size-3.5" /> Already recorded in DB
+                      <span className="text-[11px] font-bold text-amber-600 flex items-center gap-1">
+                        <LuTriangleAlert className="size-3.5" /> In DB
                       </span>
                     ) : (
-                      <span className="text-xs font-bold text-emerald-600 flex items-center gap-1">
+                      <span className="text-[11px] font-bold text-emerald-600 flex items-center gap-1">
                         <LuCircleCheck className="size-3.5" /> Valid Format
                       </span>
                     )}
@@ -1711,56 +1847,56 @@ export default function AddMembersPage() {
                   })
                 }
                 required
-                className={`rounded-xl h-11 font-mono ${
+                className={`rounded-xl h-10 sm:h-11 font-mono text-sm ${
                   manualMember.student_id && !isValidStudentId(manualMember.student_id)
                     ? "border-rose-300 focus:border-rose-500 focus:ring-rose-500/20"
                     : ""
                 }`}
               />
-              <p className="text-[11px] text-slate-400 font-medium">
-                Strict format: 4 digits, hyphen, 4 digits (e.g., <span className="font-mono font-bold text-slate-600">2022-2703</span>). Incomplete IDs are not allowed.
+              <p className="text-[10px] sm:text-[11px] text-slate-400 font-medium">
+                Format: 4 digits, hyphen, 4 digits (e.g., <span className="font-mono font-bold text-slate-600">2022-2703</span>).
               </p>
             </div>
-            <div className="md:col-span-2 grid grid-cols-1 md:grid-cols-3 gap-4">
-              <div className="space-y-2">
+            <div className="md:col-span-2 grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4">
+              <div className="space-y-1.5">
                 <Label className="text-xs font-bold uppercase tracking-wider text-slate-500">First Name *</Label>
                 <Input
                   placeholder="John"
                   value={manualMember.first_name}
                   onChange={(e) => setManualMember({ ...manualMember, first_name: e.target.value })}
                   required
-                  className="rounded-xl h-11"
+                  className="rounded-xl h-10 sm:h-11 text-sm"
                 />
               </div>
-              <div className="space-y-2">
+              <div className="space-y-1.5">
                 <Label className="text-xs font-bold uppercase tracking-wider text-slate-500">Middle Initial</Label>
                 <Input
                   placeholder="M."
                   value={manualMember.middle_initial || ""}
                   onChange={(e) => setManualMember({ ...manualMember, middle_initial: e.target.value })}
                   maxLength={5}
-                  className="rounded-xl h-11"
+                  className="rounded-xl h-10 sm:h-11 text-sm"
                 />
               </div>
-              <div className="space-y-2">
+              <div className="space-y-1.5">
                 <Label className="text-xs font-bold uppercase tracking-wider text-slate-500">Last Name *</Label>
                 <Input
                   placeholder="Doe"
                   value={manualMember.last_name}
                   onChange={(e) => setManualMember({ ...manualMember, last_name: e.target.value })}
                   required
-                  className="rounded-xl h-11"
+                  className="rounded-xl h-10 sm:h-11 text-sm"
                 />
               </div>
             </div>
-            <div className="md:col-span-2 grid grid-cols-1 sm:grid-cols-3 gap-4">
-              <div className="space-y-2">
+            <div className="md:col-span-2 grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4">
+              <div className="space-y-1.5">
                 <Label className="text-xs font-bold uppercase tracking-wider text-slate-500">Course *</Label>
                 <select
                   value={manualMember.course}
                   onChange={(e) => setManualMember({ ...manualMember, course: e.target.value })}
                   required
-                  className="w-full h-11 px-3 bg-white border border-slate-200 rounded-xl text-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20 transition-all font-medium text-slate-800"
+                  className="w-full h-10 sm:h-11 px-3 bg-white border border-slate-200 rounded-xl text-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20 transition-all font-medium text-slate-800"
                 >
                   <option value="">Select Course</option>
                   <option value="BSIT">BSIT</option>
@@ -1773,26 +1909,26 @@ export default function AddMembersPage() {
                   )}
                 </select>
               </div>
-              <div className="space-y-2">
+              <div className="space-y-1.5">
                 <Label className="text-xs font-bold uppercase tracking-wider text-slate-500">Section</Label>
                 <Input
                   placeholder="e.g. A, B, C, 1, 2"
                   value={manualMember.section || ""}
                   onChange={(e) => setManualMember({ ...manualMember, section: e.target.value })}
-                  className="rounded-xl h-11"
+                  className="rounded-xl h-10 sm:h-11 text-sm"
                 />
               </div>
-              <div className="space-y-2">
+              <div className="space-y-1.5">
                 <Label className="text-xs font-bold uppercase tracking-wider text-slate-500">Year Level</Label>
                 <Input
                   placeholder="1, 2, 3 or 4"
                   value={manualMember.year || ""}
                   onChange={(e) => setManualMember({ ...manualMember, year: e.target.value })}
-                  className="rounded-xl h-11"
+                  className="rounded-xl h-10 sm:h-11 text-sm"
                 />
               </div>
             </div>
-            <div className="md:col-span-2 space-y-2">
+            <div className="md:col-span-2 space-y-1.5">
               <Label className="text-xs font-bold uppercase tracking-wider text-slate-500">Email Address *</Label>
               <Input
                 type="email"
@@ -1800,16 +1936,16 @@ export default function AddMembersPage() {
                 value={manualMember.email}
                 onChange={(e) => setManualMember({ ...manualMember, email: e.target.value })}
                 required
-                className="rounded-xl h-11"
+                className="rounded-xl h-10 sm:h-11 text-sm"
               />
             </div>
           </div>
 
-          <div className="flex gap-3 pt-4">
+          <div className="flex flex-col-reverse sm:flex-row gap-2.5 sm:gap-3 pt-3 sm:pt-4">
             <Button
               type="button"
               variant="outline"
-              className="flex-1 h-12 rounded-xl font-bold"
+              className="flex-1 h-11 sm:h-12 rounded-xl font-bold justify-center"
               onClick={() => {
                 setIsManualModalOpen(false);
                 setEditingIndex(null);
@@ -1832,7 +1968,7 @@ export default function AddMembersPage() {
             </Button>
             <Button
               type="submit"
-              className="flex-1 h-12 rounded-xl font-bold gradient-primary text-white shadow-lg shadow-primary/20 hover:shadow-primary/40 transition-all cursor-pointer"
+              className="flex-1 h-11 sm:h-12 rounded-xl font-bold gradient-primary text-white shadow-lg shadow-primary/20 hover:shadow-primary/40 transition-all cursor-pointer justify-center"
             >
               {editingIndex !== null ? "Save Changes" : "Add to Preview"}
             </Button>

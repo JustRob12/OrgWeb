@@ -41,18 +41,18 @@ export function Modal({ isOpen, onClose, title, children, className }: ModalProp
         className
       )}>
         {/* Header */}
-        <div className="p-6 border-b border-slate-100 flex items-center justify-between shrink-0">
-          <h2 className="text-xl font-bold text-slate-900 tracking-tight">{title}</h2>
+        <div className="p-4 sm:p-6 border-b border-slate-100 flex items-center justify-between shrink-0">
+          <h2 className="text-lg sm:text-xl font-bold text-slate-900 tracking-tight">{title}</h2>
           <button 
             onClick={onClose}
-            className="p-2 hover:bg-slate-100 rounded-lg text-slate-400 hover:text-slate-600 transition-colors"
+            className="p-1.5 sm:p-2 hover:bg-slate-100 rounded-lg text-slate-400 hover:text-slate-600 transition-colors"
           >
             <LuX className="size-5" />
           </button>
         </div>
 
         {/* Body */}
-        <div className="flex-1 overflow-y-auto p-6 scrollbar-thin scrollbar-thumb-slate-200">
+        <div className="flex-1 overflow-y-auto p-4 sm:p-6 scrollbar-thin scrollbar-thumb-slate-200">
           {children}
         </div>
       </div>

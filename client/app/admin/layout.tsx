@@ -17,7 +17,6 @@ import {
   LuMenu,
   LuX,
   LuSearch,
-  LuBell,
   LuUser,
   LuChevronDown,
   LuLogOut,
@@ -316,24 +315,17 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
             </div>
           </div>
 
-          <div className="flex items-center gap-3 md:gap-6">
-            <button className="relative p-2 hover:bg-slate-100 rounded-lg text-slate-600">
-              <LuBell className="size-5" />
-              <span className="absolute top-2 right-2 size-2 bg-red-500 rounded-full border-2 border-white" />
-            </button>
-            <div className="h-8 w-px bg-slate-200 hidden md:block" />
-            <div className="flex items-center gap-3">
-              <div className="text-right hidden sm:block">
-                <p className="text-sm font-bold text-slate-700">
-                  {userInfo?.first_name ? `${userInfo.first_name} ${userInfo.last_name || ""}` : "User"}
-                </p>
-                <p className="text-[10px] uppercase font-black text-primary tracking-widest leading-none mt-0.5">
-                  {getRoleLabel(userRole)}
-                </p>
-              </div>
-              <div className="size-10 rounded-full bg-slate-100 overflow-hidden border border-slate-300 flex items-center justify-center font-bold text-slate-600">
-                {userInfo?.first_name ? userInfo.first_name[0] : "A"}
-              </div>
+          <div className="flex items-center gap-3">
+            <div className="text-right hidden sm:block">
+              <p className="text-sm font-bold text-slate-700">
+                {userInfo?.first_name ? `${userInfo.first_name} ${userInfo.last_name || ""}` : "User"}
+              </p>
+              <p className="text-[10px] uppercase font-black text-primary tracking-widest leading-none mt-0.5">
+                {getRoleLabel(userRole)}
+              </p>
+            </div>
+            <div className="size-10 rounded-full bg-slate-100 overflow-hidden border border-slate-300 flex items-center justify-center font-bold text-slate-600">
+              {userInfo?.first_name ? userInfo.first_name[0] : "A"}
             </div>
           </div>
         </header>

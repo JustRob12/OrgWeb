@@ -818,28 +818,28 @@ export default function DataComparisonPage() {
   };
 
   return (
-    <div className="space-y-6 max-w-7xl mx-auto pb-16 animate-in fade-in duration-300">
+    <div className="space-y-4 sm:space-y-6 max-w-7xl mx-auto pb-16 animate-in fade-in duration-300">
       {/* Header Banner */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 p-6 sm:p-8 rounded-3xl text-white shadow-xl shadow-slate-900/10">
-        <div className="space-y-2">
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 p-5 sm:p-8 rounded-3xl text-white shadow-xl shadow-slate-900/10">
+        <div className="space-y-1.5 sm:space-y-2">
           <div className="flex items-center gap-2.5">
-            <div className="size-10 rounded-2xl bg-white/10 flex items-center justify-center text-primary-foreground backdrop-blur-md">
-              <LuArrowLeftRight className="size-5 text-amber-400" />
+            <div className="size-9 sm:size-10 rounded-2xl bg-white/10 flex items-center justify-center text-primary-foreground backdrop-blur-md shrink-0">
+              <LuArrowLeftRight className="size-4 sm:size-5 text-amber-400" />
             </div>
-            <h1 className="text-2xl sm:text-3xl font-black tracking-tight text-white">Database vs. Excel Comparison</h1>
+            <h1 className="text-xl sm:text-2xl lg:text-3xl font-black tracking-tight text-white">Database vs. Excel Comparison</h1>
           </div>
-          <p className="text-sm text-slate-300 max-w-2xl font-normal leading-relaxed">
+          <p className="text-xs sm:text-sm text-slate-300 max-w-2xl font-normal leading-relaxed">
             Upload an official Excel or CSV student list to compare against the live database. Identify field discrepancies, find missing or new records, and sync data in 1 click.
           </p>
         </div>
 
-        <div className="flex flex-wrap items-center gap-3">
+        <div className="flex flex-wrap items-center gap-2.5 sm:gap-3 w-full md:w-auto justify-stretch sm:justify-end">
           <Button
             variant="outline"
             size="sm"
             onClick={fetchDbMembers}
             disabled={isFetchingDb}
-            className="rounded-2xl border-white/20 bg-white/10 text-white hover:bg-white/20 hover:text-white backdrop-blur-md h-10 font-bold text-xs cursor-pointer shadow-xs"
+            className="rounded-2xl border-white/20 bg-white/10 text-white hover:bg-white/20 hover:text-white backdrop-blur-md h-9 sm:h-10 font-bold text-xs cursor-pointer shadow-xs flex-1 sm:flex-none justify-center"
           >
             <LuRefreshCw className={`size-3.5 mr-2 ${isFetchingDb ? "animate-spin text-amber-400" : ""}`} />
             {isFetchingDb ? "Refreshing DB..." : "Refresh Database"}
@@ -849,40 +849,40 @@ export default function DataComparisonPage() {
             <Button
               size="sm"
               onClick={exportComparisonReport}
-              className="rounded-2xl bg-emerald-500 hover:bg-emerald-600 text-white h-10 font-bold text-xs cursor-pointer shadow-lg shadow-emerald-500/20"
+              className="rounded-2xl bg-emerald-500 hover:bg-emerald-600 text-white h-9 sm:h-10 font-bold text-xs cursor-pointer shadow-lg shadow-emerald-500/20 flex-1 sm:flex-none justify-center"
             >
               <LuDownload className="size-3.5 mr-2" />
-              Export Comparison Report
+              Export Report
             </Button>
           )}
         </div>
       </div>
 
       {/* Connected Google Sheet Sync Banner */}
-      <div className="bg-gradient-to-r from-emerald-50 via-teal-50/70 to-emerald-50 border border-emerald-200 rounded-3xl p-5 shadow-xs flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
-        <div className="flex items-center gap-3.5">
-          <div className="size-11 rounded-2xl bg-emerald-600 text-white flex items-center justify-center font-bold shadow-md shadow-emerald-200 shrink-0">
-            <LuFileSpreadsheet className="size-6" />
+      <div className="bg-gradient-to-r from-emerald-50 via-teal-50/70 to-emerald-50 border border-emerald-200 rounded-3xl p-4 sm:p-5 shadow-xs flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+        <div className="flex items-center gap-3 sm:gap-3.5 w-full md:w-auto">
+          <div className="size-10 sm:size-11 rounded-2xl bg-emerald-600 text-white flex items-center justify-center font-bold shadow-md shadow-emerald-200 shrink-0">
+            <LuFileSpreadsheet className="size-5 sm:size-6" />
           </div>
-          <div>
+          <div className="min-w-0 flex-1">
             <div className="flex items-center gap-2 flex-wrap">
-              <h4 className="text-sm font-black text-emerald-950">Linked Google Sheet</h4>
-              <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-black bg-emerald-100 text-emerald-800">
+              <h4 className="text-xs sm:text-sm font-black text-emerald-950">Linked Google Sheet</h4>
+              <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-black bg-emerald-100 text-emerald-800 shrink-0">
                 Live Source Connected
               </span>
             </div>
-            <p className="text-xs text-emerald-800/80 font-medium mt-0.5 truncate max-w-xl">
+            <p className="text-[11px] sm:text-xs text-emerald-800/80 font-medium mt-0.5 truncate max-w-full sm:max-w-md md:max-w-xl">
               {googleSheetUrl}
             </p>
           </div>
         </div>
 
-        <div className="flex flex-wrap items-center gap-2.5 shrink-0 self-end md:self-center">
+        <div className="flex flex-wrap items-center gap-2 w-full md:w-auto justify-stretch sm:justify-end">
           <a
             href={googleSheetUrl}
             target="_blank"
             rel="noopener noreferrer"
-            className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-bold bg-white text-emerald-900 border border-emerald-300 hover:bg-emerald-100/60 transition-colors shadow-xs"
+            className="inline-flex items-center justify-center gap-1.5 px-3 py-2 rounded-xl text-xs font-bold bg-white text-emerald-900 border border-emerald-300 hover:bg-emerald-100/60 transition-colors shadow-xs flex-1 sm:flex-none text-center"
           >
             <LuExternalLink className="size-3.5" /> Open Sheet ↗
           </a>
@@ -891,10 +891,10 @@ export default function DataComparisonPage() {
             size="sm"
             disabled={isFetchingSheet}
             onClick={() => handleFetchFromGoogleSheet()}
-            className="rounded-xl h-9 text-xs font-bold bg-emerald-600 hover:bg-emerald-700 text-white shadow-xs cursor-pointer"
+            className="rounded-xl h-9 text-xs font-bold bg-emerald-600 hover:bg-emerald-700 text-white shadow-xs cursor-pointer flex-1 sm:flex-none justify-center"
           >
             <LuRefreshCw className={`size-3.5 mr-1.5 ${isFetchingSheet ? "animate-spin" : ""}`} />
-            {isFetchingSheet ? "Fetching Live..." : "Compare with Google Sheet"}
+            {isFetchingSheet ? "Fetching Live..." : "Compare with Sheet"}
           </Button>
 
           <button
@@ -908,7 +908,7 @@ export default function DataComparisonPage() {
               toast.info(next ? "Auto-compare on page open enabled." : "Auto-compare disabled.");
             }}
             title="Automatically compare with Google Sheet on page open"
-            className={`px-3 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer border ${
+            className={`px-3 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer border flex-1 sm:flex-none text-center justify-center ${
               autoFetchSheet
                 ? "bg-emerald-700 text-white border-emerald-700"
                 : "bg-white text-slate-600 border-slate-200 hover:bg-slate-50"
@@ -920,7 +920,7 @@ export default function DataComparisonPage() {
       </div>
 
       {/* Upload Zone & Source Indicator */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-3.5 sm:gap-5">
         {/* Drag & Drop Upload */}
         <div
           onDragOver={(e) => {
@@ -934,7 +934,7 @@ export default function DataComparisonPage() {
             const file = e.dataTransfer.files?.[0];
             if (file) processExcelFile(file);
           }}
-          className={`lg:col-span-2 rounded-3xl border-2 border-dashed transition-all p-6 text-center relative flex flex-col items-center justify-center min-h-[170px] ${
+          className={`lg:col-span-2 rounded-3xl border-2 border-dashed transition-all p-4 sm:p-6 text-center relative flex flex-col items-center justify-center min-h-[140px] sm:min-h-[170px] ${
             isDragging
               ? "border-primary bg-primary/5 scale-[0.99]"
               : excelFileName
@@ -949,25 +949,25 @@ export default function DataComparisonPage() {
             className="absolute inset-0 opacity-0 cursor-pointer w-full h-full"
             id="compare-excel-upload"
           />
-          <div className="size-12 rounded-2xl bg-emerald-100/80 text-emerald-700 flex items-center justify-center mb-3 shadow-xs">
-            <LuFileSpreadsheet className="size-6" />
+          <div className="size-10 sm:size-12 rounded-2xl bg-emerald-100/80 text-emerald-700 flex items-center justify-center mb-2 sm:mb-3 shadow-xs">
+            <LuFileSpreadsheet className="size-5 sm:size-6" />
           </div>
           {excelFileName ? (
             <div className="space-y-1">
-              <p className="text-sm font-black text-slate-800 flex items-center justify-center gap-1.5">
-                <LuFileCheck className="size-4 text-emerald-600" />
-                Active Spreadsheet: <span className="text-emerald-700">{excelFileName}</span>
+              <p className="text-xs sm:text-sm font-black text-slate-800 flex items-center justify-center gap-1.5 flex-wrap">
+                <LuFileCheck className="size-4 text-emerald-600 shrink-0" />
+                Active Spreadsheet: <span className="text-emerald-700 font-mono">{excelFileName}</span>
               </p>
-              <p className="text-xs text-slate-500 font-medium">
+              <p className="text-[11px] sm:text-xs text-slate-500 font-medium">
                 {excelMembers.length} row(s) loaded. Drop or click to upload a different file.
               </p>
             </div>
           ) : (
-            <div className="space-y-1">
-              <p className="text-sm font-black text-slate-800">
+            <div className="space-y-1 px-2">
+              <p className="text-xs sm:text-sm font-black text-slate-800">
                 Drop your Excel (.xlsx, .xls) or CSV file here to start comparison
               </p>
-              <p className="text-xs text-slate-400 font-medium">
+              <p className="text-[11px] sm:text-xs text-slate-400 font-medium">
                 or click anywhere inside this box to browse from your computer
               </p>
             </div>
@@ -975,26 +975,26 @@ export default function DataComparisonPage() {
         </div>
 
         {/* Database Status Card */}
-        <Card className="rounded-3xl border-slate-200 bg-white shadow-xs p-5 flex flex-col justify-between">
-          <div className="space-y-3">
+        <Card className="rounded-3xl border-slate-200 bg-white shadow-xs p-4 sm:p-5 flex flex-col justify-between">
+          <div className="space-y-2 sm:space-y-3">
             <div className="flex items-center justify-between">
-              <span className="text-[11px] font-black uppercase tracking-wider text-slate-400 flex items-center gap-1.5">
-                <LuDatabase className="size-3.5 text-primary" /> Live Database Status
+              <span className="text-[10px] sm:text-[11px] font-black uppercase tracking-wider text-slate-400 flex items-center gap-1.5">
+                <LuDatabase className="size-3.5 text-primary" /> Live DB Status
               </span>
               <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-black bg-emerald-100 text-emerald-800">
                 Connected
               </span>
             </div>
             <div className="flex items-baseline gap-2">
-              <span className="text-3xl font-black text-slate-900">{dbMembers.length}</span>
+              <span className="text-2xl sm:text-3xl font-black text-slate-900">{dbMembers.length}</span>
               <span className="text-xs text-slate-500 font-bold">Registered Members</span>
             </div>
-            <p className="text-xs text-slate-400 font-medium leading-tight">
-              Fetched via paginated multi-batch loader without 1,000 ceiling.
+            <p className="text-[11px] sm:text-xs text-slate-400 font-medium leading-tight">
+              Fetched via paginated multi-batch loader without row ceiling.
             </p>
           </div>
 
-          <div className="pt-3 border-t border-slate-100 flex items-center justify-between text-xs text-slate-500 font-medium">
+          <div className="pt-2.5 sm:pt-3 border-t border-slate-100 flex items-center justify-between text-xs text-slate-500 font-medium">
             <span>Spreadsheet Rows:</span>
             <span className="font-mono font-bold text-slate-800">{excelMembers.length}</span>
           </div>
@@ -1002,7 +1002,7 @@ export default function DataComparisonPage() {
       </div>
 
       {/* Metrics Cards */}
-      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3.5">
+      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-2.5 sm:gap-3.5">
         {/* In Sync */}
         <button
           type="button"
@@ -1010,20 +1010,20 @@ export default function DataComparisonPage() {
             setStatusFilter(statusFilter === "in_sync" ? "all" : "in_sync");
             setCurrentPage(1);
           }}
-          className={`p-4 rounded-3xl border text-left transition-all cursor-pointer ${
+          className={`p-3 sm:p-4 rounded-2xl sm:rounded-3xl border text-left transition-all cursor-pointer ${
             statusFilter === "in_sync"
               ? "bg-emerald-600 text-white border-emerald-600 shadow-md shadow-emerald-200"
               : "bg-emerald-50/50 border-emerald-200 hover:bg-emerald-100/60 text-slate-800"
           }`}
         >
-          <div className="flex items-center justify-between mb-2">
-            <span className={`text-xs font-black uppercase tracking-wider ${statusFilter === "in_sync" ? "text-emerald-100" : "text-emerald-700"}`}>
+          <div className="flex items-center justify-between mb-1.5 sm:mb-2">
+            <span className={`text-[10px] sm:text-xs font-black uppercase tracking-wider ${statusFilter === "in_sync" ? "text-emerald-100" : "text-emerald-700"}`}>
               In Sync
             </span>
-            <LuCircleCheck className={`size-4 ${statusFilter === "in_sync" ? "text-emerald-200" : "text-emerald-600"}`} />
+            <LuCircleCheck className={`size-3.5 sm:size-4 ${statusFilter === "in_sync" ? "text-emerald-200" : "text-emerald-600"}`} />
           </div>
-          <div className="text-2xl font-black">{summaryMetrics.inSync}</div>
-          <p className={`text-[11px] font-medium mt-0.5 ${statusFilter === "in_sync" ? "text-emerald-100" : "text-slate-500"}`}>
+          <div className="text-xl sm:text-2xl font-black">{summaryMetrics.inSync}</div>
+          <p className={`text-[10px] sm:text-[11px] font-medium mt-0.5 ${statusFilter === "in_sync" ? "text-emerald-100" : "text-slate-500"}`}>
             Exact matches
           </p>
         </button>
@@ -1035,20 +1035,20 @@ export default function DataComparisonPage() {
             setStatusFilter(statusFilter === "modified" ? "all" : "modified");
             setCurrentPage(1);
           }}
-          className={`p-4 rounded-3xl border text-left transition-all cursor-pointer ${
+          className={`p-3 sm:p-4 rounded-2xl sm:rounded-3xl border text-left transition-all cursor-pointer ${
             statusFilter === "modified"
               ? "bg-amber-600 text-white border-amber-600 shadow-md shadow-amber-200"
               : "bg-amber-50/50 border-amber-200 hover:bg-amber-100/60 text-slate-800"
           }`}
         >
-          <div className="flex items-center justify-between mb-2">
-            <span className={`text-xs font-black uppercase tracking-wider ${statusFilter === "modified" ? "text-amber-100" : "text-amber-700"}`}>
+          <div className="flex items-center justify-between mb-1.5 sm:mb-2">
+            <span className={`text-[10px] sm:text-xs font-black uppercase tracking-wider ${statusFilter === "modified" ? "text-amber-100" : "text-amber-700"}`}>
               Modified
             </span>
-            <LuTriangleAlert className={`size-4 ${statusFilter === "modified" ? "text-amber-200" : "text-amber-600"}`} />
+            <LuTriangleAlert className={`size-3.5 sm:size-4 ${statusFilter === "modified" ? "text-amber-200" : "text-amber-600"}`} />
           </div>
-          <div className="text-2xl font-black">{summaryMetrics.modified}</div>
-          <p className={`text-[11px] font-medium mt-0.5 ${statusFilter === "modified" ? "text-amber-100" : "text-slate-500"}`}>
+          <div className="text-xl sm:text-2xl font-black">{summaryMetrics.modified}</div>
+          <p className={`text-[10px] sm:text-[11px] font-medium mt-0.5 ${statusFilter === "modified" ? "text-amber-100" : "text-slate-500"}`}>
             Field differences
           </p>
         </button>
@@ -1060,20 +1060,20 @@ export default function DataComparisonPage() {
             setStatusFilter(statusFilter === "new_in_excel" ? "all" : "new_in_excel");
             setCurrentPage(1);
           }}
-          className={`p-4 rounded-3xl border text-left transition-all cursor-pointer ${
+          className={`p-3 sm:p-4 rounded-2xl sm:rounded-3xl border text-left transition-all cursor-pointer ${
             statusFilter === "new_in_excel"
               ? "bg-blue-600 text-white border-blue-600 shadow-md shadow-blue-200"
               : "bg-blue-50/50 border-blue-200 hover:bg-blue-100/60 text-slate-800"
           }`}
         >
-          <div className="flex items-center justify-between mb-2">
-            <span className={`text-xs font-black uppercase tracking-wider ${statusFilter === "new_in_excel" ? "text-blue-100" : "text-blue-700"}`}>
+          <div className="flex items-center justify-between mb-1.5 sm:mb-2">
+            <span className={`text-[10px] sm:text-xs font-black uppercase tracking-wider ${statusFilter === "new_in_excel" ? "text-blue-100" : "text-blue-700"}`}>
               New in Excel
             </span>
-            <LuCirclePlus className={`size-4 ${statusFilter === "new_in_excel" ? "text-blue-200" : "text-blue-600"}`} />
+            <LuCirclePlus className={`size-3.5 sm:size-4 ${statusFilter === "new_in_excel" ? "text-blue-200" : "text-blue-600"}`} />
           </div>
-          <div className="text-2xl font-black">{summaryMetrics.newInExcel}</div>
-          <p className={`text-[11px] font-medium mt-0.5 ${statusFilter === "new_in_excel" ? "text-blue-100" : "text-slate-500"}`}>
+          <div className="text-xl sm:text-2xl font-black">{summaryMetrics.newInExcel}</div>
+          <p className={`text-[10px] sm:text-[11px] font-medium mt-0.5 ${statusFilter === "new_in_excel" ? "text-blue-100" : "text-slate-500"}`}>
             Missing in DB
           </p>
         </button>
@@ -1085,20 +1085,20 @@ export default function DataComparisonPage() {
             setStatusFilter(statusFilter === "db_only" ? "all" : "db_only");
             setCurrentPage(1);
           }}
-          className={`p-4 rounded-3xl border text-left transition-all cursor-pointer ${
+          className={`p-3 sm:p-4 rounded-2xl sm:rounded-3xl border text-left transition-all cursor-pointer ${
             statusFilter === "db_only"
               ? "bg-purple-600 text-white border-purple-600 shadow-md shadow-purple-200"
               : "bg-purple-50/50 border-purple-200 hover:bg-purple-100/60 text-slate-800"
           }`}
         >
-          <div className="flex items-center justify-between mb-2">
-            <span className={`text-xs font-black uppercase tracking-wider ${statusFilter === "db_only" ? "text-purple-100" : "text-purple-700"}`}>
+          <div className="flex items-center justify-between mb-1.5 sm:mb-2">
+            <span className={`text-[10px] sm:text-xs font-black uppercase tracking-wider ${statusFilter === "db_only" ? "text-purple-100" : "text-purple-700"}`}>
               In DB Only
             </span>
-            <LuDatabase className={`size-4 ${statusFilter === "db_only" ? "text-purple-200" : "text-purple-600"}`} />
+            <LuDatabase className={`size-3.5 sm:size-4 ${statusFilter === "db_only" ? "text-purple-200" : "text-purple-600"}`} />
           </div>
-          <div className="text-2xl font-black">{summaryMetrics.dbOnly}</div>
-          <p className={`text-[11px] font-medium mt-0.5 ${statusFilter === "db_only" ? "text-purple-100" : "text-slate-500"}`}>
+          <div className="text-xl sm:text-2xl font-black">{summaryMetrics.dbOnly}</div>
+          <p className={`text-[10px] sm:text-[11px] font-medium mt-0.5 ${statusFilter === "db_only" ? "text-purple-100" : "text-slate-500"}`}>
             Missing in file
           </p>
         </button>
@@ -1110,20 +1110,20 @@ export default function DataComparisonPage() {
             setStatusFilter(statusFilter === "excel_duplicate" ? "all" : "excel_duplicate");
             setCurrentPage(1);
           }}
-          className={`p-4 rounded-3xl border text-left transition-all cursor-pointer col-span-2 sm:col-span-1 ${
+          className={`p-3 sm:p-4 rounded-2xl sm:rounded-3xl border text-left transition-all cursor-pointer col-span-2 sm:col-span-1 ${
             statusFilter === "excel_duplicate"
               ? "bg-rose-600 text-white border-rose-600 shadow-md shadow-rose-200"
               : "bg-rose-50/50 border-rose-200 hover:bg-rose-100/60 text-slate-800"
           }`}
         >
-          <div className="flex items-center justify-between mb-2">
-            <span className={`text-xs font-black uppercase tracking-wider ${statusFilter === "excel_duplicate" ? "text-rose-100" : "text-rose-700"}`}>
+          <div className="flex items-center justify-between mb-1.5 sm:mb-2">
+            <span className={`text-[10px] sm:text-xs font-black uppercase tracking-wider ${statusFilter === "excel_duplicate" ? "text-rose-100" : "text-rose-700"}`}>
               Excel Dups
             </span>
-            <LuCopy className={`size-4 ${statusFilter === "excel_duplicate" ? "text-rose-200" : "text-rose-600"}`} />
+            <LuCopy className={`size-3.5 sm:size-4 ${statusFilter === "excel_duplicate" ? "text-rose-200" : "text-rose-600"}`} />
           </div>
-          <div className="text-2xl font-black">{summaryMetrics.excelDuplicates}</div>
-          <p className={`text-[10px] font-bold mt-0.5 ${statusFilter === "excel_duplicate" ? "text-rose-100" : "text-slate-500"}`}>
+          <div className="text-xl sm:text-2xl font-black">{summaryMetrics.excelDuplicates}</div>
+          <p className={`text-[10px] font-bold mt-0.5 truncate ${statusFilter === "excel_duplicate" ? "text-rose-100" : "text-slate-500"}`}>
             {summaryMetrics.excelDuplicatesInDb} in DB • {summaryMetrics.excelDuplicatesNotInDb} New
           </p>
         </button>
@@ -1131,16 +1131,16 @@ export default function DataComparisonPage() {
 
       {/* Action Banners */}
       {summaryMetrics.newInExcel > 0 && (
-        <div className="bg-gradient-to-r from-blue-50 via-indigo-50/80 to-blue-50 border border-blue-200 rounded-3xl p-5 shadow-xs flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+        <div className="bg-gradient-to-r from-blue-50 via-indigo-50/80 to-blue-50 border border-blue-200 rounded-3xl p-4 sm:p-5 shadow-xs flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 sm:gap-4">
           <div className="flex items-center gap-3">
-            <div className="size-10 rounded-2xl bg-blue-600 text-white flex items-center justify-center shrink-0 shadow-md shadow-blue-300">
-              <LuCirclePlus className="size-5" />
+            <div className="size-9 sm:size-10 rounded-2xl bg-blue-600 text-white flex items-center justify-center shrink-0 shadow-md shadow-blue-300">
+              <LuCirclePlus className="size-4 sm:size-5" />
             </div>
             <div>
-              <h4 className="text-sm font-black text-blue-950">
+              <h4 className="text-xs sm:text-sm font-black text-blue-950">
                 Found {summaryMetrics.newInExcel} New Student(s) in Excel
               </h4>
-              <p className="text-xs text-blue-800/80 font-medium">
+              <p className="text-[11px] sm:text-xs text-blue-800/80 font-medium">
                 These students exist in your uploaded spreadsheet but are not yet registered in the database.
               </p>
             </div>
@@ -1149,7 +1149,7 @@ export default function DataComparisonPage() {
             size="sm"
             disabled={isSyncingNew}
             onClick={handleBatchSyncNewStudents}
-            className="rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs h-9 shadow-xs cursor-pointer shrink-0 self-end sm:self-center"
+            className="rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs h-9 shadow-xs cursor-pointer shrink-0 w-full sm:w-auto justify-center"
           >
             <LuSparkles className="size-3.5 mr-1.5" />
             {isSyncingNew ? "Syncing..." : `Import ${summaryMetrics.newInExcel} New Student(s)`}
@@ -1158,16 +1158,16 @@ export default function DataComparisonPage() {
       )}
 
       {summaryMetrics.modified > 0 && (
-        <div className="bg-gradient-to-r from-amber-50 via-yellow-50/80 to-amber-50 border border-amber-200 rounded-3xl p-5 shadow-xs flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+        <div className="bg-gradient-to-r from-amber-50 via-yellow-50/80 to-amber-50 border border-amber-200 rounded-3xl p-4 sm:p-5 shadow-xs flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 sm:gap-4">
           <div className="flex items-center gap-3">
-            <div className="size-10 rounded-2xl bg-amber-500 text-white flex items-center justify-center shrink-0 shadow-md shadow-amber-300">
-              <LuTriangleAlert className="size-5" />
+            <div className="size-9 sm:size-10 rounded-2xl bg-amber-500 text-white flex items-center justify-center shrink-0 shadow-md shadow-amber-300">
+              <LuTriangleAlert className="size-4 sm:size-5" />
             </div>
             <div>
-              <h4 className="text-sm font-black text-amber-950">
+              <h4 className="text-xs sm:text-sm font-black text-amber-950">
                 Detected {summaryMetrics.modified} Record(s) with Field Discrepancies
               </h4>
-              <p className="text-xs text-amber-800/80 font-medium">
+              <p className="text-[11px] sm:text-xs text-amber-800/80 font-medium">
                 These students exist in both sources, but details like section, course, spelling, or payment status differ.
               </p>
             </div>
@@ -1176,19 +1176,19 @@ export default function DataComparisonPage() {
             size="sm"
             disabled={isApplyingUpdates}
             onClick={handleBatchApplyUpdates}
-            className="rounded-xl bg-amber-600 hover:bg-amber-700 text-white font-bold text-xs h-9 shadow-xs cursor-pointer shrink-0 self-end sm:self-center"
+            className="rounded-xl bg-amber-600 hover:bg-amber-700 text-white font-bold text-xs h-9 shadow-xs cursor-pointer shrink-0 w-full sm:w-auto justify-center"
           >
             <LuSparkles className="size-3.5 mr-1.5" />
-            {isApplyingUpdates ? "Applying..." : `Apply Excel Updates (${summaryMetrics.modified})`}
+            {isApplyingUpdates ? "Applying..." : `Apply Updates (${summaryMetrics.modified})`}
           </Button>
         </div>
       )}
 
       {/* Main Table Card */}
-      <Card className="border-slate-200 shadow-sm rounded-3xl bg-white overflow-hidden">
+      <Card className="border-slate-200 shadow-sm rounded-2xl sm:rounded-3xl bg-white overflow-hidden">
         {/* Table Filter Bar */}
-        <div className="p-6 border-b border-slate-100 space-y-4">
-          <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-4">
+        <div className="p-4 sm:p-6 border-b border-slate-100 space-y-3 sm:space-y-4">
+          <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-3 sm:gap-4">
             {/* Search Input */}
             <div className="relative w-full lg:w-96">
               <LuSearch className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 size-4" />
@@ -1199,12 +1199,12 @@ export default function DataComparisonPage() {
                   setSearchQuery(e.target.value);
                   setCurrentPage(1);
                 }}
-                className="pl-10 h-11 bg-slate-50 border-slate-200 rounded-2xl text-sm focus:bg-white transition-all"
+                className="pl-10 h-10 sm:h-11 bg-slate-50 border-slate-200 rounded-2xl text-xs sm:text-sm focus:bg-white transition-all w-full"
               />
               {searchQuery && (
                 <button
                   onClick={() => setSearchQuery("")}
-                  className="absolute right-3.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
+                  className="absolute right-3.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 p-0.5"
                 >
                   <LuX className="size-4" />
                 </button>
@@ -1212,9 +1212,9 @@ export default function DataComparisonPage() {
             </div>
 
             {/* Filter Pills */}
-            <div className="flex flex-wrap items-center gap-2.5">
+            <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2.5 w-full lg:w-auto">
               {/* Status Filter */}
-              <div className="flex bg-slate-100 p-1 rounded-2xl flex-wrap">
+              <div className="overflow-x-auto no-scrollbar flex bg-slate-100 p-1 rounded-2xl w-full sm:w-auto gap-1 pb-1 sm:pb-1">
                 {[
                   { label: "All", value: "all" as const, count: summaryMetrics.total },
                   { label: "Modified", value: "modified" as const, count: summaryMetrics.modified, color: "text-amber-700" },
@@ -1228,7 +1228,7 @@ export default function DataComparisonPage() {
                       setStatusFilter(s.value);
                       setCurrentPage(1);
                     }}
-                    className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5 ${
+                    className={`shrink-0 px-2.5 sm:px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5 ${
                       statusFilter === s.value
                         ? "bg-white text-primary shadow-xs font-black"
                         : `${s.color || "text-slate-500"} hover:bg-white/50`
@@ -1249,7 +1249,7 @@ export default function DataComparisonPage() {
                   setCourseFilter(e.target.value);
                   setCurrentPage(1);
                 }}
-                className="h-10 px-3 bg-slate-100 border border-slate-200 rounded-2xl text-xs font-bold text-slate-700 focus:outline-none focus:ring-2 focus:ring-primary/20"
+                className="h-9 sm:h-10 px-3 bg-slate-100 border border-slate-200 rounded-2xl text-xs font-bold text-slate-700 focus:outline-none focus:ring-2 focus:ring-primary/20 w-full sm:w-auto cursor-pointer"
               >
                 <option value="All">All Courses</option>
                 <option value="BSIT">BSIT</option>
@@ -1262,9 +1262,9 @@ export default function DataComparisonPage() {
           </div>
         </div>
 
-        {/* Table Content */}
-        <div className="overflow-x-auto">
-          <table className="w-full text-left border-collapse">
+        {/* Desktop Table View */}
+        <div className="hidden md:block overflow-x-auto">
+          <table className="w-full text-left border-collapse min-w-[750px]">
             <thead>
               <tr className="border-b border-slate-100 bg-slate-50/60 text-[11px] font-black uppercase tracking-wider text-slate-400">
                 <th className="px-6 py-4">Status</th>
@@ -1354,7 +1354,7 @@ export default function DataComparisonPage() {
                           )}
                         </div>
                         <div className="flex items-center gap-1 text-xs text-slate-500 font-medium">
-                          <LuMail className="size-3 text-slate-400" />
+                          <LuMail className="size-3 text-slate-400 shrink-0" />
                           <span className="truncate max-w-[200px]">{item.email || "—"}</span>
                         </div>
                       </div>
@@ -1440,10 +1440,115 @@ export default function DataComparisonPage() {
           </table>
         </div>
 
+        {/* Mobile Card List View (< md) */}
+        <div className="md:hidden divide-y divide-slate-100">
+          {paginatedResults.length === 0 ? (
+            <div className="p-8 text-center text-slate-400 space-y-2">
+              <LuSearch className="size-7 mx-auto text-slate-300" />
+              <p className="text-sm font-bold text-slate-700">No records found</p>
+              <p className="text-xs text-slate-400">
+                {excelMembers.length === 0
+                  ? "Upload an Excel or CSV file to start comparing."
+                  : "Try adjusting search or status filters."}
+              </p>
+            </div>
+          ) : (
+            paginatedResults.map((item) => (
+              <div key={item.id} className="p-4 space-y-3 bg-white">
+                {/* Status & ID Header */}
+                <div className="flex items-center justify-between gap-2 flex-wrap">
+                  <div className="flex items-center gap-1.5 flex-wrap">
+                    <span className="font-mono font-black text-slate-900 text-sm">
+                      {item.student_id || "NO ID"}
+                    </span>
+                    {item.excelRecord && (
+                      <span className="text-[10px] font-bold font-mono px-1.5 py-0.5 rounded bg-slate-100 text-slate-600 border border-slate-200">
+                        Row #{item.excelRecord.row_number}
+                      </span>
+                    )}
+                  </div>
+
+                  <div>
+                    {item.status === "in_sync" && (
+                      <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-lg text-xs font-bold bg-emerald-50 text-emerald-700 border border-emerald-200">
+                        <LuCircleCheck className="size-3 text-emerald-600" /> In Sync
+                      </span>
+                    )}
+                    {item.status === "modified" && (
+                      <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-lg text-xs font-bold bg-amber-50 text-amber-700 border border-amber-200">
+                        <LuTriangleAlert className="size-3 text-amber-600" /> Modified ({item.diffs.length})
+                      </span>
+                    )}
+                    {item.status === "new_in_excel" && (
+                      <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-lg text-xs font-bold bg-blue-50 text-blue-700 border border-blue-200">
+                        <LuCirclePlus className="size-3 text-blue-600" /> New
+                      </span>
+                    )}
+                    {item.status === "db_only" && (
+                      <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-lg text-xs font-bold bg-purple-50 text-purple-700 border border-purple-200">
+                        <LuDatabase className="size-3 text-purple-600" /> In DB Only
+                      </span>
+                    )}
+                    {item.status === "excel_duplicate" && (
+                      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-lg text-xs font-bold bg-rose-100 text-rose-800 border border-rose-300">
+                        <LuCopy className="size-3 text-rose-600" /> Excel Dup
+                      </span>
+                    )}
+                  </div>
+                </div>
+
+                {/* Name & Academic info */}
+                <div>
+                  <h4 className="font-bold text-slate-900 text-sm">
+                    {item.full_name || "—"}
+                  </h4>
+                  <p className="text-xs text-slate-500 font-medium mt-0.5">
+                    {item.course || "No Course"} • Year {item.year || "—"} • Sec {item.section || "—"}
+                  </p>
+                  <p className="text-xs text-slate-600 font-medium truncate mt-0.5">
+                    {item.email || "No Email"}
+                  </p>
+                </div>
+
+                {/* Discrepancies if any */}
+                {item.diffs.length > 0 && (
+                  <div className="p-2.5 bg-amber-50/70 rounded-xl border border-amber-200/80 space-y-1.5">
+                    <p className="text-[11px] font-black text-amber-900 uppercase tracking-wider">
+                      Field Differences ({item.diffs.length}):
+                    </p>
+                    <div className="space-y-1">
+                      {item.diffs.slice(0, 3).map((diff, idx) => (
+                        <div key={idx} className="text-xs flex items-center gap-1.5 flex-wrap">
+                          <span className="font-semibold text-slate-600">{diff.label}:</span>
+                          <span className="line-through text-rose-600 font-medium">{diff.dbValue}</span>
+                          <LuArrowRight className="size-3 text-amber-600 shrink-0" />
+                          <span className="font-black text-emerald-800">{diff.excelValue}</span>
+                        </div>
+                      ))}
+                    </div>
+
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() => {
+                        setSelectedItemForDiff(item);
+                        setIsDiffModalOpen(true);
+                      }}
+                      className="w-full h-8 mt-2 rounded-xl text-xs font-bold border-amber-300 bg-white hover:bg-amber-100/50 text-amber-900 justify-center"
+                    >
+                      <LuEye className="size-3.5 mr-1" /> View Full Side-by-Side Diff
+                    </Button>
+                  </div>
+                )}
+              </div>
+            ))
+          )}
+        </div>
+
         {/* Pagination Bar */}
         {totalPages > 1 && (
-          <div className="p-4 border-t border-slate-100 flex flex-col sm:flex-row items-center justify-between gap-3 bg-slate-50/50">
-            <p className="text-xs font-bold text-slate-500">
+          <div className="p-3.5 sm:p-4 border-t border-slate-100 flex flex-col sm:flex-row items-center justify-between gap-3 bg-slate-50/50">
+            <p className="text-[11px] sm:text-xs font-bold text-slate-500 text-center sm:text-left">
               Showing {(currentPage - 1) * itemsPerPage + 1} to {Math.min(currentPage * itemsPerPage, filteredResults.length)} of {filteredResults.length} records
             </p>
             <div className="flex items-center gap-2">
@@ -1480,16 +1585,16 @@ export default function DataComparisonPage() {
         title="Side-by-Side Field Comparison"
       >
         {selectedItemForDiff && (
-          <div className="space-y-6">
+          <div className="space-y-4 sm:space-y-6">
             {/* Header info */}
-            <div className="p-4 rounded-2xl bg-slate-50 border border-slate-200 space-y-1">
-              <h3 className="text-base font-black text-slate-900">{selectedItemForDiff.full_name}</h3>
+            <div className="p-3.5 sm:p-4 rounded-2xl bg-slate-50 border border-slate-200 space-y-1">
+              <h3 className="text-sm sm:text-base font-black text-slate-900">{selectedItemForDiff.full_name}</h3>
               <p className="text-xs font-mono font-bold text-primary">Student ID: {selectedItemForDiff.student_id}</p>
               <p className="text-xs text-slate-500">Found {selectedItemForDiff.diffs.length} differing field(s) between Database and Excel.</p>
             </div>
 
-            {/* Field-by-Field Diff Comparison Grid */}
-            <div className="space-y-3">
+            {/* Desktop Table Comparison (sm: and up) */}
+            <div className="hidden sm:block space-y-3">
               <div className="grid grid-cols-12 gap-2 text-[11px] font-black uppercase tracking-wider text-slate-400 px-3">
                 <span className="col-span-4">Field Name</span>
                 <span className="col-span-4 text-rose-600">Database Value</span>
@@ -1500,10 +1605,10 @@ export default function DataComparisonPage() {
                 {selectedItemForDiff.diffs.map((d, idx) => (
                   <div key={idx} className="grid grid-cols-12 gap-2 p-3 text-xs items-center hover:bg-slate-50">
                     <span className="col-span-4 font-bold text-slate-700">{d.label}</span>
-                    <span className="col-span-4 font-medium text-rose-700 bg-rose-50 px-2 py-1 rounded-lg border border-rose-200">
+                    <span className="col-span-4 font-medium text-rose-700 bg-rose-50 px-2 py-1 rounded-lg border border-rose-200 truncate">
                       {d.dbValue}
                     </span>
-                    <span className="col-span-4 font-black text-emerald-800 bg-emerald-50 px-2 py-1 rounded-lg border border-emerald-200">
+                    <span className="col-span-4 font-black text-emerald-800 bg-emerald-50 px-2 py-1 rounded-lg border border-emerald-200 truncate">
                       {d.excelValue}
                     </span>
                   </div>
@@ -1511,11 +1616,32 @@ export default function DataComparisonPage() {
               </div>
             </div>
 
+            {/* Mobile Stacked Card Comparison (< sm) */}
+            <div className="sm:hidden space-y-2.5">
+              {selectedItemForDiff.diffs.map((d, idx) => (
+                <div key={idx} className="p-3 bg-white border border-slate-200 rounded-2xl space-y-2">
+                  <div className="text-xs font-black text-slate-800 uppercase tracking-wider">
+                    {d.label}
+                  </div>
+                  <div className="grid grid-cols-2 gap-2 text-xs">
+                    <div className="p-2 rounded-xl bg-rose-50 border border-rose-200">
+                      <span className="block text-[10px] font-black text-rose-500 uppercase tracking-wider mb-0.5">Database</span>
+                      <span className="line-through font-semibold text-rose-800 break-words">{d.dbValue}</span>
+                    </div>
+                    <div className="p-2 rounded-xl bg-emerald-50 border border-emerald-200">
+                      <span className="block text-[10px] font-black text-emerald-600 uppercase tracking-wider mb-0.5">Excel Sheet</span>
+                      <span className="font-black text-emerald-900 break-words">{d.excelValue}</span>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+
             <div className="flex justify-end gap-3 pt-3 border-t border-slate-100">
               <Button
                 variant="outline"
                 onClick={() => setIsDiffModalOpen(false)}
-                className="rounded-xl h-10 text-xs font-bold cursor-pointer"
+                className="rounded-xl h-10 text-xs font-bold cursor-pointer w-full sm:w-auto justify-center"
               >
                 Close
               </Button>

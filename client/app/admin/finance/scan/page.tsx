@@ -116,9 +116,36 @@ export default function FinanceScanPage() {
     }
   };
 
+  const audioRef = useRef<HTMLAudioElement | null>(null);
+
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      audioRef.current = new Audio("/music/beep2.mp3");
+      audioRef.current.preload = "auto";
+    }
+  }, []);
+
+  const playBeep = () => {
+    try {
+      if (audioRef.current) {
+        audioRef.current.currentTime = 0;
+        audioRef.current.play().catch(() => {
+          const fallback = new Audio("/music/beep2.mp3");
+          fallback.play().catch(() => {});
+        });
+      } else {
+        const fallback = new Audio("/music/beep2.mp3");
+        fallback.play().catch(() => {});
+      }
+    } catch (e) {
+      console.warn("Audio playback error:", e);
+    }
+  };
+
   const onScanSuccess = async (decodedText: string) => {
     if (isProcessingScan.current) return;
     isProcessingScan.current = true;
+    playBeep();
 
     try {
       let studentData;
