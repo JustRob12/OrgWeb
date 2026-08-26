@@ -7,7 +7,6 @@ import {
   LuLayoutDashboard,
   LuUsers,
   LuAward,
-  LuMegaphone,
   LuCalendar,
   LuClipboardCheck,
   LuPhilippinePeso,
@@ -21,7 +20,8 @@ import {
   LuChevronDown,
   LuLogOut,
   LuShieldAlert,
-  LuInfo
+  LuInfo,
+  LuIdCard
 } from "react-icons/lu"
 import { cn } from "@/lib/utils"
 import { Button } from "../Components/ui/button"
@@ -38,6 +38,8 @@ interface MenuItem {
 
 const menuItems: MenuItem[] = [
   { name: "Dashboard", icon: LuLayoutDashboard, href: "/admin" },
+  { name: "My ID", icon: LuIdCard, href: "/admin/id" },
+  { name: "Profile", icon: LuUser, href: "/admin/profile" },
   {
     name: "Members",
     icon: LuUsers,
@@ -50,7 +52,6 @@ const menuItems: MenuItem[] = [
     ]
   },
   { name: "Officers", icon: LuAward, href: "/admin/officers" },
-  { name: "Announcements", icon: LuMegaphone, href: "/admin/announcements" },
   { name: "Events", icon: LuCalendar, href: "/admin/events" },
   {
     name: "Attendance",
@@ -109,17 +110,17 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
           return;
         }
 
-        // Role 2 (Attendance Scanner) can access Attendance routes and About System
+        // Role 2 (Attendance Scanner) can access Attendance routes, My ID, Profile, and About System
         if (role === 2) {
-          if (!pathname.startsWith("/admin/attendance") && pathname !== "/admin/about") {
+          if (!pathname.startsWith("/admin/attendance") && pathname !== "/admin/id" && pathname !== "/admin/profile" && pathname !== "/admin/about") {
             router.replace("/admin/attendance");
             return;
           }
         }
 
-        // Role 3 (Treasurer) can access Finance routes and About System
+        // Role 3 (Treasurer) can access Finance routes, My ID, Profile, and About System
         if (role === 3) {
-          if (!pathname.startsWith("/admin/finance") && pathname !== "/admin/about") {
+          if (!pathname.startsWith("/admin/finance") && pathname !== "/admin/id" && pathname !== "/admin/profile" && pathname !== "/admin/about") {
             router.replace("/admin/finance");
             return;
           }
@@ -146,10 +147,10 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
 
   const visibleMenuItems = React.useMemo<MenuItem[]>(() => {
     if (userRole === 2) {
-      return menuItems.filter(item => item.name === "Attendance" || item.name === "About System");
+      return menuItems.filter(item => item.name === "Attendance" || item.name === "My ID" || item.name === "Profile" || item.name === "About System");
     }
     if (userRole === 3) {
-      return menuItems.filter(item => item.name === "Finance" || item.name === "About System");
+      return menuItems.filter(item => item.name === "Finance" || item.name === "My ID" || item.name === "Profile" || item.name === "About System");
     }
     return menuItems;
   }, [userRole]);
@@ -164,7 +165,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
   if (loading) {
     return (
       <div className="min-h-screen bg-slate-50 flex items-center justify-center w-full">
-        <div className="h-8 w-8 border-4 border-slate-350 border-t-transparent rounded-full animate-spin" />
+        <div className="h-8 w-8 border-4 border-primary border-t-transparent rounded-full animate-spin" />
       </div>
     );
   }
@@ -258,19 +259,23 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
 
           {/* User Profile (Sidebar Bottom) */}
           <div className="p-4 border-t border-slate-100 flex items-center justify-between group/user">
-            <div className="flex items-center gap-3 px-2 overflow-hidden flex-1">
+            <Link
+              href="/admin/profile"
+              className="flex items-center gap-3 px-2 overflow-hidden flex-1 hover:opacity-80 transition-opacity"
+              title="Go to My Profile"
+            >
               <div className="size-10 rounded-full bg-slate-200 overflow-hidden border border-slate-300 shrink-0 flex items-center justify-center font-black text-slate-600">
                 {userInfo?.first_name ? userInfo.first_name[0] : "A"}
               </div>
               <div className="flex-1 overflow-hidden">
-                <p className="text-sm font-bold text-slate-700 leading-tight truncate">
+                <p className="text-sm font-bold text-slate-700 leading-tight truncate group-hover/user:text-primary transition-colors">
                   {userInfo?.first_name || "User"} {userInfo?.last_name || ""}
                 </p>
                 <p className="text-[10px] uppercase font-black text-primary tracking-widest leading-none mt-0.5">
                   {getRoleLabel(userRole)}
                 </p>
               </div>
-            </div>
+            </Link>
 
             <button
               onClick={() => setIsLogoutModalOpen(true)}
@@ -316,17 +321,23 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
           </div>
 
           <div className="flex items-center gap-3">
-            <div className="text-right hidden sm:block">
-              <p className="text-sm font-bold text-slate-700">
-                {userInfo?.first_name ? `${userInfo.first_name} ${userInfo.last_name || ""}` : "User"}
-              </p>
-              <p className="text-[10px] uppercase font-black text-primary tracking-widest leading-none mt-0.5">
-                {getRoleLabel(userRole)}
-              </p>
-            </div>
-            <div className="size-10 rounded-full bg-slate-100 overflow-hidden border border-slate-300 flex items-center justify-center font-bold text-slate-600">
-              {userInfo?.first_name ? userInfo.first_name[0] : "A"}
-            </div>
+            <Link
+              href="/admin/profile"
+              className="flex items-center gap-3 hover:opacity-85 transition-opacity group cursor-pointer"
+              title="Go to Profile"
+            >
+              <div className="text-right hidden sm:block">
+                <p className="text-sm font-bold text-slate-700 group-hover:text-primary transition-colors">
+                  {userInfo?.first_name ? `${userInfo.first_name} ${userInfo.last_name || ""}` : "User"}
+                </p>
+                <p className="text-[10px] uppercase font-black text-primary tracking-widest leading-none mt-0.5">
+                  {getRoleLabel(userRole)}
+                </p>
+              </div>
+              <div className="size-10 rounded-full bg-slate-100 overflow-hidden border border-slate-300 flex items-center justify-center font-bold text-slate-600 group-hover:ring-2 group-hover:ring-primary/20 transition-all">
+                {userInfo?.first_name ? userInfo.first_name[0] : "A"}
+              </div>
+            </Link>
           </div>
         </header>
 

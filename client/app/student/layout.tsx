@@ -42,6 +42,7 @@ export default function StudentLayout({ children }: { children: React.ReactNode 
   const [isLoggingOut, setIsLoggingOut] = useState(false);
   const [isForcedPasswordChangeOpen, setIsForcedPasswordChangeOpen] = useState(false);
   const [user, setUser] = useState<any>(null);
+  const [userRole, setUserRole] = useState<number | null>(null);
   const [loading, setLoading] = useState(true);
   const pathname = usePathname();
   const router = useRouter();
@@ -61,6 +62,10 @@ export default function StudentLayout({ children }: { children: React.ReactNode 
           try {
             const parsed = JSON.parse(storedUser);
             email = parsed.email;
+            const parsedRole = typeof parsed.role === "number" ? parsed.role : parseInt(parsed.role, 10);
+            if (!isNaN(parsedRole)) {
+              setUserRole(parsedRole);
+            }
             if (parsed.must_change_password === true) {
               setIsForcedPasswordChangeOpen(true);
             }
@@ -92,12 +97,17 @@ export default function StudentLayout({ children }: { children: React.ReactNode 
       // Verify account forced password change state in database
       const { data: accData } = await supabase
         .from("accounts")
-        .select("must_change_password")
+        .select("role, must_change_password")
         .eq("user_id", data.id)
         .single();
 
-      if (accData?.must_change_password === true) {
-        setIsForcedPasswordChangeOpen(true);
+      if (accData) {
+        if (typeof accData.role === "number") {
+          setUserRole(accData.role);
+        }
+        if (accData.must_change_password === true) {
+          setIsForcedPasswordChangeOpen(true);
+        }
       }
 
       setLoading(false);
@@ -198,6 +208,18 @@ export default function StudentLayout({ children }: { children: React.ReactNode 
           <div className="flex-1" />
 
           <div className="flex items-center gap-3 md:gap-5">
+            {userRole !== null && userRole !== 1 && (
+              <Link
+                href={userRole === 2 ? "/admin/attendance" : userRole === 3 ? "/admin/finance" : "/admin"}
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-orange-50 hover:bg-orange-100 text-orange-700 border border-orange-200 text-xs font-black transition-all"
+              >
+                <LuLayoutDashboard className="size-3.5" />
+                <span>
+                  {userRole === 2 ? "Scanner Portal" : userRole === 3 ? "Treasurer Portal" : "Admin Portal"}
+                </span>
+              </Link>
+            )}
+
             <Link
               href="/student/profile"
               className="flex items-center gap-3 hover:opacity-85 transition-opacity cursor-pointer group"

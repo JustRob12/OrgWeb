@@ -1,7 +1,7 @@
 "use client";
 
 import * as React from "react"
-import { LuTriangleAlert, LuCircleCheck, LuCircleHelp, LuTrash2, LuLogOut, LuSave } from "react-icons/lu"
+import { LuTriangleAlert, LuCircleCheck, LuCircleHelp, LuTrash2 } from "react-icons/lu"
 import { cn } from "@/lib/utils"
 import { Modal } from "./modal"
 import { Button } from "./button"

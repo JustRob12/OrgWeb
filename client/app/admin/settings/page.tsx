@@ -58,7 +58,7 @@ const ROLE_DESCRIPTIONS = [
     badgeBg: "bg-amber-50 text-amber-700 border-amber-200",
     icon: LuClipboardCheck,
     iconBg: "bg-amber-100 text-amber-600",
-    desc: "Restricted officer role. Can ONLY access Scan Attendance and Attendance Records."
+    desc: "Restricted officer role. Can access Scan Attendance, Attendance Records, My ID, and Profile."
   },
   {
     role: 3,
@@ -66,7 +66,7 @@ const ROLE_DESCRIPTIONS = [
     badgeBg: "bg-emerald-50 text-emerald-700 border-emerald-200",
     icon: LuPhilippinePeso,
     iconBg: "bg-emerald-100 text-emerald-600",
-    desc: "Restricted officer role. Can ONLY access Manage Finance, Pay/Scan QR, and Records."
+    desc: "Restricted officer role. Can access Manage Finance, Pay/Scan QR, Records, My ID, and Profile."
   }
 ];
 
@@ -86,22 +86,41 @@ export default function SettingsPage() {
   const fetchUsers = async () => {
     setLoading(true);
     try {
-      const { data, error } = await supabase
-        .from("users")
-        .select(`
-          id, first_name, middle_initial, last_name, email, student_id, course, year,
-          accounts:accounts(id, role, username)
-        `)
-        .order("first_name", { ascending: true });
+      let allUsers: UserWithRole[] = [];
+      let from = 0;
+      const step = 1000;
+      let hasMore = true;
 
-      if (error) throw error;
+      while (hasMore) {
+        const { data, error } = await supabase
+          .from("users")
+          .select(`
+            id, first_name, middle_initial, last_name, email, student_id, course, year,
+            accounts:accounts(id, role, username)
+          `)
+          .order("first_name", { ascending: true })
+          .range(from, from + step - 1);
 
-      const formatted = (data as any[]).map((item) => ({
-        ...item,
-        accounts: Array.isArray(item.accounts) ? item.accounts[0] || null : item.accounts
-      }));
+        if (error) throw error;
 
-      setUsers(formatted);
+        if (data && data.length > 0) {
+          const formatted = (data as any[]).map((item) => ({
+            ...item,
+            accounts: Array.isArray(item.accounts) ? item.accounts[0] || null : item.accounts
+          }));
+          allUsers = allUsers.concat(formatted);
+
+          if (data.length < step) {
+            hasMore = false;
+          } else {
+            from += step;
+          }
+        } else {
+          hasMore = false;
+        }
+      }
+
+      setUsers(allUsers);
     } catch (err: any) {
       toast.error(`Failed to load user roles: ${err.message}`);
     } finally {
