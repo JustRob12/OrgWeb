@@ -270,7 +270,9 @@ export default function AttendanceRecordsPage() {
             >
               <option value="">Select an Event</option>
               {events.map((ev) => (
-                <option key={ev.id} value={ev.id}>{ev.title}</option>
+                <option key={ev.id} value={ev.id}>
+                  {ev.title} {ev.active === 0 ? "(Inactive)" : "(Active)"}
+                </option>
               ))}
             </select>
           </div>

@@ -824,12 +824,12 @@ export default function EventsPage() {
               </Label>
               <select
                 name="active"
-                className="w-full h-11 rounded-xl border border-slate-200 bg-white px-3 text-sm focus:ring-2 focus:ring-primary/20 outline-none transition-all"
+                className="w-full h-11 rounded-xl border border-slate-200 bg-white px-3 text-sm focus:ring-2 focus:ring-primary/20 outline-none transition-all cursor-pointer"
                 value={formData.active}
                 onChange={(e) => setFormData((prev) => ({ ...prev, active: Number(e.target.value) }))}
               >
-                <option value={1}>Active</option>
-                <option value={0}>Inactive</option>
+                <option value={1}>Active (Scanning Open)</option>
+                <option value={0}>Inactive (Scanning Stopped)</option>
               </select>
             </div>
           </div>
@@ -982,6 +982,20 @@ export default function EventsPage() {
                   required
                 />
               </div>
+            </div>
+            <div className="space-y-2">
+              <Label className="text-xs font-bold uppercase tracking-wider text-slate-500 ml-1">
+                Status
+              </Label>
+              <select
+                name="active"
+                className="w-full h-11 rounded-xl border border-slate-200 bg-white px-3 text-sm focus:ring-2 focus:ring-primary/20 outline-none transition-all cursor-pointer"
+                value={editFormData.active}
+                onChange={(e) => setEditFormData((prev) => ({ ...prev, active: Number(e.target.value) }))}
+              >
+                <option value={1}>Active (Scanning Open)</option>
+                <option value={0}>Inactive (Scanning Stopped)</option>
+              </select>
             </div>
             <div className="space-y-2">
               <Label className="text-xs font-bold uppercase tracking-wider text-slate-500 ml-1">

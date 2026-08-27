@@ -38,8 +38,7 @@ export default function Events() {
         const { data, error } = await supabase
           .from("events")
           .select("*")
-          .eq("active", 1)
-          .order("start_time", { ascending: true });
+          .order("start_time", { ascending: false });
 
         if (!error && data) {
           setEvents(data);
@@ -142,9 +141,15 @@ export default function Events() {
                       </div>
                     )}
                     <div className="absolute top-3 left-3">
-                      <span className="px-3 py-1 rounded-full bg-white/95 backdrop-blur-md shadow-sm border border-slate-200/60 text-primary text-[10px] font-black uppercase tracking-wider flex items-center gap-1.5">
-                        <LuSparkles className="size-3 fill-primary text-primary" /> Active Event
-                      </span>
+                      {event.active === 1 ? (
+                        <span className="px-3 py-1 rounded-full bg-white/95 backdrop-blur-md shadow-sm border border-slate-200/60 text-primary text-[10px] font-black uppercase tracking-wider flex items-center gap-1.5">
+                          <LuSparkles className="size-3 fill-primary text-primary" /> Active Event
+                        </span>
+                      ) : (
+                        <span className="px-3 py-1 rounded-full bg-slate-900/80 backdrop-blur-md shadow-sm border border-slate-700/60 text-slate-200 text-[10px] font-black uppercase tracking-wider flex items-center gap-1.5">
+                          Inactive
+                        </span>
+                      )}
                     </div>
                   </div>
 

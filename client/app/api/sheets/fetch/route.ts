@@ -28,9 +28,14 @@ export async function POST(request: Request) {
 
     // 1. Try public export URL first (fastest)
     const exportCsvUrl = `https://docs.google.com/spreadsheets/d/${sheetId}/export?format=csv&gid=${gid}`;
-    let csvResponse = await fetch(exportCsvUrl, { cache: 'no-store' });
+    let csvResponse: Response | null = null;
+    try {
+      csvResponse = await fetch(exportCsvUrl, { cache: 'no-store' });
+    } catch (netErr: any) {
+      console.warn('Public export fetch network error:', netErr?.message || netErr);
+    }
 
-    if (csvResponse.ok) {
+    if (csvResponse && csvResponse.ok) {
       const csvText = await csvResponse.text();
       const workbook = XLSX.read(csvText, { type: 'string' });
       const sheetName = workbook.SheetNames[0];
@@ -121,10 +126,10 @@ export async function POST(request: Request) {
       }
     }
 
-    // 3. Return informative error if access is restricted
+    // 3. Return informative error if access is restricted or network unreachable
     return NextResponse.json(
       {
-        error: 'Google Sheet access denied. Please open the Google Sheet, click Share, and set General Access to "Anyone with the link can view", or share with your service account email.',
+        error: 'Google Sheet access denied or network unreachable. Please ensure internet connection is active, open the Google Sheet, click Share, and set General Access to "Anyone with the link can view".',
         clientEmail: clientEmail || null,
         sheetUrl,
       },
@@ -132,6 +137,16 @@ export async function POST(request: Request) {
     );
   } catch (error: any) {
     console.error('Fetch Google Sheet API error:', error);
-    return NextResponse.json({ error: error.message || 'Internal Server Error' }, { status: 500 });
+    const isDnsOrNetError = 
+      error?.code === 'ENOTFOUND' || 
+      error?.cause?.code === 'ENOTFOUND' || 
+      error?.message?.includes('ENOTFOUND') || 
+      error?.message?.includes('fetch failed');
+    
+    const message = isDnsOrNetError
+      ? 'Internet connection error: Unable to reach docs.google.com. Please check your network connection.'
+      : (error.message || 'Internal Server Error');
+
+    return NextResponse.json({ error: message, isNetworkError: isDnsOrNetError }, { status: 500 });
   }
 }

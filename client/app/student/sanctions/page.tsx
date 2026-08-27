@@ -119,13 +119,19 @@ export default function StudentSanctionsPage() {
       }
     }
 
-    // Fetch all events
+    // Fetch all events (active and inactive)
     const { data: eventsData } = await supabase
       .from("events")
-      .select("id, title, date, status, created_at")
+      .select("*")
       .order("created_at", { ascending: false });
-    const currentEvents = eventsData || [];
-    setEvents(currentEvents);
+    const allFetchedEvents = eventsData || [];
+    
+    // Concluded events for sanctions evaluation: events that have started or are marked inactive
+    const now = new Date();
+    const evaluatedEvents = allFetchedEvents.filter(
+      (e: any) => e.active === 0 || (e.start_time && new Date(e.start_time) <= now)
+    );
+    setEvents(evaluatedEvents);
 
     // Fetch rules
     const { data: rulesData } = await supabase
@@ -145,7 +151,7 @@ export default function StudentSanctionsPage() {
       const attendedIds = new Set((attData || []).map((a) => a.event_id));
       setAttendedEventIds(attendedIds);
 
-      const missed = currentEvents.filter((e) => !attendedIds.has(e.id));
+      const missed = evaluatedEvents.filter((e) => !attendedIds.has(e.id));
       const currentAbsents = missed.length;
 
       // Fetch student manual sanctions/overrides

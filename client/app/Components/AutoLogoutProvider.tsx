@@ -22,8 +22,9 @@ export default function AutoLogoutProvider() {
   const isLoggingOutRef = useRef(false);
   const lastThrottleRef = useRef(0);
 
-  // Check if current route is a protected user area
-  const isProtectedPath = pathname?.startsWith("/admin") || pathname?.startsWith("/student");
+  // Check if current route is exempt from auto-logout (e.g. Add Members page where continuous background live sync runs)
+  const isExemptFromAutoLogout = pathname === "/admin/members/add" || pathname?.startsWith("/admin/members/add");
+  const isProtectedPath = (pathname?.startsWith("/admin") || pathname?.startsWith("/student")) && !isExemptFromAutoLogout;
 
   // Perform logout
   const handleAutoLogout = useCallback(async () => {
@@ -80,9 +81,21 @@ export default function AutoLogoutProvider() {
   };
 
   useEffect(() => {
+    // If on an exempt page (like Add Members live sync), keep last active timestamp fresh and do not track inactivity logout
+    if (isExemptFromAutoLogout) {
+      setShowWarning(false);
+      try {
+        localStorage.setItem(STORAGE_KEY, Date.now().toString());
+      } catch (e) {
+        console.error("Failed to update timestamp on exempt page:", e);
+      }
+      return;
+    }
+
     // Only track if user is on protected routes and has active session
     const hasUser = typeof window !== "undefined" && localStorage.getItem("acetrack_user");
     if (!isProtectedPath || !hasUser) {
+      setShowWarning(false);
       return;
     }
 

@@ -23,7 +23,10 @@ import {
   LuRefreshCw,
   LuCheck,
   LuExternalLink,
-  LuFileSpreadsheet
+  LuFileSpreadsheet,
+  LuClock,
+  LuPlay,
+  LuPause
 } from "react-icons/lu";
 import { Button } from "@/app/Components/ui/button";
 import { Card, CardContent } from "@/app/Components/ui/card";
@@ -93,13 +96,27 @@ export default function AddMembersPage() {
   const [memberErrors, setMemberErrors] = useState<Record<string, string>>({});
   const [editingIndex, setEditingIndex] = useState<number | null>(null);
 
-  // Google Sheet Link and Live Sync States
+  // Google Sheet Link and Live Sync States (Auto-fetch every 2 minutes while page is open)
   const DEFAULT_GOOGLE_SHEET_URL = "https://docs.google.com/spreadsheets/d/1ddZMsmpNXSCF1BmsWf_ethCaTD_4DAyVf9ERvPgPias/edit?gid=258554365#gid=258554365";
   const [googleSheetUrl, setGoogleSheetUrl] = useState(DEFAULT_GOOGLE_SHEET_URL);
   const [isFetchingSheet, setIsFetchingSheet] = useState(false);
-  const [autoFetchSheet, setAutoFetchSheet] = useState(false);
+  const [autoFetchSheet, setAutoFetchSheet] = useState<boolean>(() => {
+    if (typeof window !== "undefined") {
+      return localStorage.getItem("acetrack_autofetch_add") !== "false";
+    }
+    return true;
+  });
+  const [lastSyncTime, setLastSyncTime] = useState<Date | null>(null);
+  const [timeUntilNextSync, setTimeUntilNextSync] = useState<number>(120); // 120s = 2 minutes
+  const isBusySyncingRef = React.useRef(false);
   const [isSheetUrlModalOpen, setIsSheetUrlModalOpen] = useState(false);
   const [customSheetUrlInput, setCustomSheetUrlInput] = useState(DEFAULT_GOOGLE_SHEET_URL);
+
+  const formatCountdown = (seconds: number) => {
+    const m = Math.floor(seconds / 60);
+    const s = seconds % 60;
+    return `${m}:${s < 10 ? "0" : ""}${s}`;
+  };
 
   // Table filtering and pagination states
   const [filterStatus, setFilterStatus] = useState<"all" | "new" | "existing" | "skipped">("all");
@@ -214,11 +231,277 @@ export default function AddMembersPage() {
     };
   }, [fetchAllExistingRecords]);
 
-  // Google Sheet Live Fetcher
-  const handleFetchFromGoogleSheet = async (customUrl?: string) => {
-    const targetUrl = customUrl || googleSheetUrl;
+  // Google Sheet Live Fetcher & Auto-Add New Members
+  const syncAndAutoAddMembers = useCallback(
+    async (isManualTrigger = false, customUrl?: string) => {
+      if (isBusySyncingRef.current || isSaving) {
+        return;
+      }
+
+      isBusySyncingRef.current = true;
+      setIsFetchingSheet(true);
+
+      const targetUrl = customUrl || googleSheetUrl;
+      try {
+        const response = await fetch("/api/sheets/fetch", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ url: targetUrl }),
+        });
+
+        const resData = await response.json();
+
+        if (!response.ok || !resData.success) {
+          throw new Error(resData.error || "Failed to fetch data from Google Sheet.");
+        }
+
+        const rows: Record<string, unknown>[] = resData.data || [];
+        if (rows.length === 0) {
+          if (isManualTrigger) {
+            toast.warning("Google Sheet was fetched, but contains 0 rows.");
+          }
+          setLastSyncTime(new Date());
+          setTimeUntilNextSync(120);
+          return;
+        }
+
+        const validatedData: RawMemberData[] = [];
+        const skippedData: SkippedMemberData[] = [];
+
+        rows.forEach((row, idx) => {
+          const rowNum = idx + 2; // header is row 1
+          const rawStudentId = String(row.student_id || row["Student ID"] || row["ID"] || row["id"] || "").trim();
+          const studentId = normalizeStudentId(rawStudentId) || rawStudentId;
+          const firstName = String(row.first_name || row["First Name"] || row["Firstname"] || row["firstname"] || "").trim();
+          const lastName = String(row.last_name || row["Last Name"] || row["Lastname"] || row["lastname"] || "").trim();
+          const email = String(row.email || row["Email"] || row["Email Address"] || "").trim().toLowerCase();
+
+          const reasons: string[] = [];
+          if (!studentId) reasons.push("Missing Student ID");
+          if (!firstName) reasons.push("Missing First Name");
+          if (!lastName) reasons.push("Missing Last Name");
+          if (!email) {
+            reasons.push("Missing Email");
+          } else if (!isValidEmail(email)) {
+            reasons.push("Invalid Email Address");
+          }
+
+          if (reasons.length > 0) {
+            skippedData.push({
+              rowNumber: rowNum,
+              student_id: rawStudentId,
+              first_name: firstName,
+              middle_initial: String(row.middle_initial || row["Middle Initial"] || row["MI"] || row["M.I."] || "").trim(),
+              last_name: lastName,
+              course: String(row.course || row["Course"] || row["program"] || "").trim(),
+              section: String(row.section || row["Section"] || row["sec"] || "").trim(),
+              year: String(row.year || row["Year"] || row["yr"] || "").trim(),
+              email: email,
+              membership_status: "Not Paid",
+              payment: Number(row.payment || row["Payment"] || row["Amount"] || row["amount"] || 0) || 0,
+              receipt: String(row.receipt || row["Receipt"] || row["Receipt Number"] || row["Receipt No"] || "").trim(),
+              reasons,
+            });
+            return;
+          }
+
+          const rawStatus = String(row.membership_status || row["Membership Status"] || row["Status"] || row["status"] || "Not Paid").trim();
+          const validStatuses = ["Partial", "Fully Paid", "Not Paid", "Half Semester Paid"] as const;
+          const membershipStatus = (validStatuses.includes(rawStatus as typeof validStatuses[number])
+            ? rawStatus
+            : "Not Paid") as RawMemberData["membership_status"];
+
+          validatedData.push({
+            student_id: studentId,
+            first_name: firstName,
+            middle_initial: String(row.middle_initial || row["Middle Initial"] || row["MI"] || row["M.I."] || "").trim(),
+            last_name: lastName,
+            course: String(row.course || row["Course"] || row["program"] || "").trim(),
+            section: String(row.section || row["Section"] || row["sec"] || "").trim(),
+            year: String(row.year || row["Year"] || row["yr"] || "").trim(),
+            email: email,
+            membership_status: membershipStatus,
+            payment: Number(row.payment || row["Payment"] || row["Amount"] || row["amount"] || 0) || 0,
+            receipt: String(row.receipt || row["Receipt"] || row["Receipt Number"] || row["Receipt No"] || "").trim(),
+          });
+        });
+
+        setSkippedMembers([...skippedData].reverse());
+
+        // Fetch fresh database records with pagination
+        const { idSet: freshExistingStudentIds, emailSet: freshExistingEmails } = await fetchAllExistingRecords();
+
+        // Identify new members to auto-add
+        const membersToAutoAdd: RawMemberData[] = [];
+        const seenInBatch = new Set<string>();
+        const seenEmailsInBatch = new Set<string>();
+
+        validatedData.forEach((m) => {
+          const sKey = String(m.student_id || "").trim().toLowerCase();
+          const emailKey = String(m.email || "").trim().toLowerCase();
+
+          const inDb = isIdInSet(sKey, freshExistingStudentIds) || (emailKey && freshExistingEmails.has(emailKey));
+          const seenInBatchCheck = isIdInSet(sKey, seenInBatch) || (emailKey && seenEmailsInBatch.has(emailKey));
+
+          if (!inDb && !seenInBatchCheck) {
+            if (sKey) addIdVariations(sKey, seenInBatch);
+            if (emailKey) seenEmailsInBatch.add(emailKey);
+            membersToAutoAdd.push(m);
+          }
+        });
+
+        // Automatically save new people into Supabase
+        let autoAddedCount = 0;
+        if (membersToAutoAdd.length > 0) {
+          for (const member of membersToAutoAdd) {
+            try {
+              // 1. Insert new User record
+              const { data: userData, error: userError } = await supabase
+                .from("users")
+                .insert({
+                  student_id: member.student_id.trim(),
+                  first_name: member.first_name.trim(),
+                  middle_initial: member.middle_initial?.trim() || null,
+                  last_name: member.last_name.trim(),
+                  email: member.email.trim(),
+                  course: member.course?.trim() || null,
+                  section: member.section?.trim() || null,
+                  year: member.year?.trim() || null,
+                })
+                .select()
+                .single();
+
+              if (userError) throw userError;
+
+              // 2. Concurrently insert Account and Membership
+              const defaultPassword = member.student_id ? member.student_id.trim() : "0000-0000";
+              const encDefault = encryptPassword(defaultPassword);
+
+              const { error: accErr } = await supabase.from("accounts").insert({
+                user_id: userData.id,
+                username: member.email.trim(),
+                password: defaultPassword,
+                encrypted_password: encDefault,
+                role: 1, // Student
+                must_change_password: true,
+              });
+
+              if (accErr) {
+                await supabase.from("accounts").insert({
+                  user_id: userData.id,
+                  username: member.email.trim(),
+                  password: defaultPassword,
+                  role: 1,
+                });
+              }
+
+              const { error: memErr } = await supabase.from("memberships").insert({
+                user_id: userData.id,
+                status: member.membership_status,
+                payment: member.payment || 0,
+                receipt: member.receipt?.trim() || null,
+              });
+
+              if (memErr) throw memErr;
+
+              autoAddedCount++;
+              addIdVariations(member.student_id, freshExistingStudentIds);
+              freshExistingEmails.add(member.email.trim().toLowerCase());
+            } catch (memberErr) {
+              console.error("Auto-sync error adding member:", member.student_id, memberErr);
+            }
+          }
+
+          // Update cached database student IDs & Emails
+          setDbExistingStudentIds(new Set(freshExistingStudentIds));
+          setDbExistingEmails(new Set(freshExistingEmails));
+
+          toast.success(
+            `🎉 Auto-Sync: Automatically added ${autoAddedCount} new member(s) from Google Sheet into the database!`
+          );
+        } else if (isManualTrigger) {
+          toast.info(
+            `Google Sheet checked: All ${validatedData.length} records are already up to date in the database.`
+          );
+        }
+
+        // Set members preview to the validated rows from sheet (newest / last inserted displayed first)
+        setMembers([...validatedData].reverse());
+
+        if (skippedData.length > 0 && isManualTrigger) {
+          setErrorMessage({
+            type: "warning",
+            text: `Skipped ${skippedData.length} row(s) due to missing Student ID, missing name, or invalid email address.`,
+          });
+        }
+      } catch (err: any) {
+        console.error("Google sheet auto-sync error:", err);
+        if (isManualTrigger) {
+          toast.error(err.message || "Failed to fetch from Google Sheet.");
+          setErrorMessage({
+            type: "error",
+            text: err.message || "Failed to fetch Google Sheet data. Please check permissions.",
+          });
+        }
+      } finally {
+        setLastSyncTime(new Date());
+        setTimeUntilNextSync(120);
+        isBusySyncingRef.current = false;
+        setIsFetchingSheet(false);
+      }
+    },
+    [googleSheetUrl, isSaving, fetchAllExistingRecords, supabase]
+  );
+
+  // Auto-sync polling every 2 minutes (120 seconds), ONLY while on this page
+  useEffect(() => {
+    if (!autoFetchSheet) return;
+
+    // Initial fetch and auto-add when opening page
+    syncAndAutoAddMembers(false);
+    setTimeUntilNextSync(120);
+
+    // 1-second interval to update countdown and trigger every 120s (2 minutes)
+    const interval = setInterval(() => {
+      setTimeUntilNextSync((prev) => {
+        if (prev <= 1) {
+          syncAndAutoAddMembers(false);
+          return 120;
+        }
+        return prev - 1;
+      });
+    }, 1000);
+
+    // Clear interval when navigating away from this page (component unmounts)
+    return () => {
+      clearInterval(interval);
+    };
+  }, [autoFetchSheet, syncAndAutoAddMembers]);
+
+  const handleToggleAutoSync = () => {
+    const next = !autoFetchSheet;
+    setAutoFetchSheet(next);
+    if (typeof window !== "undefined") {
+      localStorage.setItem("acetrack_autofetch_add", String(next));
+    }
+    if (next) {
+      toast.info("Auto-sync enabled: Fetching and automatically adding new members every 2 minutes.");
+      syncAndAutoAddMembers(true);
+      setTimeUntilNextSync(120);
+    } else {
+      toast.info("Auto-sync turned OFF. You can now fetch data for preview and save manually.");
+    }
+  };
+
+  // Google Sheet Fetch for Preview Only (Used when Auto-Sync is OFF so user can review before saving)
+  const handleFetchPreviewOnly = async (customUrl?: string) => {
+    if (isBusySyncingRef.current || isSaving) return;
+
+    isBusySyncingRef.current = true;
     setIsFetchingSheet(true);
     setErrorMessage(null);
+
+    const targetUrl = customUrl || googleSheetUrl;
     try {
       const response = await fetch("/api/sheets/fetch", {
         method: "POST",
@@ -299,8 +582,9 @@ export default function AddMembersPage() {
         });
       });
 
-      setMembers(validatedData);
-      setSkippedMembers(skippedData);
+      // Display in reverse (latest row on page 1)
+      setMembers([...validatedData].reverse());
+      setSkippedMembers([...skippedData].reverse());
       setCurrentPage(1);
 
       const { idSet: existingDbSet, emailSet: existingEmailSet } = await fetchAllExistingRecords();
@@ -329,7 +613,9 @@ export default function AddMembersPage() {
         if (emailKey) seenEmailsInFile.add(emailKey);
       });
 
-      toast.success(`Fetched ${validatedData.length} rows from Google Sheet (${newMemberCount} new to save, ${inDbCount} already in database).`);
+      toast.success(
+        `Fetched ${validatedData.length} rows from Google Sheet (${newMemberCount} new to review/save, ${inDbCount} already in database).`
+      );
 
       if (skippedData.length > 0) {
         setErrorMessage({
@@ -338,24 +624,17 @@ export default function AddMembersPage() {
         });
       }
     } catch (err: any) {
-      console.error("Google sheet sync error:", err);
+      console.error("Google sheet fetch preview error:", err);
       toast.error(err.message || "Failed to fetch from Google Sheet.");
       setErrorMessage({
         type: "error",
-        text: err.message || "Failed to fetch Google Sheet data. Please check permissions.",
+        text: err.message || "Failed to fetch Google Sheet data. Please check connection or permissions.",
       });
     } finally {
+      isBusySyncingRef.current = false;
       setIsFetchingSheet(false);
     }
   };
-
-  useEffect(() => {
-    const savedAuto = typeof window !== "undefined" && localStorage.getItem("acetrack_autofetch_add") === "true";
-    setAutoFetchSheet(savedAuto);
-    if (savedAuto) {
-      handleFetchFromGoogleSheet();
-    }
-  }, []);
 
   const processFile = async (file: File) => {
     setIsUploading(true);
@@ -437,8 +716,9 @@ export default function AddMembersPage() {
           });
         });
 
-        setMembers(validatedData);
-        setSkippedMembers(skippedData);
+        // Display latest / last inserted rows first on the first page
+        setMembers([...validatedData].reverse());
+        setSkippedMembers([...skippedData].reverse());
         setCurrentPage(1);
 
         // Accurate breakdown of incoming file rows
@@ -543,7 +823,7 @@ export default function AddMembersPage() {
     });
 
     setErrorMessage(null);
-    setMembers((prev) => [...prev, { ...manualMember, student_id: sId }]);
+    setMembers((prev) => [{ ...manualMember, student_id: sId }, ...prev]);
     setIsManualModalOpen(false);
 
     // Reset form
@@ -1323,13 +1603,33 @@ export default function AddMembersPage() {
           <div className="min-w-0 flex-1">
             <div className="flex items-center gap-2 flex-wrap">
               <h4 className="text-xs sm:text-sm font-black text-emerald-950">Linked Google Sheet</h4>
-              <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-black bg-emerald-100 text-emerald-800 shrink-0">
-                Live Source Connected
-              </span>
+              {autoFetchSheet ? (
+                <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[10px] font-black bg-emerald-100 text-emerald-800 border border-emerald-300/60 shadow-xs shrink-0">
+                  <span className="size-2 rounded-full bg-emerald-500 animate-pulse" />
+                  Auto-Sync Active (Every 2 min)
+                </span>
+              ) : (
+                <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-slate-100 text-slate-600 border border-slate-200 shrink-0">
+                  <LuPause className="size-3" /> Auto-Sync Paused
+                </span>
+              )}
+              {autoFetchSheet && (
+                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-mono font-bold bg-white text-emerald-900 border border-emerald-200 shadow-xs shrink-0">
+                  <LuClock className="size-3 text-emerald-600" />
+                  Next sync in: {formatCountdown(timeUntilNextSync)}
+                </span>
+              )}
             </div>
-            <p className="text-[11px] sm:text-xs text-emerald-800/80 font-medium mt-0.5 truncate max-w-full sm:max-w-md md:max-w-xl">
-              {googleSheetUrl}
-            </p>
+            <div className="flex items-center gap-2 flex-wrap mt-0.5">
+              <p className="text-[11px] sm:text-xs text-emerald-800/80 font-medium truncate max-w-full sm:max-w-md md:max-w-xl">
+                {googleSheetUrl}
+              </p>
+              {lastSyncTime && (
+                <span className="text-[10px] text-emerald-700/70 font-semibold">
+                  • Last checked: {lastSyncTime.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", second: "2-digit" })}
+                </span>
+              )}
+            </div>
           </div>
         </div>
 
@@ -1345,32 +1645,38 @@ export default function AddMembersPage() {
 
           <Button
             size="sm"
-            disabled={isFetchingSheet}
-            onClick={() => handleFetchFromGoogleSheet()}
+            disabled={isFetchingSheet || isSaving}
+            onClick={() => {
+              if (autoFetchSheet) {
+                syncAndAutoAddMembers(true);
+              } else {
+                handleFetchPreviewOnly();
+              }
+            }}
             className="rounded-xl h-9 text-xs font-bold bg-emerald-600 hover:bg-emerald-700 text-white shadow-xs cursor-pointer flex-1 sm:flex-none justify-center"
           >
             <LuRefreshCw className={`size-3.5 mr-1.5 ${isFetchingSheet ? "animate-spin" : ""}`} />
-            {isFetchingSheet ? "Fetching Live..." : "Fetch from Google Sheet"}
+            {isFetchingSheet
+              ? autoFetchSheet
+                ? "Syncing..."
+                : "Fetching..."
+              : autoFetchSheet
+              ? "Sync & Add Now"
+              : "Fetch from Google Sheet"}
           </Button>
 
           <button
             type="button"
-            onClick={() => {
-              const next = !autoFetchSheet;
-              setAutoFetchSheet(next);
-              if (typeof window !== "undefined") {
-                localStorage.setItem("acetrack_autofetch_add", String(next));
-              }
-              toast.info(next ? "Auto-fetch on page open enabled." : "Auto-fetch disabled.");
-            }}
-            title="Automatically fetch latest Google Sheet rows when you open this page"
-            className={`px-3 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer border flex-1 sm:flex-none text-center justify-center ${
+            onClick={handleToggleAutoSync}
+            title="Automatically fetch latest Google Sheet rows and add new members every 2 minutes while this page is open"
+            className={`px-3 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer border flex items-center justify-center gap-1.5 flex-1 sm:flex-none text-center ${
               autoFetchSheet
-                ? "bg-emerald-700 text-white border-emerald-700"
+                ? "bg-emerald-700 hover:bg-emerald-800 text-white border-emerald-700 shadow-xs"
                 : "bg-white text-slate-600 border-slate-200 hover:bg-slate-50"
             }`}
           >
-            Auto-Sync: {autoFetchSheet ? "ON" : "OFF"}
+            {autoFetchSheet ? <LuPlay className="size-3 fill-current" /> : <LuPause className="size-3" />}
+            Auto-Sync: {autoFetchSheet ? "ON (2m)" : "OFF"}
           </button>
         </div>
       </div>
