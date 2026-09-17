@@ -16,7 +16,11 @@ import {
   LuX,
   LuTriangleAlert,
   LuCircleAlert,
-  LuCircleCheck
+  LuCircleCheck,
+  LuPencil,
+  LuLock,
+  LuShieldCheck,
+  LuCheck
 } from "react-icons/lu";
 import { createClient } from "@/utils/supabase/client";
 import { Button } from "@/app/Components/ui/button";
@@ -51,12 +55,53 @@ export default function AttendanceRecordsPage() {
   const [totalRecords, setTotalRecords] = useState(0);
   const [stats, setStats] = useState({ in: 0, out: 0, both: 0 });
 
-  // Delete & Clear Time Modal States
+  // Current User Role & Permissions (Role 0: Admin, Role 2: Attendance Scanner)
+  const [currentUserRole, setCurrentUserRole] = useState<number | null>(null);
+
+  // Edit Time In / Time Out Modal States (Admin Only)
+  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+  const [selectedRecordForEdit, setSelectedRecordForEdit] = useState<AttendanceRow | null>(null);
+  const [editTimeIn, setEditTimeIn] = useState<string>("");
+  const [editTimeOut, setEditTimeOut] = useState<string>("");
+  const [editStatus, setEditStatus] = useState<string>("Present");
+  const [isSaving, setIsSaving] = useState(false);
+
+  // Delete & Clear Time Modal States (Admin Only)
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
   const [selectedRecordForDelete, setSelectedRecordForDelete] = useState<AttendanceRow | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
   
   const supabase = React.useMemo(() => createClient(), []);
+
+  // Check user role from stored session
+  useEffect(() => {
+    const storedUser = localStorage.getItem("acetrack_user");
+    if (storedUser) {
+      try {
+        const parsed = JSON.parse(storedUser);
+        const role = typeof parsed.role === "number" ? parsed.role : parseInt(parsed.role, 10);
+        setCurrentUserRole(role);
+      } catch (e) {
+        console.error("Failed to parse user role:", e);
+      }
+    }
+  }, []);
+
+  const isAdmin = currentUserRole === 0;
+
+  // Convert ISO timestamp string to local YYYY-MM-DDTHH:mm format for datetime-local inputs
+  const toLocalDatetimeString = (isoString: string | null): string => {
+    if (!isoString) return "";
+    const d = new Date(isoString);
+    if (isNaN(d.getTime())) return "";
+    const pad = (n: number) => n.toString().padStart(2, "0");
+    const year = d.getFullYear();
+    const month = pad(d.getMonth() + 1);
+    const day = pad(d.getDate());
+    const hours = pad(d.getHours());
+    const minutes = pad(d.getMinutes());
+    return `${year}-${month}-${day}T${hours}:${minutes}`;
+  };
 
   useEffect(() => {
     fetchEvents();
@@ -130,13 +175,80 @@ export default function AttendanceRecordsPage() {
     }
   }, [selectedEventId, fetchAttendance, fetchStats]);
 
+  // Open Edit Modal (Admin Only)
+  const handleOpenEditModal = (record: AttendanceRow) => {
+    if (!isAdmin) {
+      toast.error("Access Restricted: Only Administrators can edit attendance time records.");
+      return;
+    }
+    setSelectedRecordForEdit(record);
+    setEditTimeIn(toLocalDatetimeString(record.time_in));
+    setEditTimeOut(toLocalDatetimeString(record.time_out));
+    setEditStatus(record.status || "Present");
+    setIsEditModalOpen(true);
+  };
+
+  // Save Edited Timestamps (Admin Only)
+  const handleSaveEditedTimestamps = async () => {
+    if (!isAdmin) {
+      toast.error("Unauthorized: Only administrators can modify attendance timestamps.");
+      return;
+    }
+    if (!selectedRecordForEdit) return;
+
+    if (editTimeIn && editTimeOut) {
+      const timeInDate = new Date(editTimeIn);
+      const timeOutDate = new Date(editTimeOut);
+      if (timeOutDate < timeInDate) {
+        toast.error("Invalid range: Time Out cannot be earlier than Time In.");
+        return;
+      }
+    }
+
+    setIsSaving(true);
+    try {
+      const timeInIso = editTimeIn ? new Date(editTimeIn).toISOString() : null;
+      const timeOutIso = editTimeOut ? new Date(editTimeOut).toISOString() : null;
+
+      const { error } = await supabase
+        .from("attendance")
+        .update({
+          time_in: timeInIso,
+          time_out: timeOutIso,
+          status: editStatus,
+        })
+        .eq("id", selectedRecordForEdit.id);
+
+      if (error) throw error;
+
+      toast.success("Attendance timestamps updated successfully.");
+      setIsEditModalOpen(false);
+      setSelectedRecordForEdit(null);
+      await fetchAttendance();
+      await fetchStats();
+    } catch (err: any) {
+      console.error("Save attendance error:", err);
+      toast.error(err.message || "Failed to update attendance timestamps.");
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
   const handleOpenDeleteModal = (record: AttendanceRow) => {
+    if (!isAdmin) {
+      toast.error("Access Restricted: Only Administrators can manage or delete attendance records.");
+      return;
+    }
     setSelectedRecordForDelete(record);
     setIsDeleteModalOpen(true);
   };
 
-  // Delete entire attendance record from database
+  // Delete entire attendance record from database (Admin Only)
   const handleDeleteEntireRecord = async (recordId: string) => {
+    if (!isAdmin) {
+      toast.error("Unauthorized: Only administrators can delete attendance records.");
+      return;
+    }
     setIsDeleting(true);
     try {
       const { error } = await supabase.from("attendance").delete().eq("id", recordId);
@@ -145,6 +257,10 @@ export default function AttendanceRecordsPage() {
       toast.success("Attendance record deleted successfully.");
       setIsDeleteModalOpen(false);
       setSelectedRecordForDelete(null);
+      if (isEditModalOpen) {
+        setIsEditModalOpen(false);
+        setSelectedRecordForEdit(null);
+      }
       await fetchAttendance();
       await fetchStats();
     } catch (err: any) {
@@ -155,8 +271,12 @@ export default function AttendanceRecordsPage() {
     }
   };
 
-  // Clear specific timestamp (time_in or time_out)
+  // Clear specific timestamp (time_in or time_out) (Admin Only)
   const handleClearTimestamp = async (recordId: string, type: "time_in" | "time_out") => {
+    if (!isAdmin) {
+      toast.error("Unauthorized: Only administrators can clear attendance timestamps.");
+      return;
+    }
     setIsDeleting(true);
     try {
       const targetRecord = attendance.find((r) => r.id === recordId) || selectedRecordForDelete;
@@ -241,9 +361,20 @@ export default function AttendanceRecordsPage() {
       {/* Header */}
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 sm:gap-6">
         <div>
-          <h1 className="text-2xl sm:text-3xl lg:text-4xl font-black text-slate-900 tracking-tight mb-1 sm:mb-2">
-            Attendance Records
-          </h1>
+          <div className="flex items-center gap-2 mb-1">
+            <h1 className="text-2xl sm:text-3xl lg:text-4xl font-black text-slate-900 tracking-tight">
+              Attendance Records
+            </h1>
+            {isAdmin ? (
+              <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-black bg-emerald-50 text-emerald-700 border border-emerald-200">
+                <LuShieldCheck className="size-3 text-emerald-600" /> Admin Editor
+              </span>
+            ) : (
+              <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-black bg-slate-100 text-slate-600 border border-slate-200">
+                <LuLock className="size-3 text-slate-500" /> Read Only
+              </span>
+            )}
+          </div>
           <p className="text-xs sm:text-sm text-slate-500 font-medium">
             Historical logs, timestamps, error correction, and exports for organization events.
           </p>
@@ -256,6 +387,16 @@ export default function AttendanceRecordsPage() {
           <LuDownload className="size-4 sm:size-5 mr-2 sm:mr-3" /> Download Excel
         </Button>
       </div>
+
+      {/* Non-Admin Notice Banner */}
+      {!isAdmin && currentUserRole !== null && (
+        <div className="p-3.5 rounded-2xl bg-amber-50/80 border border-amber-200/80 flex items-center gap-3 text-amber-900 text-xs font-semibold">
+          <LuLock className="size-4 text-amber-600 shrink-0" />
+          <p>
+            <strong>View Only Mode:</strong> You are signed in with scanner privileges. Only administrators can edit or delete Time In and Time Out timestamps.
+          </p>
+        </div>
+      )}
 
       {/* Primary Selector & Search */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
@@ -397,15 +538,35 @@ export default function AttendanceRecordsPage() {
                           </span>
                         </td>
                         <td className="px-6 lg:px-8 py-5 text-right whitespace-nowrap">
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => handleOpenDeleteModal(row)}
-                            className="size-9 p-0 rounded-xl hover:bg-rose-500 hover:text-white hover:border-rose-500 text-rose-600 border-slate-200 transition-all cursor-pointer shadow-xs"
-                            title="Delete or Manage Attendance Time"
-                          >
-                            <LuTrash2 className="size-4" />
-                          </Button>
+                          {isAdmin ? (
+                            <div className="flex items-center justify-end gap-1.5">
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() => handleOpenEditModal(row)}
+                                className="size-9 p-0 rounded-xl hover:bg-blue-500 hover:text-white hover:border-blue-500 text-blue-600 border-slate-200 transition-all cursor-pointer shadow-xs"
+                                title="Edit Attendance Timestamps"
+                              >
+                                <LuPencil className="size-4" />
+                              </Button>
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() => handleOpenDeleteModal(row)}
+                                className="size-9 p-0 rounded-xl hover:bg-rose-500 hover:text-white hover:border-rose-500 text-rose-600 border-slate-200 transition-all cursor-pointer shadow-xs"
+                                title="Delete Attendance Record"
+                              >
+                                <LuTrash2 className="size-4" />
+                              </Button>
+                            </div>
+                          ) : (
+                            <span 
+                              className="inline-flex items-center gap-1 text-[10px] font-bold text-slate-400 bg-slate-100 px-2.5 py-1 rounded-lg select-none"
+                              title="Only administrators can edit attendance records"
+                            >
+                              <LuLock className="size-3" /> Locked
+                            </span>
+                          )}
                         </td>
                       </tr>
                     ))
@@ -478,16 +639,33 @@ export default function AttendanceRecordsPage() {
                       </div>
                     </div>
 
-                    {/* Action Button */}
+                    {/* Action Controls */}
                     <div className="pt-1">
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => handleOpenDeleteModal(row)}
-                        className="w-full h-9 rounded-xl text-xs font-bold border-rose-200 text-rose-600 hover:bg-rose-500 hover:text-white transition-all justify-center cursor-pointer"
-                      >
-                        <LuTrash2 className="size-3.5 mr-1.5" /> Manage / Delete Attendance Time
-                      </Button>
+                      {isAdmin ? (
+                        <div className="flex items-center gap-2">
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => handleOpenEditModal(row)}
+                            className="flex-1 h-9 rounded-xl text-xs font-bold border-blue-200 text-blue-600 hover:bg-blue-500 hover:text-white transition-all justify-center cursor-pointer"
+                          >
+                            <LuPencil className="size-3.5 mr-1.5" /> Edit Times
+                          </Button>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => handleOpenDeleteModal(row)}
+                            className="h-9 px-3 rounded-xl text-xs font-bold border-rose-200 text-rose-600 hover:bg-rose-500 hover:text-white transition-all justify-center cursor-pointer"
+                            title="Delete Record"
+                          >
+                            <LuTrash2 className="size-3.5" />
+                          </Button>
+                        </div>
+                      ) : (
+                        <div className="w-full py-1.5 px-3 rounded-xl bg-slate-50 border border-slate-100 flex items-center justify-center gap-1.5 text-slate-400 text-xs font-bold">
+                          <LuLock className="size-3.5" /> View Only (Admin required to edit)
+                        </div>
+                      )}
                     </div>
                   </div>
                 ))
@@ -541,7 +719,150 @@ export default function AttendanceRecordsPage() {
         </div>
       )}
 
-      {/* Delete / Clear Attendance Time Modal */}
+      {/* 1. Admin Edit Timestamps Modal */}
+      <Modal
+        isOpen={isEditModalOpen}
+        onClose={() => {
+          if (!isSaving) {
+            setIsEditModalOpen(false);
+            setSelectedRecordForEdit(null);
+          }
+        }}
+        title="Edit Attendance Timestamps"
+      >
+        {selectedRecordForEdit && (
+          <div className="space-y-5">
+            {/* Student Info Card */}
+            <div className="p-4 rounded-2xl bg-slate-50 border border-slate-200 space-y-1">
+              <div className="flex items-center justify-between gap-2 flex-wrap">
+                <h3 className="text-base font-black text-slate-900">{selectedRecordForEdit.full_name}</h3>
+                <span className="font-mono text-xs font-bold text-primary px-2 py-0.5 bg-primary/10 rounded-md">
+                  {selectedRecordForEdit.student_id}
+                </span>
+              </div>
+              <p className="text-xs text-slate-500 font-medium">
+                {selectedRecordForEdit.course || "No Course"} • Year {selectedRecordForEdit.year || "—"} • Sec {selectedRecordForEdit.section || "—"}
+              </p>
+              {selectedEvent && (
+                <p className="text-xs font-semibold text-slate-600 pt-1">
+                  Event: <strong className="text-slate-900">{selectedEvent.title}</strong>
+                </p>
+              )}
+            </div>
+
+            {/* Timestamps Form */}
+            <div className="space-y-4">
+              {/* Time In Field */}
+              <div className="space-y-1.5">
+                <div className="flex items-center justify-between">
+                  <label className="text-xs font-black text-slate-700 flex items-center gap-1.5">
+                    <LuUserCheck className="size-3.5 text-emerald-600" /> Time In Timestamp
+                  </label>
+                  <div className="flex items-center gap-1">
+                    <button
+                      type="button"
+                      onClick={() => setEditTimeIn(toLocalDatetimeString(new Date().toISOString()))}
+                      className="text-[10px] font-bold text-emerald-600 hover:text-emerald-700 px-2 py-0.5 rounded bg-emerald-50 border border-emerald-200 cursor-pointer"
+                    >
+                      Set to Now
+                    </button>
+                    {editTimeIn && (
+                      <button
+                        type="button"
+                        onClick={() => setEditTimeIn("")}
+                        className="text-[10px] font-bold text-rose-600 hover:text-rose-700 px-2 py-0.5 rounded bg-rose-50 border border-rose-200 cursor-pointer"
+                      >
+                        Clear
+                      </button>
+                    )}
+                  </div>
+                </div>
+                <input 
+                  type="datetime-local"
+                  value={editTimeIn}
+                  onChange={(e) => setEditTimeIn(e.target.value)}
+                  className="w-full h-11 px-3 bg-white border border-slate-200 rounded-xl text-xs font-bold text-slate-800 outline-none focus:ring-2 focus:ring-primary/20 transition-all cursor-pointer"
+                />
+              </div>
+
+              {/* Time Out Field */}
+              <div className="space-y-1.5">
+                <div className="flex items-center justify-between">
+                  <label className="text-xs font-black text-slate-700 flex items-center gap-1.5">
+                    <LuClock className="size-3.5 text-blue-600" /> Time Out Timestamp
+                  </label>
+                  <div className="flex items-center gap-1">
+                    <button
+                      type="button"
+                      onClick={() => setEditTimeOut(toLocalDatetimeString(new Date().toISOString()))}
+                      className="text-[10px] font-bold text-blue-600 hover:text-blue-700 px-2 py-0.5 rounded bg-blue-50 border border-blue-200 cursor-pointer"
+                    >
+                      Set to Now
+                    </button>
+                    {editTimeOut && (
+                      <button
+                        type="button"
+                        onClick={() => setEditTimeOut("")}
+                        className="text-[10px] font-bold text-rose-600 hover:text-rose-700 px-2 py-0.5 rounded bg-rose-50 border border-rose-200 cursor-pointer"
+                      >
+                        Clear
+                      </button>
+                    )}
+                  </div>
+                </div>
+                <input 
+                  type="datetime-local"
+                  value={editTimeOut}
+                  onChange={(e) => setEditTimeOut(e.target.value)}
+                  className="w-full h-11 px-3 bg-white border border-slate-200 rounded-xl text-xs font-bold text-slate-800 outline-none focus:ring-2 focus:ring-primary/20 transition-all cursor-pointer"
+                />
+              </div>
+
+              {/* Status Field */}
+              <div className="space-y-1.5">
+                <label className="text-xs font-black text-slate-700 block">Attendance Status</label>
+                <select
+                  value={editStatus}
+                  onChange={(e) => setEditStatus(e.target.value)}
+                  className="w-full h-11 px-3 bg-white border border-slate-200 rounded-xl text-xs font-bold text-slate-800 outline-none focus:ring-2 focus:ring-primary/20 transition-all cursor-pointer"
+                >
+                  <option value="Present">Present</option>
+                  <option value="Late">Late</option>
+                  <option value="Excused">Excused</option>
+                  <option value="Absent">Absent</option>
+                </select>
+              </div>
+            </div>
+
+            {/* Modal Bottom Actions */}
+            <div className="flex flex-col-reverse sm:flex-row items-center justify-between gap-3 pt-3 border-t border-slate-100">
+              <Button
+                type="button"
+                variant="outline"
+                disabled={isSaving}
+                onClick={() => {
+                  setIsEditModalOpen(false);
+                  setSelectedRecordForEdit(null);
+                }}
+                className="h-10 px-5 rounded-xl font-bold text-xs cursor-pointer w-full sm:w-auto justify-center"
+              >
+                Cancel
+              </Button>
+              <Button
+                type="button"
+                loading={isSaving}
+                disabled={isSaving}
+                onClick={handleSaveEditedTimestamps}
+                className="h-10 px-6 rounded-xl font-black text-xs gradient-primary text-white shadow-md shadow-primary/20 hover:scale-102 transition-all cursor-pointer w-full sm:w-auto justify-center"
+              >
+                <LuCheck className="size-4 mr-1.5" /> Save Changes
+              </Button>
+            </div>
+          </div>
+        )}
+      </Modal>
+
+      {/* 2. Delete / Clear Attendance Time Modal (Admin Only) */}
       <Modal
         isOpen={isDeleteModalOpen}
         onClose={() => {

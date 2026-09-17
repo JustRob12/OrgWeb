@@ -561,7 +561,8 @@ export default function AdminDashboard() {
   const courseTotalMembersMap = useMemo(() => {
     const map: Record<string, number> = {};
     membersData.forEach((m) => {
-      const c = (m.course || "Other").trim().toUpperCase();
+      const c = (m.course || "").trim().toUpperCase();
+      if (!c || c === "OTHER" || c === "OTHERS") return;
       map[c] = (map[c] || 0) + 1;
     });
     return map;
@@ -581,31 +582,54 @@ export default function AdminDashboard() {
 
     const courseCounts: Record<string, number> = {};
     filtered.forEach((att) => {
-      const c = (att.course || "Other").trim().toUpperCase();
+      const c = (att.course || "").trim().toUpperCase();
+      if (!c || c === "OTHER" || c === "OTHERS") return;
       courseCounts[c] = (courseCounts[c] || 0) + 1;
     });
 
     const totalPresent = filtered.length;
+    const overallTurnoutRate = memberCount > 0 ? (totalPresent / memberCount) * 100 : 0;
+    const activeEventsCount = eventsList.filter((e) => e.active === 1).length;
 
-    // Convert to sorted array
-    const sortedCourses = Object.entries(courseCounts)
-      .map(([course, count], idx) => {
-        const percentage = totalPresent > 0 ? (count / totalPresent) * 100 : 0;
-        const totalEnrolled = courseTotalMembersMap[course] || count;
-        const turnoutRate = totalEnrolled > 0 ? Math.min(100, Math.round((count / totalEnrolled) * 100)) : 0;
+    // Collect all unique course codes from enrollment map + attendance (excluding OTHER / OTHERS)
+    const allCourseKeys = Array.from(
+      new Set([...Object.keys(courseTotalMembersMap), ...Object.keys(courseCounts)])
+    ).filter((c) => Boolean(c) && c !== "OTHER" && c !== "OTHERS");
 
-        return {
-          course,
-          count,
-          percentage,
-          totalEnrolled,
-          turnoutRate,
-          theme: getCourseTheme(course, idx),
-        };
-      })
-      .sort((a, b) => b.count - a.count);
+    // Build comprehensive course stats
+    const allCourses = allCourseKeys.map((course, idx) => {
+      const count = courseCounts[course] || 0;
+      const totalEnrolled = courseTotalMembersMap[course] || count || 0;
+      const turnoutRate = totalEnrolled > 0 ? Math.min(100, (count / totalEnrolled) * 100) : 0;
+      const percentage = totalPresent > 0 ? (count / totalPresent) * 100 : 0;
+      const percentageOfOrg = memberCount > 0 ? (count / memberCount) * 100 : 0;
 
-    // Calculate SVG Pie/Donut Arc Geometry
+      return {
+        course,
+        fullName: COURSE_FULL_NAMES[course] || "Academic Program",
+        count,
+        totalEnrolled,
+        turnoutRate,
+        percentage,
+        percentageOfOrg,
+        theme: getCourseTheme(course, idx),
+        hasAttendance: count > 0,
+      };
+    });
+
+    // Courses with active attendance (for Donut slices and primary display)
+    const activeCourses = allCourses
+      .filter((c) => c.count > 0)
+      .sort((a, b) => b.count - a.count || b.turnoutRate - a.turnoutRate);
+
+    // All courses sorted by turnout rate then count (for gauges, leaderboard, and cards)
+    const sortedAllCourses = [...allCourses].sort((a, b) => {
+      if (b.turnoutRate !== a.turnoutRate) return b.turnoutRate - a.turnoutRate;
+      if (b.count !== a.count) return b.count - a.count;
+      return a.course.localeCompare(b.course);
+    });
+
+    // Calculate SVG Pie/Donut Arc Geometry for active courses
     const cx = 140;
     const cy = 140;
     const outerR = 105;
@@ -613,7 +637,7 @@ export default function AdminDashboard() {
 
     let cumulativeAngle = -Math.PI / 2; // Start at 12 o'clock
 
-    const slices = sortedCourses.map((item, index) => {
+    const slices = activeCourses.map((item) => {
       const sliceAngle = totalPresent > 0 ? (item.count / totalPresent) * 2 * Math.PI : 0;
       const startAngle = cumulativeAngle;
       const endAngle = cumulativeAngle + sliceAngle;
@@ -643,13 +667,22 @@ export default function AdminDashboard() {
       };
     });
 
+    const leadingCourse = sortedAllCourses.find((c) => c.count > 0) || null;
+
     return {
       totalPresent,
+      overallTurnoutRate,
+      activeEventsCount,
+      activeCoursesCount: activeCourses.length,
+      totalCoursesCount: allCourses.length,
+      leadingCourse,
       slices,
+      allCourses: sortedAllCourses,
+      activeCourses,
       selectedEvent: eventsList.find((e) => e.id === selectedEventId),
       hasData: totalPresent > 0,
     };
-  }, [attendanceLogs, selectedEventId, courseTotalMembersMap, eventsList]);
+  }, [attendanceLogs, selectedEventId, courseTotalMembersMap, eventsList, memberCount]);
 
   // Course Program Demographics Cards with Filtering & Sorting
   const courseStats = useMemo(() => {
@@ -667,7 +700,8 @@ export default function AdminDashboard() {
     }> = {};
 
     membersData.forEach(member => {
-      const course = (member.course || "Other").trim().toUpperCase();
+      const course = (member.course || "").trim().toUpperCase();
+      if (!course || course === "OTHER" || course === "OTHERS") return;
       if (!grouped[course]) {
         grouped[course] = {
           course,
@@ -922,7 +956,7 @@ export default function AdminDashboard() {
           <div className="absolute top-0 right-0 w-28 h-28 bg-blue-500/5 rounded-full blur-2xl pointer-events-none group-hover:bg-blue-500/10 transition-colors" />
           
           <div className="flex items-center justify-between mb-3">
-            <span className="text-[10px] font-black uppercase tracking-wider text-slate-400">Total Check-ins Logged</span>
+            <span className="text-[10px] font-black uppercase tracking-wider text-slate-400">Event Check-in Turnout</span>
             <div className="p-2.5 rounded-2xl bg-blue-50 text-blue-600 border border-blue-100 flex items-center justify-center group-hover:scale-110 transition-transform">
               <LuActivity className="size-4" />
             </div>
@@ -931,23 +965,26 @@ export default function AdminDashboard() {
           <div className="flex items-center justify-between gap-2">
             <div>
               <div className="text-3xl lg:text-4xl font-black text-slate-900 tracking-tight leading-none">
-                <AnimatedCounter value={attendanceLogs.length} />
+                <AnimatedCounter value={attendancePieData.totalPresent} />
               </div>
               <div className="flex items-center gap-1.5 mt-2">
+                <span className="inline-flex items-center gap-0.5 text-[10px] font-black text-emerald-600 bg-emerald-50 px-1.5 py-0.5 rounded-md border border-emerald-100">
+                  <LuArrowUpRight className="size-3" /> {attendancePieData.activeEventsCount} Active
+                </span>
                 <span className="text-[10px] font-bold text-slate-400">
-                  Across {eventsList.length} recorded events
+                  {selectedEventId === "all" ? "All events" : "Selected event"}
                 </span>
               </div>
             </div>
 
             <RadialProgressGauge
-              percentage={memberCount > 0 ? (attendancePieData.totalPresent / memberCount) * 100 : 0}
+              percentage={attendancePieData.overallTurnoutRate}
               size={48}
               strokeWidth={4.5}
               color="#3b82f6"
             >
               <span className="text-[9px] font-black text-blue-600">
-                {memberCount > 0 ? Math.min(100, Math.round((attendancePieData.totalPresent / memberCount) * 100)) : 0}%
+                {Math.round(attendancePieData.overallTurnoutRate)}%
               </span>
             </RadialProgressGauge>
           </div>
@@ -961,14 +998,29 @@ export default function AdminDashboard() {
         {/* Header & Controls */}
         <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-4 pb-4 border-b border-slate-100">
           <div>
-            <div className="inline-flex items-center gap-2 px-3 py-1 bg-primary/10 text-primary rounded-full text-[10px] font-black uppercase tracking-wider border border-primary/20 mb-1.5">
-              <LuChartPie className="size-3" /> Event Turnout Analytics
+            <div className="flex items-center gap-2 mb-1.5 flex-wrap">
+              <span className="inline-flex items-center gap-1.5 px-3 py-1 bg-primary/10 text-primary rounded-full text-[10px] font-black uppercase tracking-wider border border-primary/20">
+                <LuChartPie className="size-3" /> Event Turnout Analytics
+              </span>
+              {selectedEventId === "all" ? (
+                <span className="inline-flex items-center gap-1 px-2.5 py-0.5 bg-slate-100 text-slate-600 rounded-full text-[10px] font-black border border-slate-200">
+                  <LuSparkles className="size-2.5 text-amber-500" /> All Events Combined
+                </span>
+              ) : attendancePieData.selectedEvent?.active === 1 ? (
+                <span className="inline-flex items-center gap-1 px-2.5 py-0.5 bg-emerald-50 text-emerald-700 rounded-full text-[10px] font-black border border-emerald-200">
+                  <span className="size-1.5 rounded-full bg-emerald-500 animate-pulse" /> Active Event
+                </span>
+              ) : (
+                <span className="inline-flex items-center gap-1 px-2.5 py-0.5 bg-slate-100 text-slate-500 rounded-full text-[10px] font-black border border-slate-200">
+                  Closed / Past Event
+                </span>
+              )}
             </div>
             <h3 className="text-xl sm:text-2xl font-black text-slate-900 tracking-tight flex items-center gap-2">
-              Active Attendees by Course Program
+              Active Attendees & Course Turnout Percentage
             </h3>
             <p className="text-xs text-slate-500 font-medium">
-              Real-time distribution of checked-in / present students across academic programs.
+              Real-time percentage turnout per academic program and live attendee counts across events.
             </p>
           </div>
 
@@ -1029,6 +1081,65 @@ export default function AdminDashboard() {
           </div>
         </div>
 
+        {/* 4 Quick KPI Summary Cards */}
+        <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-4 gap-3 p-4 rounded-2xl bg-slate-50/70 border border-slate-100">
+          <div className="p-3 rounded-xl bg-white border border-slate-200/60 shadow-2xs">
+            <div className="flex items-center justify-between text-slate-400 mb-1">
+              <span className="text-[9px] font-black uppercase tracking-widest">Active Checked In</span>
+              <LuUsers className="size-3.5 text-blue-500" />
+            </div>
+            <div className="text-lg sm:text-xl font-black text-slate-900">
+              <AnimatedCounter value={attendancePieData.totalPresent} />
+            </div>
+            <p className="text-[10px] font-bold text-slate-400 mt-0.5">
+              {attendancePieData.overallTurnoutRate.toFixed(1)}% of total ({memberCount} enrolled)
+            </p>
+          </div>
+
+          <div className="p-3 rounded-xl bg-white border border-slate-200/60 shadow-2xs">
+            <div className="flex items-center justify-between text-slate-400 mb-1">
+              <span className="text-[9px] font-black uppercase tracking-widest">Active Events</span>
+              <LuActivity className="size-3.5 text-emerald-500" />
+            </div>
+            <div className="text-lg sm:text-xl font-black text-emerald-600">
+              <AnimatedCounter value={attendancePieData.activeEventsCount} />
+              <span className="text-xs font-bold text-slate-400 ml-1">/ {eventsList.length} total</span>
+            </div>
+            <p className="text-[10px] font-bold text-slate-400 mt-0.5 truncate">
+              {selectedEventId === "all" ? "All events combined" : attendancePieData.selectedEvent?.title || "Selected event"}
+            </p>
+          </div>
+
+          <div className="p-3 rounded-xl bg-white border border-slate-200/60 shadow-2xs">
+            <div className="flex items-center justify-between text-slate-400 mb-1">
+              <span className="text-[9px] font-black uppercase tracking-widest">Active Programs</span>
+              <LuGraduationCap className="size-3.5 text-purple-500" />
+            </div>
+            <div className="text-lg sm:text-xl font-black text-purple-600">
+              <AnimatedCounter value={attendancePieData.activeCoursesCount} />
+              <span className="text-xs font-bold text-slate-400 ml-1">/ {attendancePieData.totalCoursesCount} courses</span>
+            </div>
+            <p className="text-[10px] font-bold text-slate-400 mt-0.5">
+              Participating departments
+            </p>
+          </div>
+
+          <div className="p-3 rounded-xl bg-white border border-slate-200/60 shadow-2xs">
+            <div className="flex items-center justify-between text-slate-400 mb-1">
+              <span className="text-[9px] font-black uppercase tracking-widest">Top Turnout Course</span>
+              <LuAward className="size-3.5 text-amber-500" />
+            </div>
+            <div className="text-lg sm:text-xl font-black text-amber-600 truncate">
+              {attendancePieData.leadingCourse?.course || "None"}
+            </div>
+            <p className="text-[10px] font-bold text-slate-400 mt-0.5">
+              {attendancePieData.leadingCourse 
+                ? `${attendancePieData.leadingCourse.turnoutRate.toFixed(1)}% (${attendancePieData.leadingCourse.count}/${attendancePieData.leadingCourse.totalEnrolled})`
+                : "No check-ins logged"}
+            </p>
+          </div>
+        </div>
+
         {/* View Mode 1: Donut Visualization & Cards */}
         {attendanceViewMode === "donut" && (
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-center">
@@ -1079,7 +1190,7 @@ export default function AdminDashboard() {
 
                   {/* Donut Center Animated Stats */}
                   <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-                    <div className="size-32 rounded-full bg-white shadow-inner flex flex-col items-center justify-center p-3 text-center border border-slate-100">
+                    <div className="size-36 rounded-full bg-white shadow-inner flex flex-col items-center justify-center p-3 text-center border border-slate-100">
                       {activePieSlice ? (
                         <div className="animate-fade-in-up">
                           <span className="text-[10px] font-black uppercase tracking-wider text-slate-400 block leading-tight">
@@ -1088,20 +1199,26 @@ export default function AdminDashboard() {
                           <span className="text-2xl font-black text-slate-900 block leading-tight mt-0.5">
                             <AnimatedCounter value={activePieSlice.count} />
                           </span>
-                          <span className="text-[10px] font-black text-primary block leading-tight mt-0.5">
-                            <AnimatedCounter value={activePieSlice.percentage} decimals={1} suffix="%" /> Share
+                          <span className="text-[10px] font-black text-emerald-600 block leading-tight mt-0.5">
+                            <AnimatedCounter value={activePieSlice.turnoutRate} decimals={1} suffix="%" /> Course Turnout
+                          </span>
+                          <span className="text-[9px] font-bold text-primary block leading-tight mt-0.5">
+                            <AnimatedCounter value={activePieSlice.percentage} decimals={1} suffix="%" /> Event Share
                           </span>
                         </div>
                       ) : (
                         <div className="animate-fade-in-up">
                           <span className="text-[9px] font-black uppercase tracking-widest text-slate-400 block leading-tight">
-                            Total Present
+                            Active in Event
                           </span>
                           <span className="text-2xl sm:text-3xl font-black text-slate-900 block leading-tight mt-0.5">
                             <AnimatedCounter value={attendancePieData.totalPresent} />
                           </span>
-                          <span className="text-[9px] font-bold text-slate-500 block leading-tight mt-0.5">
-                            {selectedEventId === "all" ? "All Events" : "Selected Event"}
+                          <span className="text-[10px] font-black text-emerald-600 block leading-tight mt-0.5">
+                            <AnimatedCounter value={attendancePieData.overallTurnoutRate} decimals={1} suffix="%" /> Org Turnout
+                          </span>
+                          <span className="text-[9px] font-bold text-slate-400 block leading-tight mt-0.5 truncate max-w-[110px]">
+                            {selectedEventId === "all" ? "All Events" : attendancePieData.selectedEvent?.title || "Selected Event"}
                           </span>
                         </div>
                       )}
@@ -1127,48 +1244,40 @@ export default function AdminDashboard() {
 
             {/* Right Column: Breakdown Cards */}
             <div className="lg:col-span-7 space-y-3">
-              {/* Quick KPI Bar */}
-              <div className="grid grid-cols-3 gap-2.5 p-3 rounded-2xl bg-slate-50/80 border border-slate-100 mb-4 text-center">
-                <div className="p-2">
-                  <span className="text-[9px] font-black uppercase tracking-widest text-slate-400 block">Total Checked In</span>
-                  <span className="text-base sm:text-lg font-black text-slate-900 mt-0.5 block">
-                    <AnimatedCounter value={attendancePieData.totalPresent} />
-                  </span>
-                </div>
-                <div className="p-2 border-x border-slate-200/60">
-                  <span className="text-[9px] font-black uppercase tracking-widest text-slate-400 block">Active Programs</span>
-                  <span className="text-base sm:text-lg font-black text-emerald-600 mt-0.5 block">
-                    <AnimatedCounter value={attendancePieData.slices.length} suffix=" Courses" />
-                  </span>
-                </div>
-                <div className="p-2">
-                  <span className="text-[9px] font-black uppercase tracking-widest text-slate-400 block">Leading Program</span>
-                  <span className="text-base sm:text-lg font-black text-primary truncate mt-0.5 block">
-                    {attendancePieData.slices[0]?.course || "None"}
-                  </span>
-                </div>
+              <div className="flex items-center justify-between pb-1">
+                <span className="text-xs font-black text-slate-700 uppercase tracking-wider">
+                  Course Program Turnout & Active Counts
+                </span>
+                <span className="text-[10px] font-bold text-slate-400">
+                  {attendancePieData.allCourses.length} Courses Tracked
+                </span>
               </div>
 
               {/* Breakdown List */}
-              {attendancePieData.slices.length === 0 ? (
+              {attendancePieData.allCourses.length === 0 ? (
                 <div className="p-8 text-center bg-slate-50/50 rounded-2xl border border-dashed border-slate-200">
                   <p className="text-xs font-bold text-slate-400">
                     Select another event from the dropdown to review historical attendance.
                   </p>
                 </div>
               ) : (
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 max-h-[300px] overflow-y-auto pr-1">
-                  {attendancePieData.slices.map((item, idx) => {
-                    const isHovered = hoveredPieIndex === idx;
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 max-h-[340px] overflow-y-auto pr-1">
+                  {attendancePieData.allCourses.map((item, idx) => {
+                    const sliceIdx = attendancePieData.slices.findIndex(s => s.course === item.course);
+                    const isHovered = hoveredPieIndex !== null && hoveredPieIndex === sliceIdx;
                     return (
                       <div
                         key={item.course}
-                        onMouseEnter={() => setHoveredPieIndex(idx)}
+                        onMouseEnter={() => {
+                          if (sliceIdx !== -1) setHoveredPieIndex(sliceIdx);
+                        }}
                         onMouseLeave={() => setHoveredPieIndex(null)}
                         className={`p-3.5 rounded-2xl border transition-all duration-200 cursor-pointer flex flex-col justify-between ${
                           isHovered
                             ? "bg-slate-50 border-slate-400 shadow-md scale-[1.02]"
-                            : "bg-white border-slate-100 hover:border-slate-300"
+                            : item.count > 0 
+                              ? "bg-white border-slate-200/90 hover:border-slate-300"
+                              : "bg-slate-50/50 border-slate-100 opacity-65 hover:opacity-100"
                         }`}
                       >
                         <div className="flex items-center justify-between">
@@ -1177,23 +1286,35 @@ export default function AdminDashboard() {
                               className="size-3 rounded-full shrink-0"
                               style={{ backgroundColor: item.theme.primary }}
                             />
-                            <span className="font-black text-slate-900 text-xs">{item.course}</span>
+                            <div>
+                              <span className="font-black text-slate-900 text-xs block leading-tight">{item.course}</span>
+                              <span className="text-[9px] font-bold text-slate-400 block leading-tight line-clamp-1">{item.fullName}</span>
+                            </div>
                           </div>
-                          <span className="text-xs font-black text-slate-900">
-                            <AnimatedCounter value={item.count} /> <span className="text-[10px] font-bold text-slate-400">Present</span>
-                          </span>
+                          <div className="text-right">
+                            <span className="text-xs font-black text-slate-900 block leading-tight">
+                              <AnimatedCounter value={item.count} /> <span className="text-[10px] font-bold text-slate-400">Active</span>
+                            </span>
+                            <span className="text-[9px] font-bold text-slate-400">
+                              of {item.totalEnrolled} total
+                            </span>
+                          </div>
                         </div>
 
-                        {/* Animated Percentage Bar */}
+                        {/* Animated Percentage Bar for Course Turnout */}
                         <div className="mt-2.5 space-y-1">
-                          <div className="flex justify-between text-[10px] font-bold text-slate-400">
-                            <span>{COURSE_FULL_NAMES[item.course] || "Academic Unit"}</span>
-                            <span className="font-black text-slate-700">{item.percentage.toFixed(1)}%</span>
+                          <div className="flex justify-between text-[10px] font-bold">
+                            <span className="text-emerald-600 font-black">
+                              {item.turnoutRate.toFixed(1)}% of course
+                            </span>
+                            <span className="text-primary font-black">
+                              {item.percentage.toFixed(1)}% event share
+                            </span>
                           </div>
                           <div className="h-1.5 w-full bg-slate-100 rounded-full overflow-hidden">
                             <div
                               style={{
-                                width: `${item.percentage}%`,
+                                width: `${item.turnoutRate}%`,
                                 backgroundColor: item.theme.primary,
                               }}
                               className="h-full rounded-full transition-all duration-700 ease-out"
@@ -1212,22 +1333,26 @@ export default function AdminDashboard() {
         {/* View Mode 2: Ranked Program Leaderboard */}
         {attendanceViewMode === "leaderboard" && (
           <div className="space-y-3">
-            {attendancePieData.slices.length === 0 ? (
+            {attendancePieData.allCourses.length === 0 ? (
               <div className="p-8 text-center bg-slate-50 rounded-2xl border border-dashed border-slate-200">
                 <p className="text-xs font-bold text-slate-400">No attendance data logged for this event.</p>
               </div>
             ) : (
               <div className="grid grid-cols-1 gap-2.5">
-                {attendancePieData.slices.map((item, idx) => (
+                {attendancePieData.allCourses.map((item, idx) => (
                   <div
                     key={item.course}
-                    className="p-4 rounded-2xl bg-white border border-slate-200/80 shadow-xs hover:shadow-md transition-all flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3"
+                    className={`p-4 rounded-2xl border transition-all flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 ${
+                      item.count > 0 
+                        ? "bg-white border-slate-200/80 shadow-xs hover:shadow-md" 
+                        : "bg-slate-50/60 border-slate-100 opacity-60"
+                    }`}
                   >
                     <div className="flex items-center gap-3 w-full sm:w-1/3">
                       <div className={`size-7 rounded-xl flex items-center justify-center font-black text-xs ${
-                        idx === 0 ? "bg-amber-100 text-amber-700 border border-amber-200" :
-                        idx === 1 ? "bg-slate-200 text-slate-700 border border-slate-300" :
-                        idx === 2 ? "bg-orange-100 text-orange-700 border border-orange-200" :
+                        idx === 0 && item.count > 0 ? "bg-amber-100 text-amber-700 border border-amber-200" :
+                        idx === 1 && item.count > 0 ? "bg-slate-200 text-slate-700 border border-slate-300" :
+                        idx === 2 && item.count > 0 ? "bg-orange-100 text-orange-700 border border-orange-200" :
                         "bg-slate-100 text-slate-500"
                       }`}>
                         #{idx + 1}
@@ -1235,21 +1360,21 @@ export default function AdminDashboard() {
                       <div>
                         <span className="font-black text-sm text-slate-900">{item.course}</span>
                         <p className="text-[10px] text-slate-400 font-bold leading-tight">
-                          {COURSE_FULL_NAMES[item.course] || "Academic Unit"}
+                          {item.fullName}
                         </p>
                       </div>
                     </div>
 
-                    {/* Progress Bar Representation */}
+                    {/* Progress Bar Representation of Course Turnout */}
                     <div className="flex-1 w-full space-y-1">
                       <div className="flex justify-between text-xs font-black text-slate-700">
-                        <span>{item.count} Checked-In</span>
-                        <span className="text-primary">{item.percentage.toFixed(1)}% Share</span>
+                        <span>{item.count} Active <span className="text-slate-400 font-normal">/ {item.totalEnrolled} enrolled</span></span>
+                        <span className="text-emerald-600 font-black">{item.turnoutRate.toFixed(1)}% Course Turnout</span>
                       </div>
                       <div className="h-2 w-full bg-slate-100 rounded-full overflow-hidden">
                         <div
                           style={{
-                            width: `${item.percentage}%`,
+                            width: `${item.turnoutRate}%`,
                             backgroundColor: item.theme.primary,
                           }}
                           className="h-full rounded-full transition-all duration-1000 ease-out"
@@ -1259,7 +1384,10 @@ export default function AdminDashboard() {
 
                     <div className="shrink-0 flex items-center gap-2">
                       <span className="text-xs font-black text-emerald-600 bg-emerald-50 px-2.5 py-1 rounded-xl border border-emerald-100">
-                        {item.turnoutRate}% Turnout
+                        {item.turnoutRate.toFixed(1)}% Turnout
+                      </span>
+                      <span className="text-xs font-black text-blue-600 bg-blue-50 px-2.5 py-1 rounded-xl border border-blue-100">
+                        {item.percentage.toFixed(1)}% Share
                       </span>
                     </div>
                   </div>
@@ -1272,15 +1400,19 @@ export default function AdminDashboard() {
         {/* View Mode 3: Radial Turnout Gauges */}
         {attendanceViewMode === "gauges" && (
           <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3.5">
-            {attendancePieData.slices.length === 0 ? (
+            {attendancePieData.allCourses.length === 0 ? (
               <div className="col-span-full p-8 text-center bg-slate-50 rounded-2xl border border-dashed border-slate-200">
                 <p className="text-xs font-bold text-slate-400">No attendance data logged for this event.</p>
               </div>
             ) : (
-              attendancePieData.slices.map((item) => (
+              attendancePieData.allCourses.map((item) => (
                 <div
                   key={item.course}
-                  className="p-4 rounded-2xl bg-white border border-slate-200/80 shadow-xs hover:shadow-md transition-all flex flex-col items-center text-center space-y-2"
+                  className={`p-4 rounded-2xl border transition-all flex flex-col items-center text-center space-y-2 ${
+                    item.count > 0 
+                      ? "bg-white border-slate-200/80 shadow-xs hover:shadow-md" 
+                      : "bg-slate-50/60 border-slate-100 opacity-60"
+                  }`}
                 >
                   <RadialProgressGauge
                     percentage={item.turnoutRate}
@@ -1288,14 +1420,20 @@ export default function AdminDashboard() {
                     strokeWidth={5.5}
                     color={item.theme.primary}
                   >
-                    <span className="text-xs font-black text-slate-900">{item.turnoutRate}%</span>
+                    <span className="text-xs font-black text-slate-900">{item.turnoutRate.toFixed(0)}%</span>
                   </RadialProgressGauge>
 
                   <div>
                     <h5 className="font-black text-sm text-slate-900">{item.course}</h5>
-                    <p className="text-[10px] text-slate-400 font-bold">
-                      {item.count} / {item.totalEnrolled} students
+                    <p className="text-[10px] text-slate-400 font-bold leading-tight line-clamp-1 mb-0.5">
+                      {item.fullName}
                     </p>
+                    <p className="text-[10px] text-slate-600 font-black">
+                      {item.count} / {item.totalEnrolled} active
+                    </p>
+                    <span className="text-[9px] font-bold text-primary block mt-0.5">
+                      {item.percentage.toFixed(1)}% event share
+                    </span>
                   </div>
                 </div>
               ))
