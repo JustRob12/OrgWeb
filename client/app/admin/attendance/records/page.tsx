@@ -49,6 +49,7 @@ export default function AttendanceRecordsPage() {
   const [events, setEvents] = useState<any[]>([]);
   const [selectedEventId, setSelectedEventId] = useState<string>("");
   const [searchQuery, setSearchQuery] = useState("");
+  const [debouncedSearch, setDebouncedSearch] = useState("");
   const [attendance, setAttendance] = useState<AttendanceRow[]>([]);
   const [loading, setLoading] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
@@ -103,11 +104,7 @@ export default function AttendanceRecordsPage() {
     return `${year}-${month}-${day}T${hours}:${minutes}`;
   };
 
-  useEffect(() => {
-    fetchEvents();
-  }, []);
-
-  const fetchEvents = async () => {
+  const fetchEvents = useCallback(async () => {
     const { data, error } = await supabase
       .from("events")
       .select("*")
@@ -116,10 +113,38 @@ export default function AttendanceRecordsPage() {
     if (!error && data) {
       setEvents(data);
     }
-  };
+  }, [supabase]);
 
+  useEffect(() => {
+    fetchEvents();
+  }, [fetchEvents]);
+
+  // Debounce search input to avoid unnecessary requests while typing
+  useEffect(() => {
+    const trimmed = searchQuery.trim();
+    if (!trimmed) {
+      setDebouncedSearch("");
+      setAttendance([]);
+      setTotalRecords(0);
+      return;
+    }
+
+    const timer = setTimeout(() => {
+      setDebouncedSearch(trimmed);
+    }, 250);
+
+    return () => clearTimeout(timer);
+  }, [searchQuery]);
+
+  // Only fetch attendance when a search query is present (hide names by default)
   const fetchAttendance = useCallback(async () => {
-    if (!selectedEventId) return;
+    if (!selectedEventId || !debouncedSearch) {
+      setAttendance([]);
+      setTotalRecords(0);
+      setLoading(false);
+      return;
+    }
+
     setLoading(true);
     const from = (currentPage - 1) * ITEMS_PER_PAGE;
     const to = from + ITEMS_PER_PAGE - 1;
@@ -130,31 +155,26 @@ export default function AttendanceRecordsPage() {
       .eq("event_id", selectedEventId)
       .order("created_at", { ascending: false });
 
-    if (searchQuery) {
-      query = query.or(`full_name.ilike.%${searchQuery}%,student_id.ilike.%${searchQuery}%`);
-    }
+    query = query.or(`full_name.ilike.%${debouncedSearch}%,student_id.ilike.%${debouncedSearch}%`);
 
     const { data, error, count } = await query.range(from, to);
 
     if (!error && data) {
       setAttendance(data as AttendanceRow[]);
       setTotalRecords(count || 0);
+    } else {
+      setAttendance([]);
+      setTotalRecords(0);
     }
     setLoading(false);
-  }, [selectedEventId, currentPage, searchQuery, supabase]);
+  }, [selectedEventId, currentPage, debouncedSearch, supabase]);
 
   const fetchStats = useCallback(async () => {
     if (!selectedEventId) return;
-    let query = supabase
+    const { data, error } = await supabase
       .from("attendance")
       .select("time_in, time_out")
       .eq("event_id", selectedEventId);
-
-    if (searchQuery) {
-      query = query.or(`full_name.ilike.%${searchQuery}%,student_id.ilike.%${searchQuery}%`);
-    }
-
-    const { data, error } = await query;
 
     if (!error && data) {
       const inCount = data.filter(r => r.time_in && !r.time_out).length;
@@ -162,18 +182,25 @@ export default function AttendanceRecordsPage() {
       const bothCount = data.filter(r => r.time_in && r.time_out).length;
       setStats({ in: inCount, out: outCount, both: bothCount });
     }
-  }, [selectedEventId, searchQuery, supabase]);
+  }, [selectedEventId, supabase]);
 
   useEffect(() => {
     if (selectedEventId) {
-      fetchAttendance();
       fetchStats();
+    } else {
+      setStats({ in: 0, out: 0, both: 0 });
+    }
+  }, [selectedEventId, fetchStats]);
+
+  useEffect(() => {
+    if (selectedEventId && debouncedSearch) {
+      fetchAttendance();
     } else {
       setAttendance([]);
       setTotalRecords(0);
-      setStats({ in: 0, out: 0, both: 0 });
+      setLoading(false);
     }
-  }, [selectedEventId, fetchAttendance, fetchStats]);
+  }, [selectedEventId, debouncedSearch, fetchAttendance]);
 
   // Open Edit Modal (Admin Only)
   const handleOpenEditModal = (record: AttendanceRow) => {
@@ -323,8 +350,8 @@ export default function AttendanceRecordsPage() {
       .select("student_id, full_name, email, course, section, year, time_in, time_out, status")
       .eq("event_id", selectedEventId);
 
-    if (searchQuery) {
-      query = query.or(`full_name.ilike.%${searchQuery}%,student_id.ilike.%${searchQuery}%`);
+    if (debouncedSearch) {
+      query = query.or(`full_name.ilike.%${debouncedSearch}%,student_id.ilike.%${debouncedSearch}%`);
     }
 
     const { data, error } = await query;
@@ -406,7 +433,14 @@ export default function AttendanceRecordsPage() {
             <LuCalendar className="absolute left-4 top-1/2 -translate-y-1/2 size-4 text-slate-400 group-focus-within:text-primary transition-colors" />
             <select 
               value={selectedEventId}
-              onChange={(e) => { setSelectedEventId(e.target.value); setCurrentPage(1); }}
+              onChange={(e) => { 
+                setSelectedEventId(e.target.value); 
+                setCurrentPage(1);
+                setSearchQuery("");
+                setDebouncedSearch("");
+                setAttendance([]);
+                setTotalRecords(0);
+              }}
               className="w-full h-12 sm:h-14 pl-12 pr-4 bg-white border border-slate-200 rounded-2xl text-xs sm:text-sm font-black text-slate-700 outline-none focus:ring-4 focus:ring-primary/5 transition-all appearance-none cursor-pointer"
             >
               <option value="">Select an Event</option>
@@ -425,16 +459,24 @@ export default function AttendanceRecordsPage() {
             <LuSearch className="absolute left-4 top-1/2 -translate-y-1/2 size-4 text-slate-400 group-focus-within:text-primary transition-colors" />
             <input 
               type="text"
-              placeholder="Search Name or Student ID..."
+              placeholder={selectedEventId ? "Search Name or Student ID to display record..." : "Select an event first..."}
               value={searchQuery}
               onChange={(e) => { setSearchQuery(e.target.value); setCurrentPage(1); }}
               disabled={!selectedEventId}
-              className="w-full h-12 sm:h-14 pl-12 pr-4 bg-white border border-slate-200 rounded-2xl text-xs sm:text-sm font-black text-slate-700 outline-none focus:ring-4 focus:ring-primary/5 transition-all disabled:bg-slate-50 disabled:cursor-not-allowed"
+              className="w-full h-12 sm:h-14 pl-12 pr-10 bg-white border border-slate-200 rounded-2xl text-xs sm:text-sm font-black text-slate-700 outline-none focus:ring-4 focus:ring-primary/5 transition-all disabled:bg-slate-50 disabled:cursor-not-allowed placeholder:font-medium placeholder:text-slate-400"
             />
             {searchQuery && (
               <button
-                onClick={() => { setSearchQuery(""); setCurrentPage(1); }}
-                className="absolute right-3.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 p-0.5 cursor-pointer"
+                type="button"
+                onClick={() => { 
+                  setSearchQuery(""); 
+                  setDebouncedSearch("");
+                  setAttendance([]);
+                  setTotalRecords(0);
+                  setCurrentPage(1); 
+                }}
+                className="absolute right-3.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 p-1 cursor-pointer rounded-lg hover:bg-slate-100 transition-colors"
+                title="Clear search"
               >
                 <LuX className="size-4" />
               </button>
@@ -498,7 +540,21 @@ export default function AttendanceRecordsPage() {
                     <tr>
                       <td colSpan={6} className="py-20 text-center">
                         <LuLoader className="size-8 text-primary animate-spin mx-auto mb-4" />
-                        <p className="text-xs font-black text-slate-400 uppercase tracking-widest">Fetching Logs...</p>
+                        <p className="text-xs font-black text-slate-400 uppercase tracking-widest">Searching Records...</p>
+                      </td>
+                    </tr>
+                  ) : !debouncedSearch ? (
+                    <tr>
+                      <td colSpan={6} className="py-20 text-center">
+                        <div className="size-16 rounded-3xl bg-primary/5 border border-primary/10 flex items-center justify-center mx-auto mb-4 text-primary">
+                          <LuSearch className="size-8" />
+                        </div>
+                        <h3 className="text-base font-black text-slate-800 tracking-tight mb-1.5">
+                          Search to Display Records
+                        </h3>
+                        <p className="text-xs sm:text-sm text-slate-400 font-medium max-w-sm mx-auto">
+                          Names are hidden by default. Use the search bar above to look up a student by name or student ID.
+                        </p>
                       </td>
                     </tr>
                   ) : attendance.length > 0 ? (
@@ -573,8 +629,13 @@ export default function AttendanceRecordsPage() {
                   ) : (
                     <tr>
                       <td colSpan={6} className="py-20 text-center">
-                        <LuInbox className="size-10 text-slate-200 mx-auto mb-4" />
-                        <p className="text-xs font-black text-slate-400 uppercase tracking-widest">No matching records found</p>
+                        <div className="size-16 rounded-3xl bg-slate-50 border border-slate-200/60 flex items-center justify-center mx-auto mb-4 text-slate-300">
+                          <LuInbox className="size-8" />
+                        </div>
+                        <h3 className="text-sm font-black text-slate-700 uppercase tracking-wider mb-1">No matching records found</h3>
+                        <p className="text-xs text-slate-400 font-medium max-w-sm mx-auto">
+                          No attendance record found matching &ldquo;{searchQuery}&rdquo; for this event.
+                        </p>
                       </td>
                     </tr>
                   )}
@@ -587,7 +648,19 @@ export default function AttendanceRecordsPage() {
               {loading ? (
                 <div className="py-16 text-center">
                   <LuLoader className="size-8 text-primary animate-spin mx-auto mb-3" />
-                  <p className="text-xs font-black text-slate-400 uppercase tracking-widest">Fetching Logs...</p>
+                  <p className="text-xs font-black text-slate-400 uppercase tracking-widest">Searching Records...</p>
+                </div>
+              ) : !debouncedSearch ? (
+                <div className="py-16 text-center px-4">
+                  <div className="size-16 rounded-3xl bg-primary/5 border border-primary/10 flex items-center justify-center mx-auto mb-4 text-primary">
+                    <LuSearch className="size-8" />
+                  </div>
+                  <h3 className="text-base font-black text-slate-800 tracking-tight mb-1.5">
+                    Search to Display Records
+                  </h3>
+                  <p className="text-xs text-slate-400 font-medium max-w-xs mx-auto">
+                    Names are hidden by default. Type a student&apos;s name or ID number above to view their attendance record.
+                  </p>
                 </div>
               ) : attendance.length > 0 ? (
                 attendance.map((row) => (
@@ -671,8 +744,13 @@ export default function AttendanceRecordsPage() {
                 ))
               ) : (
                 <div className="py-16 text-center px-4">
-                  <LuInbox className="size-10 text-slate-200 mx-auto mb-3" />
-                  <p className="text-xs font-black text-slate-400 uppercase tracking-widest">No matching records found</p>
+                  <div className="size-16 rounded-3xl bg-slate-50 border border-slate-200/60 flex items-center justify-center mx-auto mb-4 text-slate-300">
+                    <LuInbox className="size-8" />
+                  </div>
+                  <h3 className="text-sm font-black text-slate-700 uppercase tracking-wider mb-1">No matching records found</h3>
+                  <p className="text-xs text-slate-400 font-medium max-w-sm mx-auto">
+                    No attendance record found matching &ldquo;{searchQuery}&rdquo; for this event.
+                  </p>
                 </div>
               )}
             </div>
